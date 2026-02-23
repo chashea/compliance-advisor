@@ -6,5 +6,5 @@ azure-search-documents==11.6.0
 msgraph-beta-sdk>=1.5.0
 pyodbc==5.1.0
 requests==2.32.3
-pandas==2.2.2
+pandas==3.0.1
 openpyxl==3.1.5
