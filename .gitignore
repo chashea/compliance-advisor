@@ -1,0 +1,54 @@
+# ── Terraform ─────────────────────────────────────────────────────────────────
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfstate.lock.info
+*.tfvars              # Never commit — use CI/CD vars or -var flags instead
+*.tfvars.json
+.terraform.lock.hcl   # Committed intentionally — remove this line if you want to track it
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.python_packages/     # Azure Functions local package staging
+
+# ── Environment / secrets ─────────────────────────────────────────────────────
+.env
+.env.*
+local.settings.json   # Azure Functions local settings (contains connection strings)
+*.pem
+*.key
+*.p12
+*.pfx
+
+# ── Azure Functions ───────────────────────────────────────────────────────────
+bin/
+obj/
+.python_packages/
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# ── Test artifacts ────────────────────────────────────────────────────────────
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml

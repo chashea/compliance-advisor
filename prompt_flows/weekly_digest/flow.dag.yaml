@@ -1,0 +1,58 @@
+$schema: https://azuremlschemas.azureedge.net/promptflow/latest/Flow.schema.json
+name: weekly_digest
+description: >
+  Scheduled flow that generates a weekly compliance digest across all tenants
+  and posts it to a Teams webhook.
+
+inputs: {}
+# Note: no user-supplied inputs — the Teams webhook URL is retrieved from
+# Key Vault at runtime by post_to_teams.py via managed identity.
+
+outputs:
+  summary:
+    type: string
+    reference: ${generate_summary.output}
+  posted:
+    type: bool
+    reference: ${post_to_teams.output.success}
+
+nodes:
+  - name: fetch_scores
+    type: python
+    source:
+      type: code
+      path: nodes/fetch_scores.py
+    inputs: {}
+
+  - name: compute_gaps
+    type: python
+    source:
+      type: code
+      path: nodes/compute_gaps.py
+    inputs:
+      scores: ${fetch_scores.output}
+
+  - name: generate_summary
+    type: llm
+    source:
+      type: code
+      path: nodes/generate_summary.jinja2
+    inputs:
+      deployment_name: gpt-4o
+      temperature: 0.3
+      max_tokens: 1200
+      tenant_summaries: ${compute_gaps.output.tenant_summaries}
+      enterprise_rollup: ${compute_gaps.output.enterprise_rollup}
+      top_gaps: ${compute_gaps.output.top_gaps}
+      weekly_changes: ${compute_gaps.output.weekly_changes}
+      department_rollup: ${compute_gaps.output.department_rollup}
+    connection: azure_openai_connection
+    api: chat
+
+  - name: post_to_teams
+    type: python
+    source:
+      type: code
+      path: nodes/post_to_teams.py
+    inputs:
+      summary: ${generate_summary.output}

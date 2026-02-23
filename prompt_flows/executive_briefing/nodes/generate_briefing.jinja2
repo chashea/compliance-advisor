@@ -1,0 +1,75 @@
+system:
+You are a Microsoft Purview Compliance Manager executive briefing generator for a
+CISO. You produce clear, concise, and actionable compliance posture reports that
+can be shared directly with organizational leadership and department/agency heads.
+
+Write in a professional tone appropriate for a board audience. Avoid technical
+jargon — translate compliance controls into business risk language. Use concrete
+numbers and percentages. Flag anything that needs immediate attention.
+
+user:
+Generate an executive Compliance Manager posture briefing based on the following data.
+
+**Scope:** {{briefing_data.scope}}
+**Generated:** {{briefing_data.generated_at}}
+
+## Overall Compliance Posture
+- Tenants monitored: {{briefing_data.summary.total_tenants}}
+- Average Compliance Score: {{briefing_data.summary.avg_compliance_pct}}%
+- Score range: {{briefing_data.summary.min_compliance_pct}}% – {{briefing_data.summary.max_compliance_pct}}%
+- Active assessments: {{briefing_data.summary.total_assessments}}
+- Regulatory frameworks tracked: {{briefing_data.summary.regulations_tracked | join(', ')}}
+
+## Week-over-Week Trends
+- Improving: {{briefing_data.trend_summary.improving_count}} tenant(s)
+- Declining: {{briefing_data.trend_summary.declining_count}} tenant(s)
+- Stable: {{briefing_data.trend_summary.stable_count}} tenant(s)
+
+{% if briefing_data.trend_summary.top_improvers %}
+Top improvers:
+{% for t in briefing_data.trend_summary.top_improvers %}
+  - {{t.name}}: +{{t.change}}%
+{% endfor %}
+{% endif %}
+
+{% if briefing_data.trend_summary.top_decliners %}
+Top decliners (needs attention):
+{% for t in briefing_data.trend_summary.top_decliners %}
+  - {{t.name}}: {{t.change}}%
+{% endfor %}
+{% endif %}
+
+## Weakest Tenants
+{% for t in briefing_data.weakest_tenants %}
+- {{t.name}} ({{t.department or 'Unassigned'}}, Risk: {{t.risk_tier or 'Unrated'}}): {{t.compliance_pct}}%
+{% endfor %}
+
+## Department / Agency Rollup
+{% for d in briefing_data.department_rollup %}
+- {{d.department}}: {{d.avg_compliance_pct}}% avg ({{d.tenant_count}} tenant(s), {{d.total_assessments}} assessment(s), {{d.total_failed_controls}} failed controls)
+{% endfor %}
+
+{% if briefing_data.assessment_summary %}
+## Lowest-Scoring Assessments
+{% for a in briefing_data.assessment_summary %}
+- {{a.assessment_name}} ({{a.regulation}}): {{a.compliance_score or a.pass_rate}}% — {{a.passed_controls}}/{{a.total_controls}} controls passing — {{a.display_name}}
+{% endfor %}
+{% endif %}
+
+## Top Compliance Gaps (Highest Impact)
+{% for g in briefing_data.top_gaps %}
+- {{g.control_name}} [{{g.control_family}}]: {{g.implementation_status}} — {{g.points_gap}} point gap — {{g.regulation or ''}}
+{% endfor %}
+
+---
+
+Structure your briefing as follows:
+1. **Executive Summary** (3-4 sentences — lead with the compliance score, flag any urgent risks)
+2. **Trend Analysis** (Is the organization improving or declining? Call out specific movers)
+3. **Department Scorecard** (Rank departments, highlight who needs support)
+4. **Assessment Coverage** (Which regulations are well-covered vs. at risk)
+5. **Top 5 Recommended Actions** (Prioritized by compliance score impact, with business justification)
+6. **Risk Escalations** (Anything that needs leadership attention this week)
+
+Keep total length under 600 words. This will be shared with non-technical executives.
+Do not fabricate data — only reference numbers provided above.

@@ -1,0 +1,10 @@
+{
+  "scriptFile": "collect_compliance_data.py",
+  "bindings": [
+    {
+      "name": "tenant",
+      "type": "activityTrigger",
+      "direction": "in"
+    }
+  ]
+}

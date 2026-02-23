@@ -1,0 +1,59 @@
+$schema: https://azuremlschemas.azureedge.net/promptflow/latest/Flow.schema.json
+name: compliance_advisor
+description: >
+  RAG-powered compliance advisor. Given a user question and tenant context,
+  searches the compliance posture index and returns AI-generated guidance.
+
+inputs:
+  question:
+    type: string
+    description: "User's compliance question"
+  tenant_id:
+    type: string
+    description: "Entra tenant GUID to scope the search"
+  cross_tenant:
+    type: bool
+    default: false
+    description: "Set true to query across all tenants (enterprise rollup)"
+
+outputs:
+  answer:
+    type: string
+    reference: ${generate_response.output}
+  sources:
+    type: list
+    reference: ${search_posture.output.sources}
+
+nodes:
+  - name: search_posture
+    type: python
+    source:
+      type: code
+      path: nodes/search_posture.py
+    inputs:
+      question: ${inputs.question}
+      tenant_id: ${inputs.tenant_id}
+      cross_tenant: ${inputs.cross_tenant}
+
+  - name: search_frameworks
+    type: python
+    source:
+      type: code
+      path: nodes/search_frameworks.py
+    inputs:
+      question: ${inputs.question}
+
+  - name: generate_response
+    type: llm
+    source:
+      type: code
+      path: nodes/generate_response.jinja2
+    inputs:
+      deployment_name: gpt-4o
+      temperature: 0.2
+      max_tokens: 1500
+      question: ${inputs.question}
+      posture_context: ${search_posture.output.context}
+      framework_context: ${search_frameworks.output.context}
+    connection: azure_openai_connection
+    api: chat

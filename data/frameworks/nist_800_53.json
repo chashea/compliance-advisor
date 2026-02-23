@@ -1,0 +1,182 @@
+[
+  {
+    "framework": "NIST 800-53 Rev 5",
+    "control_id": "AC-2",
+    "control_title": "Account Management",
+    "description": "Manage information system accounts including establishing, activating, modifying, reviewing, disabling, and removing accounts.",
+    "guidance": "Organizations should implement automated mechanisms to support account management functions. This includes defining account types, assigning account managers, requiring approvals for account creation, enforcing usage conditions, monitoring account usage, and notifying managers when accounts are no longer required. Maps to Secure Score controls: MFA for admins, MFA for users, privileged identity management.",
+    "category": "Access Control",
+    "secure_score_categories": ["Identity"]
+  },
+  {
+    "framework": "NIST 800-53 Rev 5",
+    "control_id": "AC-3",
+    "control_title": "Access Enforcement",
+    "description": "Enforce approved authorizations for logical access to information and system resources in accordance with applicable access control policies.",
+    "guidance": "Implement role-based access control (RBAC) or attribute-based access control (ABAC). Enforce least privilege principles. Review and recertify access regularly. Maps to Conditional Access policies, Azure AD PIM, and group membership reviews in Secure Score.",
+    "category": "Access Control",
+    "secure_score_categories": ["Identity"]
+  },
+  {
+    "framework": "NIST 800-53 Rev 5",
+    "control_id": "AC-5",
+    "control_title": "Separation of Duties",
+    "description": "Separate duties of individuals as necessary to prevent malicious activity without collusion; document separation of duties of individuals.",
+    "guidance": "Ensure no single individual controls all aspects of a critical function. Use Azure AD PIM for just-in-time access, requiring approval workflows for privileged role activation. Relates to Secure Score's privileged identity management and admin MFA controls.",
+    "category": "Access Control",
+    "secure_score_categories": ["Identity"]
+  },
+  {
+    "framework": "NIST 800-53 Rev 5",
+    "control_id": "AC-6",
+    "control_title": "Least Privilege",
+    "description": "Employ the principle of least privilege, allowing only authorized accesses for users (or processes acting on behalf of users) which are necessary to accomplish assigned organizational tasks.",
+    "guidance": "Limit global admin role assignments. Use role-specific admin roles (e.g., Exchange Admin, SharePoint Admin) instead of Global Admin. Review standing privileged access. Azure AD PIM enforces just-in-time access. Maps to Secure Score admin role reduction controls.",
+    "category": "Access Control",
+    "secure_score_categories": ["Identity"]
+  },
+  {
+    "framework": "NIST 800-53 Rev 5",
+    "control_id": "AC-17",
+    "control_title": "Remote Access",
+    "description": "Establish and document usage restrictions, configuration/connection requirements, and implementation guidance for each type of remote access allowed.",
+    "guidance": "Require MFA for all remote access. Use Conditional Access policies to enforce compliant device requirements. Block legacy authentication protocols that bypass MFA. Maps to Secure Score MFA, Conditional Access, and legacy auth blocking controls.",
+    "category": "Access Control",
+    "secure_score_categories": ["Identity", "Device"]
+  },
+  {
+    "framework": "NIST 800-53 Rev 5",
+    "control_id": "AU-2",
+    "control_title": "Event Logging",
+    "description": "Identify the types of events that the system is capable of logging in support of the audit function and coordinate the event logging function with other organizations requiring audit-related information.",
+    "guidance": "Enable unified audit logging in Microsoft 365. Configure audit log retention for 90+ days (E3) or 1 year (E5). Enable mailbox auditing for all users. Maps to Secure Score audit log controls.",
+    "category": "Audit and Accountability",
+    "secure_score_categories": ["Data"]
+  },
+  {
+    "framework": "NIST 800-53 Rev 5",
+    "control_id": "AU-6",
+    "control_title": "Audit Record Review, Analysis, and Reporting",
+    "description": "Review and analyze system audit records for indications of inappropriate or unusual activity and report findings to appropriate organizational officials.",
+    "guidance": "Integrate Microsoft 365 audit logs with Microsoft Sentinel or a SIEM. Set up alert policies for high-risk activities (mass file downloads, admin role changes, mail forwarding rules). Maps to Secure Score Defender for Office 365 and alert policy controls.",
+    "category": "Audit and Accountability",
+    "secure_score_categories": ["Data", "Apps"]
+  },
+  {
+    "framework": "NIST 800-53 Rev 5",
+    "control_id": "AU-9",
+    "control_title": "Protection of Audit Information",
+    "description": "Protect audit information and audit tools from unauthorized access, modification, and deletion.",
+    "guidance": "Restrict access to the Microsoft 365 compliance portal to designated roles. Use audit log immutability features. Ensure audit logs are exported to an immutable storage system. Relates to audit log retention and access controls in Secure Score.",
+    "category": "Audit and Accountability",
+    "secure_score_categories": ["Data"]
+  },
+  {
+    "framework": "NIST 800-53 Rev 5",
+    "control_id": "CM-6",
+    "control_title": "Configuration Settings",
+    "description": "Establish and document configuration settings for technology products employed within the information system that reflect the most restrictive mode consistent with operational requirements.",
+    "guidance": "Use Microsoft Secure Score improvement actions to configure secure defaults across Exchange Online, SharePoint, Teams, and Azure AD. Enable security defaults or Conditional Access. Disable legacy authentication. Configure anti-spam, anti-malware, and Safe Links/Attachments.",
+    "category": "Configuration Management",
+    "secure_score_categories": ["Identity", "Apps", "Data"]
+  },
+  {
+    "framework": "NIST 800-53 Rev 5",
+    "control_id": "CM-7",
+    "control_title": "Least Functionality",
+    "description": "Configure the system to provide only essential capabilities, prohibiting or restricting the use of functions, ports, protocols, and services not required.",
+    "guidance": "Disable unused Exchange Online connectors and remote PowerShell for non-admins. Block legacy authentication protocols (IMAP, POP, SMTP AUTH) where not required. Use Conditional Access to restrict access by application. Maps to legacy auth blocking in Secure Score.",
+    "category": "Configuration Management",
+    "secure_score_categories": ["Identity", "Apps"]
+  },
+  {
+    "framework": "NIST 800-53 Rev 5",
+    "control_id": "IA-2",
+    "control_title": "Identification and Authentication (Organizational Users)",
+    "description": "Uniquely identify and authenticate organizational users and associate that identification and authentication with actions taken on the system.",
+    "guidance": "Require MFA for all users. Enforce phishing-resistant MFA (FIDO2/Windows Hello for Business) for privileged users. Eliminate password-only authentication. Use Azure AD as the identity provider. This is the single highest-impact Secure Score control family.",
+    "category": "Identification and Authentication",
+    "secure_score_categories": ["Identity"]
+  },
+  {
+    "framework": "NIST 800-53 Rev 5",
+    "control_id": "IA-5",
+    "control_title": "Authenticator Management",
+    "description": "Manage system authenticators (passwords, tokens, biometrics, PKI certificates) by verifying identity before distributing, protecting from unauthorized disclosure, changing default authenticators, and enforcing minimum password complexity.",
+    "guidance": "Enable Azure AD Password Protection to block common passwords. Enforce SSPR (Self-Service Password Reset). Disable password expiration for accounts with MFA (NIST 800-63B guidance). Use Microsoft Authenticator app push or FIDO2 keys. Maps to multiple Secure Score password and MFA controls.",
+    "category": "Identification and Authentication",
+    "secure_score_categories": ["Identity"]
+  },
+  {
+    "framework": "NIST 800-53 Rev 5",
+    "control_id": "IA-8",
+    "control_title": "Identification and Authentication (Non-Organizational Users)",
+    "description": "Uniquely identify and authenticate non-organizational users (or processes acting on behalf of non-organizational users) accessing organizational systems.",
+    "guidance": "Use Azure AD B2B for external user access. Require MFA for guest users via Conditional Access. Implement external collaboration settings to restrict guest invitations. Review and recertify guest access periodically. Maps to Secure Score guest user controls.",
+    "category": "Identification and Authentication",
+    "secure_score_categories": ["Identity"]
+  },
+  {
+    "framework": "NIST 800-53 Rev 5",
+    "control_id": "IR-4",
+    "control_title": "Incident Handling",
+    "description": "Implement an incident handling capability that includes preparation, detection, analysis, containment, eradication, and recovery.",
+    "guidance": "Use Microsoft Defender XDR for coordinated incident response across M365 workloads. Enable automated investigation and response (AIR). Configure alert policies and integrate with Microsoft Sentinel for SOAR capabilities. Maps to Secure Score Defender for Office 365 and Defender for Endpoint controls.",
+    "category": "Incident Response",
+    "secure_score_categories": ["Apps", "Device"]
+  },
+  {
+    "framework": "NIST 800-53 Rev 5",
+    "control_id": "RA-5",
+    "control_title": "Vulnerability Monitoring and Scanning",
+    "description": "Monitor and scan for vulnerabilities in the system and hosted applications periodically and when new vulnerabilities potentially affecting the system are identified.",
+    "guidance": "Use Microsoft Defender Vulnerability Management for endpoint vulnerability assessment. Enable Secure Score recommendations for patching and configuration hardening. Use Defender for Cloud Apps to detect shadow IT and risky app usage.",
+    "category": "Risk Assessment",
+    "secure_score_categories": ["Device", "Apps"]
+  },
+  {
+    "framework": "NIST 800-53 Rev 5",
+    "control_id": "SC-7",
+    "control_title": "Boundary Protection",
+    "description": "Monitor and control communications at the external boundary of the system and at key internal boundaries within the system.",
+    "guidance": "Use Exchange Online Protection (EOP) and Defender for Office 365 to filter inbound/outbound email. Enable Safe Links and Safe Attachments. Configure SPF, DKIM, and DMARC for email authentication. Use Conditional Access as a policy enforcement boundary for application access.",
+    "category": "System and Communications Protection",
+    "secure_score_categories": ["Apps", "Data"]
+  },
+  {
+    "framework": "NIST 800-53 Rev 5",
+    "control_id": "SC-28",
+    "control_title": "Protection of Information at Rest",
+    "description": "Implement cryptographic mechanisms to prevent unauthorized disclosure and modification of information at rest.",
+    "guidance": "Enable Microsoft Purview Information Protection sensitivity labels to encrypt sensitive data at rest. Use service-side encryption in SharePoint, Exchange, and Teams (enabled by default). Use Customer Key (E5) for additional control over encryption keys. Maps to Secure Score encryption and information protection controls.",
+    "category": "System and Communications Protection",
+    "secure_score_categories": ["Data"]
+  },
+  {
+    "framework": "NIST 800-53 Rev 5",
+    "control_id": "SI-3",
+    "control_title": "Malicious Code Protection",
+    "description": "Implement malicious code protection mechanisms at system entry and exit points and at workstations, servers, or mobile computing devices on the network.",
+    "guidance": "Enable Defender for Office 365 Safe Attachments and Safe Links. Enable Defender Antivirus on all endpoints. Configure anti-malware policies in Exchange Online Protection. Ensure real-time protection is enabled. Maps to multiple Secure Score malware protection controls.",
+    "category": "System and Information Integrity",
+    "secure_score_categories": ["Apps", "Device"]
+  },
+  {
+    "framework": "NIST 800-53 Rev 5",
+    "control_id": "SI-4",
+    "control_title": "System Monitoring",
+    "description": "Monitor the system to detect attacks, indicators of potential attacks, and unauthorized local, network, and remote connections.",
+    "guidance": "Enable Microsoft Defender for Identity to detect identity-based attacks (pass-the-hash, pass-the-ticket, etc.). Enable Defender for Cloud Apps anomaly detection policies. Use Azure AD Identity Protection risk policies to automatically respond to risky sign-ins.",
+    "category": "System and Information Integrity",
+    "secure_score_categories": ["Identity", "Apps"]
+  },
+  {
+    "framework": "NIST 800-53 Rev 5",
+    "control_id": "SI-12",
+    "control_title": "Information Management and Retention",
+    "description": "Manage and retain system information and system documentation in accordance with applicable laws, executive orders, directives, regulations, policies, standards, guidelines, and operational requirements.",
+    "guidance": "Use Microsoft Purview retention policies and retention labels to enforce data lifecycle management. Configure litigation hold for legal preservation. Use records management for regulatory compliance. Maps to Secure Score data governance controls.",
+    "category": "System and Information Integrity",
+    "secure_score_categories": ["Data"]
+  }
+]

@@ -1,0 +1,62 @@
+$schema: https://azuremlschemas.azureedge.net/promptflow/latest/Flow.schema.json
+name: executive_briefing
+description: >
+  Generates a structured executive briefing for CISO consumption.
+  Renders Compliance Manager score trends, assessment summaries,
+  department comparisons, and prioritized remediation actions.
+
+inputs:
+  scores:
+    type: list
+    description: "Current compliance scores per tenant from v_latest_compliance_scores"
+  trends:
+    type: list
+    description: "Week-over-week change data from v_compliance_weekly_change"
+  department_rollup:
+    type: list
+    description: "Department-level aggregation from v_compliance_department_rollup"
+  assessment_summary:
+    type: list
+    description: "Assessment pass rates from v_assessment_summary"
+  top_gaps:
+    type: list
+    description: "Top assessment control gaps from v_assessment_gaps"
+  department_filter:
+    type: string
+    default: ""
+    description: "Optional department filter — empty means enterprise-wide"
+
+outputs:
+  briefing:
+    type: string
+    reference: ${generate_briefing.output}
+  data:
+    type: object
+    reference: ${prepare_data.output}
+
+nodes:
+  - name: prepare_data
+    type: python
+    source:
+      type: code
+      path: nodes/prepare_briefing_data.py
+    inputs:
+      scores: ${inputs.scores}
+      trends: ${inputs.trends}
+      department_rollup: ${inputs.department_rollup}
+      assessment_summary: ${inputs.assessment_summary}
+      top_gaps: ${inputs.top_gaps}
+      department_filter: ${inputs.department_filter}
+
+  - name: generate_briefing
+    type: llm
+    source:
+      type: code
+      path: nodes/generate_briefing.jinja2
+    inputs:
+      deployment_name: gpt-4o
+      temperature: 0.2
+      max_tokens: 2000
+      briefing_data: ${prepare_data.output}
+    connection: azure_openai_connection
+    api: chat

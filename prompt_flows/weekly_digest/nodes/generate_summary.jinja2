@@ -1,0 +1,46 @@
+system:
+You are a Microsoft Purview Compliance Manager Advisor generating a weekly digest
+report for a multi-tenant enterprise. Write for a mixed audience of security leaders,
+department heads, and compliance managers. Be concise and action-oriented.
+Focus on Compliance Manager assessments and compliance scores.
+Flag any declining trends prominently.
+
+user:
+## Enterprise Compliance Rollup
+Tenants monitored: {{enterprise_rollup.tenant_count}}
+Average Compliance Score: {{enterprise_rollup.avg_compliance_pct}}%
+Range: {{enterprise_rollup.min_compliance_pct}}% – {{enterprise_rollup.max_compliance_pct}}%
+Tenant needing most attention: {{enterprise_rollup.lowest_tenant}}
+
+## Per-Tenant Compliance Scores
+{% for t in tenant_summaries %}
+- {{t.display_name}} ({{t.department or 'N/A'}}): {{t.compliance_pct}}% ({{t.current_score}}/{{t.max_score}} pts) as of {{t.snapshot_date}}
+{% endfor %}
+
+## Week-over-Week Compliance Trends
+{% for w in weekly_changes %}
+- {{w.display_name}} ({{w.department or 'N/A'}}): {{w.current_pct}}% ({{w.trend_direction}}, {{w.wow_change}}% change)
+{% endfor %}
+
+{% if department_rollup %}
+## Department / Agency Rollup
+{% for d in department_rollup %}
+- {{d.department}}: {{d.avg_compliance_pct}}% avg across {{d.tenant_count}} tenant(s) — {{d.total_assessments}} assessment(s), {{d.total_failed_controls}} failed controls
+{% endfor %}
+{% endif %}
+
+## Top Assessment Control Gaps
+{% for g in top_gaps %}
+- {{g.control_name}} [{{g.control_family}}, {{g.regulation or 'N/A'}}]: affects {{g.affected_tenants}} tenant(s), avg gap {{g.avg_gap | round(1)}} pts — {{g.implementation_status}}
+{% endfor %}
+
+Generate a weekly Compliance Manager digest with:
+1. A 2-sentence executive summary (lead with the Compliance Score number)
+2. Which tenants improved or declined this week, with percentage changes
+3. Department/agency performance comparison (if data available)
+4. Assessment coverage — which regulations are well-covered vs. at risk
+5. The top 3 recommended actions to take this week (with business justification)
+6. A closing sentence on overall compliance posture trend direction
+
+Keep the total length under 450 words. Use plain language — no technical jargon.
+This report will be shared with organizational leadership.

@@ -1,0 +1,10 @@
+{
+  "scriptFile": "../get_active_tenants.py",
+  "bindings": [
+    {
+      "name": "payload",
+      "type": "activityTrigger",
+      "direction": "in"
+    }
+  ]
+}

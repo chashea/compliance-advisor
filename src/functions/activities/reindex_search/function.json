@@ -1,0 +1,10 @@
+{
+  "scriptFile": "../reindex_search.py",
+  "bindings": [
+    {
+      "name": "payload",
+      "type": "activityTrigger",
+      "direction": "in"
+    }
+  ]
+}

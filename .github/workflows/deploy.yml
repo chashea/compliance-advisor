@@ -1,0 +1,256 @@
+name: Deploy Compliance Advisor
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Required for OIDC token federation — no long-lived credentials stored as secrets
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AZURE_RESOURCE_GROUP: rg-compliance-advisor-prod
+  TF_WORKING_DIR:       ./infra
+
+jobs:
+  # ── Security scan (runs first, blocks everything if it fails) ──────────────
+  security_scan:
+    name: Terraform Security Scan (tfsec)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.0
+        with:
+          working_directory: ${{ env.TF_WORKING_DIR }}
+          format: sarif
+          soft_fail: false
+
+      - name: Upload SARIF results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: results.sarif
+
+  # ── Dependency vulnerability scan ─────────────────────────────────────────
+  dep_scan:
+    name: Python Dependency Scan (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run pip-audit
+        run: |
+          pip install pip-audit
+          pip-audit -r src/functions/requirements.txt --strict
+
+  # ── Terraform plan (no apply — requires manual approval via environment) ───
+  plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    needs: [security_scan, dep_scan]
+    environment: prod-plan          # read-only environment, no approval gate needed
+    outputs:
+      function_app_name: ${{ steps.tf_output.outputs.function_app_name }}
+      search_endpoint:   ${{ steps.tf_output.outputs.search_endpoint }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id:       ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.7"
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        env:
+          ARM_CLIENT_ID:       ${{ vars.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID:       ${{ vars.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          ARM_USE_OIDC:        "true"
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        env:
+          ARM_CLIENT_ID:               ${{ vars.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID:               ${{ vars.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID:         ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          ARM_USE_OIDC:                "true"
+          TF_VAR_env:                  prod
+          TF_VAR_sql_admin_username:   ${{ secrets.SQL_ADMIN_USER }}
+          TF_VAR_sql_admin_password:   ${{ secrets.SQL_ADMIN_PASSWORD }}
+          TF_VAR_function_subnet_id:   ${{ vars.FUNCTION_SUBNET_ID }}
+          TF_VAR_security_alert_emails: ${{ vars.SECURITY_ALERT_EMAILS }}
+          TF_VAR_cors_allowed_origins:  ${{ vars.CORS_ALLOWED_ORIGINS }}
+        run: terraform plan -out=tfplan
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: ${{ env.TF_WORKING_DIR }}/tfplan
+          retention-days: 1
+
+  # ── Terraform apply (gated on manual approval via GitHub environment) ──────
+  apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    needs: plan
+    environment: prod-apply         # Configure this environment with required reviewers
+    outputs:
+      function_app_name: ${{ steps.tf_output.outputs.function_app_name }}
+      search_endpoint:   ${{ steps.tf_output.outputs.search_endpoint }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id:       ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.7"
+          terraform_wrapper: false
+
+      - name: Download plan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        env:
+          ARM_CLIENT_ID:       ${{ vars.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID:       ${{ vars.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          ARM_USE_OIDC:        "true"
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        env:
+          ARM_CLIENT_ID:       ${{ vars.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID:       ${{ vars.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          ARM_USE_OIDC:        "true"
+        run: terraform apply tfplan   # No -auto-approve: applies the pre-reviewed plan file only
+
+      - name: Capture Terraform outputs
+        id: tf_output
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        env:
+          ARM_CLIENT_ID:       ${{ vars.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID:       ${{ vars.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          ARM_USE_OIDC:        "true"
+        run: |
+          echo "function_app_name=$(terraform output -raw function_app_name)" >> "$GITHUB_OUTPUT"
+          echo "search_endpoint=$(terraform output -raw search_endpoint)"     >> "$GITHUB_OUTPUT"
+
+  # ── Search indexes ─────────────────────────────────────────────────────────
+  search:
+    name: Configure AI Search Indexes
+    runs-on: ubuntu-latest
+    needs: apply
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id:       ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install azure-search-documents
+
+      - name: Create / update search indexes
+        run: |
+          python scripts/setup_search_index.py \
+            --endpoint "${{ needs.apply.outputs.search_endpoint }}" \
+            --key      "${{ secrets.AZURE_SEARCH_ADMIN_KEY }}"
+
+  # ── Functions ──────────────────────────────────────────────────────────────
+  functions:
+    name: Deploy Azure Functions
+    runs-on: ubuntu-latest
+    needs: apply
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id:       ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: src/functions
+        run: pip install -r requirements.txt --target=".python_packages/lib/site-packages"
+
+      - name: Deploy to Function App
+        uses: azure/functions-action@v1
+        with:
+          app-name:                       ${{ needs.apply.outputs.function_app_name }}
+          package:                        ./src/functions
+          scm-do-build-during-deployment: false
+
+  # ── Prompt Flows ───────────────────────────────────────────────────────────
+  prompt_flows:
+    name: Deploy Prompt Flows to AI Foundry
+    runs-on: ubuntu-latest
+    needs: apply
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id:       ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install promptflow promptflow-azure
+
+      - name: Deploy compliance_advisor flow
+        run: |
+          pfazure flow create \
+            --flow            ./prompt_flows/compliance_advisor \
+            --resource-group  ${{ env.AZURE_RESOURCE_GROUP }} \
+            --workspace-name  ${{ secrets.AI_FOUNDRY_WORKSPACE }} \
+            --set             display_name="Compliance Advisor"
+
+      - name: Deploy weekly_digest flow
+        run: |
+          pfazure flow create \
+            --flow            ./prompt_flows/weekly_digest \
+            --resource-group  ${{ env.AZURE_RESOURCE_GROUP }} \
+            --workspace-name  ${{ secrets.AI_FOUNDRY_WORKSPACE }} \
+            --set             display_name="Weekly Digest"

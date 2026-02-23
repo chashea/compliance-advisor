@@ -1,0 +1,209 @@
+[
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "CC1.1",
+    "control_title": "COSO Principle 1: Demonstrates Commitment to Integrity and Ethical Values",
+    "description": "The entity demonstrates a commitment to integrity and ethical values.",
+    "guidance": "Document and communicate acceptable use policies and information security policies to all personnel. Use Microsoft Purview Communication Compliance to monitor for policy violations. Maintain a clear governance structure with assigned information security roles. Use Azure AD role assignments to enforce separation of duties and enforce documented responsibilities.",
+    "category": "Control Environment",
+    "secure_score_categories": ["Identity", "Apps"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "CC1.4",
+    "control_title": "COSO Principle 4: Demonstrates Commitment to Competence",
+    "description": "The entity demonstrates a commitment to attract, develop, and retain competent individuals in alignment with objectives.",
+    "guidance": "Use Microsoft Defender for Office 365 Attack Simulation Training to develop and measure security awareness competency. Assign training based on role (e.g., admin training for privileged users, phishing simulations for all users). Track training completion in the Microsoft 365 Defender portal. Document security training requirements as part of onboarding.",
+    "category": "Control Environment",
+    "secure_score_categories": ["Apps"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "CC2.1",
+    "control_title": "COSO Principle 13: Uses Relevant Information",
+    "description": "The entity obtains or generates and uses relevant, quality information to support the functioning of internal control.",
+    "guidance": "Enable Microsoft 365 Unified Audit Log to capture relevant security events. Use Microsoft Secure Score as a quantitative measure of control posture. Integrate audit logs with Microsoft Sentinel for correlation and reporting. Configure scheduled reports and alert policies to surface relevant security information to stakeholders.",
+    "category": "Communication and Information",
+    "secure_score_categories": ["Data"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "CC2.2",
+    "control_title": "COSO Principle 14: Communicates Internally",
+    "description": "The entity internally communicates information, including objectives and responsibilities for internal control, necessary to support the functioning of internal control.",
+    "guidance": "Use Microsoft Teams and SharePoint to communicate security policies and procedures internally. Configure Microsoft Purview Communication Compliance policies to monitor adherence. Send Secure Score notifications and alert summaries to security team members. Use weekly digest flows to communicate control gaps to management.",
+    "category": "Communication and Information",
+    "secure_score_categories": ["Apps"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "CC3.2",
+    "control_title": "COSO Principle 7: Identifies and Analyzes Risk",
+    "description": "The entity identifies risks to the achievement of its objectives across the entity and analyzes risks as a basis for determining how the risks should be managed.",
+    "guidance": "Use Microsoft Secure Score improvement actions to identify and prioritize security risks. Enable Microsoft Entra ID Protection to detect and analyze identity risk. Use Defender for Cloud Apps risk scores to assess third-party app risk. Review Secure Score recommendations regularly and document risk acceptance decisions for items not remediated.",
+    "category": "Risk Assessment",
+    "secure_score_categories": ["Identity", "Apps"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "CC4.1",
+    "control_title": "COSO Principle 16: Conducts Ongoing or Separate Evaluations",
+    "description": "The entity selects, develops, and performs ongoing and/or separate evaluations to ascertain whether the components of internal control are present and functioning.",
+    "guidance": "Review Microsoft Secure Score weekly for regression and improvement tracking. Conduct periodic Azure AD Access Reviews to recertify privileged and guest access. Use Microsoft Compliance Manager to assess compliance posture against regulatory frameworks. Schedule Defender Vulnerability Management reports for ongoing security posture evaluation.",
+    "category": "Monitoring Activities",
+    "secure_score_categories": ["Identity", "Device"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "CC5.2",
+    "control_title": "COSO Principle 10: Selects and Develops Control Activities",
+    "description": "The entity also selects and develops general control activities over technology to support the achievement of objectives.",
+    "guidance": "Apply Microsoft security baselines via Intune configuration profiles for all managed endpoints. Enable Secure Score baseline recommendations for Exchange Online, SharePoint, Teams, and Azure AD. Implement Conditional Access as the primary technology control for application access. Document control configurations and maintain baselines in version control.",
+    "category": "Control Activities",
+    "secure_score_categories": ["Identity", "Device", "Apps"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "CC6.1",
+    "control_title": "Logical and Physical Access Controls — Restricts Logical Access",
+    "description": "The entity implements logical access security software, infrastructure, and architectures over protected information assets to protect them from security events to meet the entity's objectives.",
+    "guidance": "Require MFA for all users via Conditional Access as the primary logical access control. Enforce device compliance policies via Intune. Block access from non-compliant or unregistered devices for sensitive applications. Implement Azure AD PIM for privileged role access with just-in-time activation. This is the highest-impact SOC 2 CC6 control area.",
+    "category": "Logical and Physical Access Controls",
+    "secure_score_categories": ["Identity", "Device"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "CC6.2",
+    "control_title": "Prior to Issuing System Credentials, Registers and Authorizes New Users",
+    "description": "Prior to issuing system credentials and granting system access, the entity registers and authorizes new internal and external users whose access is administered by the entity.",
+    "guidance": "Use Azure AD entitlement management to require approval workflows before granting access to sensitive resources. Implement HR-driven provisioning via SCIM to automate account creation based on HR system of record. Configure guest user invitation settings to restrict who can invite external users. Require manager approval for privileged role activation via PIM.",
+    "category": "Logical and Physical Access Controls",
+    "secure_score_categories": ["Identity"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "CC6.3",
+    "control_title": "Removes Access to Protected Information Assets When Appropriate",
+    "description": "The entity authorizes, modifies, or removes access to data, software, functions, and other protected information assets based on roles, responsibilities, or the system design and changes.",
+    "guidance": "Automate deprovisioning via HR-driven lifecycle workflows in Azure AD. Conduct periodic access reviews via Azure AD Access Reviews to identify and remove stale access. Configure automatic guest access expiration. Monitor for accounts that are no longer active and disable promptly. Maps to Secure Score stale account controls.",
+    "category": "Logical and Physical Access Controls",
+    "secure_score_categories": ["Identity"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "CC6.6",
+    "control_title": "Implements Logical Access Security Measures for External-Facing Components",
+    "description": "The entity implements logical access security measures to protect against threats from sources outside its system boundaries.",
+    "guidance": "Configure Exchange Online Protection and Microsoft Defender for Office 365 to filter inbound threats. Enable Safe Links and Safe Attachments. Configure DMARC, DKIM, and SPF for email authentication. Use Conditional Access to enforce MFA for external access. Block legacy authentication protocols that bypass security controls. Maps to multiple Secure Score email and identity controls.",
+    "category": "Logical and Physical Access Controls",
+    "secure_score_categories": ["Apps", "Identity"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "CC6.7",
+    "control_title": "Restricts Transmission, Movement, and Removal of Information",
+    "description": "The entity restricts the transmission, movement, and removal of information to authorized internal and external users and processes, and protects it during transmission.",
+    "guidance": "Deploy Microsoft Purview DLP policies across Exchange Online, SharePoint, OneDrive, Teams, and endpoints to prevent unauthorized exfiltration. Use sensitivity labels with encryption to control data movement. Configure Defender for Cloud Apps session policies to restrict download and sharing in browser sessions. Enable endpoint DLP to block transfer to removable media. Maps to Secure Score DLP controls.",
+    "category": "Logical and Physical Access Controls",
+    "secure_score_categories": ["Data", "Apps"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "CC6.8",
+    "control_title": "Prevents or Detects Against Unauthorized or Malicious Software",
+    "description": "The entity implements controls to prevent or detect and act upon the introduction of unauthorized or malicious software.",
+    "guidance": "Enable Microsoft Defender Antivirus with real-time protection, cloud-delivered protection, and tamper protection. Configure Defender for Endpoint attack surface reduction rules. Enable application control policies via Intune. Use Microsoft Defender Application Guard to isolate browser sessions. Enable Safe Attachments to detonate email attachments in a sandbox. Maps to Secure Score endpoint protection controls.",
+    "category": "Logical and Physical Access Controls",
+    "secure_score_categories": ["Device", "Apps"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "CC7.1",
+    "control_title": "Detects and Monitors for Configuration Changes",
+    "description": "To meet its objectives, the entity uses detection and monitoring procedures to identify (1) changes to configurations that result in the introduction of new vulnerabilities, and (2) susceptibilities to newly discovered vulnerabilities.",
+    "guidance": "Monitor Microsoft Secure Score for configuration drift and regression. Use Intune compliance policies to detect non-compliant device configurations. Enable Microsoft Defender Vulnerability Management to track configuration vulnerabilities. Configure alert policies for admin role changes, new OAuth app consents, and mail forwarding rule creation.",
+    "category": "System Operations",
+    "secure_score_categories": ["Device", "Identity"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "CC7.2",
+    "control_title": "Monitors System Components for Anomalous Behavior",
+    "description": "The entity monitors system components and the operation of those components for anomalies that are indicative of malicious acts, natural disasters, and errors affecting the entity's ability to meet its objectives.",
+    "guidance": "Enable Microsoft Entra ID Protection to detect anomalous sign-in behavior (impossible travel, unfamiliar locations, leaked credentials). Configure Defender for Cloud Apps anomaly detection policies. Enable Microsoft Defender for Identity to detect on-premises identity attacks. Use Microsoft Sentinel analytics rules for cross-workload threat detection and correlation.",
+    "category": "System Operations",
+    "secure_score_categories": ["Identity", "Apps"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "CC7.3",
+    "control_title": "Evaluates Security Events",
+    "description": "The entity evaluates security events to determine whether they could or have resulted in a failure of the entity to meet its objectives (security incidents) and, if so, takes actions to prevent or address such failures.",
+    "guidance": "Use Microsoft Defender XDR for centralized security event triage. Configure automated investigation and response (AIR) to evaluate and classify alerts. Integrate with Microsoft Sentinel for advanced SIEM correlation and SOAR playbook execution. Define escalation procedures for high-severity incidents. Review audit log alert policies regularly.",
+    "category": "System Operations",
+    "secure_score_categories": ["Apps", "Device"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "CC7.4",
+    "control_title": "Responds to Identified Security Incidents",
+    "description": "The entity responds to identified security incidents by executing a defined incident-response program to understand, contain, remediate, and communicate security incidents, as appropriate.",
+    "guidance": "Execute incident response using Microsoft Defender XDR — use the incident queue to manage, investigate, and resolve security incidents. Use Defender for Endpoint device isolation to contain compromised endpoints. Use Microsoft Sentinel playbooks (Azure Logic Apps) to automate response actions. Document incident response procedures and run tabletop exercises annually.",
+    "category": "System Operations",
+    "secure_score_categories": ["Apps", "Device"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "CC8.1",
+    "control_title": "Manages Changes to Infrastructure, Data, and Software",
+    "description": "The entity authorizes, designs, develops or acquires, configures, documents, tests, approves, and implements changes to infrastructure, data, software, and procedures to meet its objectives.",
+    "guidance": "Use GitHub or Azure DevOps with branch protection and required pull request reviews for infrastructure-as-code changes. Apply tfsec and pip-audit in CI/CD pipelines to validate changes before deployment. Require Azure PIM approval for changes to production configurations. Use Intune to enforce approved software deployment. Document change management procedures including rollback plans.",
+    "category": "Change Management",
+    "secure_score_categories": ["Device", "Apps"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "CC9.2",
+    "control_title": "Manages Vendor and Business Partner Risk",
+    "description": "The entity assesses and manages risks associated with vendors and business partners.",
+    "guidance": "Use Microsoft Defender for Cloud Apps to assess OAuth app risk scores and block over-privileged third-party apps. Implement admin consent policies to require review before granting app access to tenant data. Configure app governance policies for continuous monitoring. Review third-party integrations periodically and revoke access for decommissioned vendors.",
+    "category": "Risk Mitigation",
+    "secure_score_categories": ["Apps"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "A1.1",
+    "control_title": "Availability — Maintains Availability in Accordance with Objectives",
+    "description": "The entity maintains, monitors, and evaluates current processing capacity and use of system components to manage capacity demand and to enable the implementation of additional capacity to help meet its objectives.",
+    "guidance": "Monitor Microsoft 365 service health via the M365 Admin Center Service Health dashboard. Configure service health notifications for relevant workloads. Review Microsoft's published SLAs (99.9% uptime for M365 services). Use Microsoft 365 Business Continuity planning documentation. Configure Conditional Access resilience defaults to maintain access during Azure AD outages.",
+    "category": "Availability",
+    "secure_score_categories": ["Infrastructure"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "A1.2",
+    "control_title": "Availability — Monitors System Capacity",
+    "description": "The entity authorizes, designs, develops or acquires, implements, operates, approves, maintains, and monitors environmental protections, software, data backup processes, and recovery infrastructure to meet its objectives.",
+    "guidance": "Configure SharePoint and OneDrive version history and the recycle bin as first-line recovery mechanisms. Use Microsoft 365 Backup (where licensed) for point-in-time recovery. Test data recovery procedures at least annually. Document recovery time objectives (RTO) and recovery point objectives (RPO). Maintain backup documentation as part of business continuity planning.",
+    "category": "Availability",
+    "secure_score_categories": ["Data"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "C1.1",
+    "control_title": "Confidentiality — Identifies and Maintains Confidential Information",
+    "description": "The entity identifies and maintains confidential information to meet the entity's objectives related to confidentiality.",
+    "guidance": "Use Microsoft Purview Information Protection to classify, label, and protect confidential data. Configure auto-labeling policies to automatically identify and label sensitive data types (financial, health, PII). Maintain a data classification taxonomy aligned to business requirements. Map sensitivity labels to confidentiality tiers and apply appropriate protections (encryption, access restriction, watermarking).",
+    "category": "Confidentiality",
+    "secure_score_categories": ["Data"]
+  },
+  {
+    "framework": "SOC 2 (TSC 2017)",
+    "control_id": "C1.2",
+    "control_title": "Confidentiality — Disposes of Confidential Information",
+    "description": "The entity disposes of confidential information to meet the entity's objectives related to confidentiality.",
+    "guidance": "Configure Microsoft Purview retention policies with deletion actions to enforce disposal of confidential data when no longer required. Use retention labels with disposition review workflows for records requiring human approval before deletion. Implement auto-delete policies in Exchange Online for confidential mailbox content past retention period. Document data disposal procedures.",
+    "category": "Confidentiality",
+    "secure_score_categories": ["Data"]
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "scriptFile": "../collect_tenant_data.py",
+  "bindings": [
+    {
+      "name": "tenant",
+      "type": "activityTrigger",
+      "direction": "in"
+    }
+  ]
+}

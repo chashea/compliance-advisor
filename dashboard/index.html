@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compliance Advisor — Compliance Manager Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <header class="top-bar">
+    <div class="top-bar__brand">
+      <svg class="top-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      <h1>Compliance Advisor</h1>
+    </div>
+    <div class="top-bar__controls">
+      <select id="department-filter" aria-label="Filter by department">
+        <option value="">All Departments</option>
+      </select>
+      <select id="days-filter" aria-label="Trend period">
+        <option value="7">7 days</option>
+        <option value="30" selected>30 days</option>
+        <option value="60">60 days</option>
+        <option value="90">90 days</option>
+      </select>
+      <button id="refresh-btn" class="btn btn--primary" title="Refresh data">
+        ↻ Refresh
+      </button>
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <!-- ── Status Bar ──────────────────────────────────────────────────── -->
+    <section id="status-bar" class="status-bar">
+      <span class="status-bar__dot"></span>
+      <span id="status-text">Connecting…</span>
+    </section>
+
+    <!-- ── KPI Cards ───────────────────────────────────────────────────── -->
+    <section class="kpi-row">
+      <div class="kpi-card">
+        <span class="kpi-card__label">Avg Compliance Score</span>
+        <span class="kpi-card__value" id="kpi-avg">–</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Tenants Monitored</span>
+        <span class="kpi-card__value" id="kpi-tenants">–</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Active Assessments</span>
+        <span class="kpi-card__value" id="kpi-assessments">–</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Improving</span>
+        <span class="kpi-card__value kpi-card__value--good" id="kpi-improving">–</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Declining</span>
+        <span class="kpi-card__value kpi-card__value--bad" id="kpi-declining">–</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Failed Controls</span>
+        <span class="kpi-card__value kpi-card__value--bad" id="kpi-failed">–</span>
+      </div>
+    </section>
+
+    <!-- ── Charts Row 1 ────────────────────────────────────────────────── -->
+    <section class="chart-row">
+      <div class="card card--wide">
+        <h2 class="card__title">Compliance Score Trend</h2>
+        <div class="card__body chart-container">
+          <canvas id="trend-chart"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <h2 class="card__title">Department Compliance</h2>
+        <div class="card__body chart-container">
+          <canvas id="dept-chart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Charts Row 2 ────────────────────────────────────────────────── -->
+    <section class="chart-row">
+      <div class="card">
+        <h2 class="card__title">Regulation Coverage</h2>
+        <div class="card__body chart-container">
+          <canvas id="regulation-chart"></canvas>
+        </div>
+      </div>
+      <div class="card card--wide">
+        <h2 class="card__title">Control Family Gaps</h2>
+        <div class="card__body chart-container">
+          <canvas id="family-chart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Assessment Summary Table ────────────────────────────────────── -->
+    <section class="chart-row">
+      <div class="card card--full">
+        <h2 class="card__title">Assessment Summary</h2>
+        <div class="card__body">
+          <table class="data-table" id="assessment-table">
+            <thead>
+              <tr>
+                <th>Assessment</th>
+                <th>Regulation</th>
+                <th>Tenant</th>
+                <th>Score</th>
+                <th>Pass Rate</th>
+                <th>Passed</th>
+                <th>Failed</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Tables ──────────────────────────────────────────────────────── -->
+    <section class="chart-row">
+      <div class="card card--wide">
+        <h2 class="card__title">Week-over-Week Changes</h2>
+        <div class="card__body">
+          <table class="data-table" id="wow-table">
+            <thead>
+              <tr>
+                <th>Tenant</th>
+                <th>Department</th>
+                <th>Current</th>
+                <th>Prior</th>
+                <th>Change</th>
+                <th>Trend</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h2 class="card__title">Top Assessment Gaps</h2>
+        <div class="card__body">
+          <table class="data-table" id="gaps-table">
+            <thead>
+              <tr>
+                <th>Control</th>
+                <th>Family</th>
+                <th>Status</th>
+                <th>Impact</th>
+                <th>Gap</th>
+                <th>Owner</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Improvement Actions ───────────────────────────────────────────── -->
+    <section class="chart-row">
+      <div class="card card--full">
+        <div class="card__header">
+          <h2 class="card__title">Improvement Actions &amp; Solutions</h2>
+          <div class="actions-filters">
+            <select id="actions-impact-filter" aria-label="Filter by impact">
+              <option value="">All Impact</option>
+              <option value="high">High Impact</option>
+              <option value="medium">Medium Impact</option>
+              <option value="low">Low Impact</option>
+            </select>
+            <select id="actions-status-filter" aria-label="Filter by status">
+              <option value="">All Statuses</option>
+              <option value="notImplemented">Not Implemented</option>
+              <option value="planned">Planned</option>
+              <option value="alternative">Alternative</option>
+            </select>
+          </div>
+        </div>
+        <div class="card__body">
+          <div id="actions-summary" class="actions-summary"></div>
+          <table class="data-table data-table--actions" id="actions-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Control</th>
+                <th>Regulation</th>
+                <th>Status</th>
+                <th>Impact</th>
+                <th>Gap</th>
+                <th>Owner</th>
+                <th>Service</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Executive Briefing ──────────────────────────────────────────── -->
+    <section class="chart-row">
+      <div class="card card--full">
+        <div class="card__header">
+          <h2 class="card__title">Executive Briefing</h2>
+          <button id="generate-briefing-btn" class="btn btn--secondary">
+            Generate Briefing
+          </button>
+        </div>
+        <div class="card__body" id="briefing-content">
+          <p class="placeholder-text">
+            Click "Generate Briefing" to produce an AI-generated executive summary
+            for leadership consumption.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Ask the Advisor ─────────────────────────────────────────────── -->
+    <section class="chart-row">
+      <div class="card card--full">
+        <h2 class="card__title">Ask the Advisor</h2>
+        <div class="card__body">
+          <div class="ask-row">
+            <input type="text" id="ask-input" class="ask-input"
+                   placeholder="e.g. How are we tracking against NIST 800-53 assessments?">
+            <button id="ask-btn" class="btn btn--primary">Ask</button>
+          </div>
+          <div id="ask-response" class="ask-response"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>Compliance Advisor — Powered by Azure AI Foundry &amp; Microsoft Compliance Manager</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,137 @@
+[
+  {
+    "framework": "CIS Controls v8",
+    "control_id": "CIS-1",
+    "control_title": "Inventory and Control of Enterprise Assets",
+    "description": "Actively manage (inventory, track, and correct) all enterprise assets connected to the infrastructure, including end-user devices, network devices, IoT devices, and servers.",
+    "guidance": "Use Microsoft Intune device inventory and Microsoft Defender for Endpoint's device discovery to maintain an asset inventory. Ensure all devices are enrolled before accessing corporate resources via Conditional Access compliance policies. Maps to Secure Score device enrollment and compliance controls.",
+    "category": "Basic Hygiene (IG1)",
+    "secure_score_categories": ["Device"]
+  },
+  {
+    "framework": "CIS Controls v8",
+    "control_id": "CIS-2",
+    "control_title": "Inventory and Control of Software Assets",
+    "description": "Actively manage (inventory, track, and correct) all software on the network so that only authorized software is installed and can execute, and that unauthorized and unmanaged software is found and prevented from installation or execution.",
+    "guidance": "Use Microsoft Defender for Cloud Apps to discover and govern SaaS applications (shadow IT). Block unsanctioned apps via Defender for Cloud Apps access policies. Use Microsoft Intune to manage app deployment and enforce allowed/blocked app lists on mobile devices.",
+    "category": "Basic Hygiene (IG1)",
+    "secure_score_categories": ["Apps", "Device"]
+  },
+  {
+    "framework": "CIS Controls v8",
+    "control_id": "CIS-3",
+    "control_title": "Data Protection",
+    "description": "Develop processes and technical controls to identify, classify, securely handle, retain, and dispose of data.",
+    "guidance": "Deploy Microsoft Purview Information Protection to classify and label sensitive data. Configure auto-labeling policies for known sensitive data types. Use DLP policies to prevent exfiltration. Implement sensitivity labels with encryption for highly confidential data. Maps to multiple Secure Score data protection controls.",
+    "category": "Basic Hygiene (IG1)",
+    "secure_score_categories": ["Data"]
+  },
+  {
+    "framework": "CIS Controls v8",
+    "control_id": "CIS-4",
+    "control_title": "Secure Configuration of Enterprise Assets and Software",
+    "description": "Establish and maintain the secure configuration of enterprise assets and software.",
+    "guidance": "Apply Microsoft security baselines via Intune configuration profiles. Enable Secure Score baseline recommendations for Exchange, SharePoint, Teams, and Azure AD. Disable legacy authentication. Enable security defaults or implement Conditional Access. Disable macros in Office applications where not required.",
+    "category": "Basic Hygiene (IG1)",
+    "secure_score_categories": ["Identity", "Apps", "Device"]
+  },
+  {
+    "framework": "CIS Controls v8",
+    "control_id": "CIS-5",
+    "control_title": "Account Management",
+    "description": "Use processes and tools to assign and manage authorization to credentials for user accounts, including administrator accounts, as well as service accounts.",
+    "guidance": "Enforce MFA for all users and administrators. Use Azure AD PIM for privileged role activation with approval workflows and time-bound access. Remove unused accounts and stale guest access. Implement emergency access (break-glass) accounts with monitoring. Maps to Secure Score MFA and privileged access controls.",
+    "category": "Basic Hygiene (IG1)",
+    "secure_score_categories": ["Identity"]
+  },
+  {
+    "framework": "CIS Controls v8",
+    "control_id": "CIS-6",
+    "control_title": "Access Control Management",
+    "description": "Use processes and tools to create, assign, manage, and revoke access credentials and privileges for user, administrator, and service/application accounts.",
+    "guidance": "Implement Conditional Access policies as the primary access control mechanism. Require compliant devices and MFA for sensitive applications. Use Azure AD entitlement management for access request/approval workflows. Configure access reviews to recertify privileged and guest access regularly.",
+    "category": "Basic Hygiene (IG1)",
+    "secure_score_categories": ["Identity"]
+  },
+  {
+    "framework": "CIS Controls v8",
+    "control_id": "CIS-7",
+    "control_title": "Continuous Vulnerability Management",
+    "description": "Develop a plan to continuously assess and track vulnerabilities on all enterprise assets within the organization's infrastructure, in order to remediate and minimize the window of opportunity for attackers.",
+    "guidance": "Use Microsoft Defender Vulnerability Management for endpoint vulnerability tracking and prioritization. Monitor Secure Score improvement actions for configuration vulnerabilities. Enable Microsoft Defender for Identity to detect on-premises identity vulnerabilities. Apply patches via Intune and Windows Update for Business.",
+    "category": "Intermediate (IG2)",
+    "secure_score_categories": ["Device", "Infrastructure"]
+  },
+  {
+    "framework": "CIS Controls v8",
+    "control_id": "CIS-8",
+    "control_title": "Audit Log Management",
+    "description": "Collect, alert, review, and retain audit logs of events that could help detect, understand, or recover from an attack.",
+    "guidance": "Enable M365 Unified Audit Log with retention of at least 90 days (1 year with E5 or compliance add-on). Enable mailbox audit logging. Configure alert policies for high-risk audit events. Forward logs to Microsoft Sentinel or a SIEM for correlation. Maps to Secure Score audit log controls.",
+    "category": "Intermediate (IG2)",
+    "secure_score_categories": ["Data"]
+  },
+  {
+    "framework": "CIS Controls v8",
+    "control_id": "CIS-9",
+    "control_title": "Email and Web Browser Protections",
+    "description": "Improve protections and detections of threats from email and web vectors, as these are opportunities for attackers to manipulate human behavior through direct engagement.",
+    "guidance": "Enable Microsoft Defender for Office 365 Plan 1 or 2. Configure anti-phishing policies with impersonation protection. Enable Safe Links and Safe Attachments for all users. Enable DMARC, DKIM, and SPF. Configure zero-hour auto-purge (ZAP). Maps to multiple Secure Score email protection controls.",
+    "category": "Intermediate (IG2)",
+    "secure_score_categories": ["Apps"]
+  },
+  {
+    "framework": "CIS Controls v8",
+    "control_id": "CIS-10",
+    "control_title": "Malware Defenses",
+    "description": "Prevent or control the installation, spread, and execution of malicious applications, code, or scripts on enterprise assets.",
+    "guidance": "Enable Microsoft Defender Antivirus with real-time protection and cloud-delivered protection. Configure Defender for Endpoint attack surface reduction rules. Enable tamper protection. Use Microsoft Defender Application Guard for browsers. Maps to Secure Score endpoint protection controls.",
+    "category": "Intermediate (IG2)",
+    "secure_score_categories": ["Device", "Apps"]
+  },
+  {
+    "framework": "CIS Controls v8",
+    "control_id": "CIS-11",
+    "control_title": "Data Recovery",
+    "description": "Establish and maintain data recovery practices sufficient to restore in-scope enterprise assets to a pre-incident and trusted state.",
+    "guidance": "Configure SharePoint and OneDrive version history retention. Enable the Recycle Bin and second-stage recycle bin policies. Use Microsoft 365 Backup for additional protection. Test recovery procedures regularly. Maps to Secure Score data protection and retention controls.",
+    "category": "Intermediate (IG2)",
+    "secure_score_categories": ["Data"]
+  },
+  {
+    "framework": "CIS Controls v8",
+    "control_id": "CIS-12",
+    "control_title": "Network Infrastructure Management",
+    "description": "Establish, implement, and actively manage (track, report on, correct) network devices, in order to prevent attackers from exploiting vulnerable network services and access points.",
+    "guidance": "Use Conditional Access network location conditions to restrict access from untrusted networks. Use Named Locations to define trusted IP ranges. Consider Microsoft Entra Private Access (Global Secure Access) for zero-trust network access to on-premises resources.",
+    "category": "Intermediate (IG2)",
+    "secure_score_categories": ["Infrastructure", "Identity"]
+  },
+  {
+    "framework": "CIS Controls v8",
+    "control_id": "CIS-13",
+    "control_title": "Network Monitoring and Defense",
+    "description": "Operate processes and tooling to establish and maintain comprehensive network monitoring and defense against security threats across the enterprise's network infrastructure and user base.",
+    "guidance": "Use Microsoft Defender for Cloud Apps to monitor cloud app traffic and detect anomalous behavior. Enable Microsoft Entra ID Protection to detect risky sign-ins and users. Forward signals to Microsoft Sentinel for advanced correlation. Configure Conditional Access risk-based policies for automated response.",
+    "category": "Advanced (IG3)",
+    "secure_score_categories": ["Apps", "Identity"]
+  },
+  {
+    "framework": "CIS Controls v8",
+    "control_id": "CIS-14",
+    "control_title": "Security Awareness and Skills Training",
+    "description": "Establish and maintain a security awareness program to influence behavior among the workforce to be security conscious and properly skilled to reduce cybersecurity risks.",
+    "guidance": "Use Microsoft Defender for Office 365 Attack Simulation Training to run phishing simulations and targeted training. Track simulation results and completion in the Microsoft 365 Defender portal. Assign training modules to users who fail simulations. Maps to Secure Score attack simulation training control.",
+    "category": "Advanced (IG3)",
+    "secure_score_categories": ["Apps"]
+  },
+  {
+    "framework": "CIS Controls v8",
+    "control_id": "CIS-16",
+    "control_title": "Application Software Security",
+    "description": "Manage the security life cycle of in-house developed, hosted, or acquired software to prevent, detect, and remediate security weaknesses.",
+    "guidance": "Use Microsoft Defender for Cloud Apps to assess OAuth app risk and block over-privileged third-party apps. Review app consent grants and implement admin consent policies. Configure app governance policies. Maps to Secure Score risky OAuth app and app consent controls.",
+    "category": "Advanced (IG3)",
+    "secure_score_categories": ["Apps"]
+  }
+]
