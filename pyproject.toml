@@ -1,0 +1,10 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [
+    "src",
+    "src/functions",
+    "prompt_flows/compliance_advisor/nodes",
+    "prompt_flows/executive_briefing/nodes",
+    "prompt_flows/weekly_digest/nodes",
+]
+addopts = "-ra -q --tb=short"
