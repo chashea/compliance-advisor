@@ -45,16 +45,23 @@ Azure SQL  ──►  Azure AI Search  ──►  Azure AI Foundry (GPT-4o)
 ## Quick Start
 
 ### 1. Deploy Infrastructure
+
+Use the **[Deploy to Azure](#deploy-to-azure)** button at the top of this README for a one-click portal deployment, or run from the CLI:
+
 ```bash
-cd infra
+az group create --name rg-compliance-advisor-prod --location eastus
 
-terraform init
-
-terraform apply \
-  -var="env=prod" \
-  -var="sql_admin_username=sqladmin" \
-  -var="sql_admin_password=<password>"
+az deployment group create \
+  --resource-group rg-compliance-advisor-prod \
+  --template-file  azuredeploy.bicep \
+  --parameters \
+      environmentName=prod \
+      sqlAdminUsername=sqladmin \
+      sqlAdminPassword=<password> \
+      deployerObjectId=$(az ad signed-in-user show --query id -o tsv)
 ```
+
+Outputs (Function App name, SQL FQDN, Search endpoint, Key Vault URI) are shown in the portal and printed by the CLI.
 
 ### 2. Apply SQL Schema
 ```bash
@@ -168,7 +175,7 @@ window.COMPLIANCE_API_BASE = "https://<your-function-app>.azurewebsites.net/api/
 window.COMPLIANCE_API_KEY  = "<your-function-key>";  // omit when using SWA auth
 ```
 
-In production, CI/CD generates `env.js` automatically from the Terraform outputs.
+In production, CI/CD generates `env.js` automatically from the Bicep deployment outputs.
 
 ### Deploy as Azure Static Web App
 
@@ -259,8 +266,8 @@ python scripts/configure_weekly_schedule.py
 ## CI/CD
 
 Push to `main` triggers the GitHub Actions workflow which:
-1. Runs unit tests, Terraform security scan, and dependency audit in parallel
-2. Deploys Terraform infrastructure (manual approval gate)
+1. Runs unit tests and dependency audit in parallel
+2. Deploys Bicep infrastructure via `az deployment group create` (manual approval gate)
 3. Creates/updates AI Search indexes and seeds framework data
 4. Deploys Azure Functions
 5. Deploys Prompt Flows to AI Foundry and configures the weekly digest schedule
@@ -283,19 +290,18 @@ Push to `main` triggers the GitHub Actions workflow which:
 | `AZURE_CLIENT_ID` | Service principal / managed identity client ID (OIDC federation) |
 | `AZURE_TENANT_ID` | Entra ID tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
-| `FUNCTION_SUBNET_ID` | VNet subnet resource ID for Function App VNet integration |
-| `SECURITY_ALERT_EMAILS` | Comma-separated emails for SQL security alerts |
-| `CORS_ALLOWED_ORIGINS` | Comma-separated allowed origins for the Function App |
+| `SECURITY_ALERT_EMAILS` | Email address for SQL Defender alerts |
 
 The pipeline uses **OIDC federation** — no long-lived credentials are stored as secrets.
 The service principal needs **Contributor** on the resource group and **User Access Administrator**
-to assign the Key Vault Secrets User role to the Function App's managed identity.
+to assign role assignments within the resource group.
 
 ## Project Structure
 
 ```
 compliance-advisor/
-├── infra/                  # Terraform IaC (Key Vault, SQL, Search, Functions)
+├── azuredeploy.bicep       # Bicep IaC — all Azure resources in one file
+├── azuredeploy.json        # Compiled ARM template (generated — powers Deploy to Azure button)
 ├── src/
 │   ├── functions/          # Azure Durable Functions (timer, orchestrator, activities, HTTP API)
 │   └── shared/             # auth, graph_client, sql_client helpers

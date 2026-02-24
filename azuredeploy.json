@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "16148912351135922372"
+      "templateHash": "5049608484531355676"
     }
   },
   "parameters": {
@@ -53,6 +53,18 @@
       "type": "string",
       "metadata": {
         "description": "Object ID of the user/service principal running this deployment. Grants Key Vault Secrets Officer so secrets can be written during deployment. Run: az ad signed-in-user show --query id -o tsv"
+      }
+    },
+    "deployerPrincipalType": {
+      "type": "string",
+      "defaultValue": "User",
+      "allowedValues": [
+        "User",
+        "ServicePrincipal",
+        "Group"
+      ],
+      "metadata": {
+        "description": "Principal type of the deployer — \"User\" for interactive portal/CLI deployments, \"ServicePrincipal\" for CI/CD pipelines."
       }
     }
   },
@@ -125,7 +137,7 @@
       "properties": {
         "roleDefinitionId": "[variables('roleKvSecretsOfficer')]",
         "principalId": "[parameters('deployerObjectId')]",
-        "principalType": "User"
+        "principalType": "[parameters('deployerPrincipalType')]"
       },
       "dependsOn": [
         "[resourceId('Microsoft.KeyVault/vaults', format('kv-{0}', variables('prefix')))]"

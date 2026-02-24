@@ -35,6 +35,10 @@ param securityAlertEmail string = ''
 @description('Object ID of the user/service principal running this deployment. Grants Key Vault Secrets Officer so secrets can be written during deployment. Run: az ad signed-in-user show --query id -o tsv')
 param deployerObjectId string
 
+@description('Principal type of the deployer — "User" for interactive portal/CLI deployments, "ServicePrincipal" for CI/CD pipelines.')
+@allowed(['User', 'ServicePrincipal', 'Group'])
+param deployerPrincipalType string = 'User'
+
 // ── Naming ────────────────────────────────────────────────────────────────────
 
 var prefix = 'compliance-advisor-${environmentName}'
@@ -105,7 +109,7 @@ resource kvDeployerRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   properties: {
     roleDefinitionId: roleKvSecretsOfficer
     principalId     : deployerObjectId
-    principalType   : 'User'
+    principalType   : deployerPrincipalType
   }
 }
 

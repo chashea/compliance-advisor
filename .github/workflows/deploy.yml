@@ -9,35 +9,11 @@ on:
 permissions:
   id-token: write
   contents: read
-  security-events: write   # required to upload tfsec SARIF results
 
 env:
   AZURE_RESOURCE_GROUP: rg-compliance-advisor-prod
-  TF_WORKING_DIR:       ./infra
 
 jobs:
-  # ── Security scan (runs first, blocks everything if it fails) ──────────────
-  security_scan:
-    name: Terraform Security Scan (tfsec)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Run tfsec
-        uses: aquasecurity/tfsec-action@v1.0.0
-        with:
-          working_directory: ${{ env.TF_WORKING_DIR }}
-          format: sarif
-          additional_args: --out results.sarif
-          soft_fail: false
-
-      - name: Upload SARIF results
-        uses: github/codeql-action/upload-sarif@v4
-        if: always()
-        continue-on-error: true   # SARIF upload is best-effort; tfsec gate above is what blocks the pipeline
-        with:
-          sarif_file: ${{ env.TF_WORKING_DIR }}/results.sarif
-
   # ── Dependency vulnerability scan ─────────────────────────────────────────
   dep_scan:
     name: Python Dependency Scan (pip-audit)
@@ -81,69 +57,15 @@ jobs:
           path: coverage.xml
           retention-days: 7
 
-  # ── Terraform plan (no apply — requires manual approval via environment) ───
-  plan:
-    name: Terraform Plan
+  # ── Bicep infrastructure deployment (replaces Terraform plan + apply) ──────
+  infra:
+    name: Deploy Bicep Infrastructure
     runs-on: ubuntu-latest
-    needs: [security_scan, dep_scan, unit_tests]
-    environment: prod-plan          # read-only environment, no approval gate needed
-    outputs:
-      function_app_name: ${{ steps.tf_output.outputs.function_app_name }}
-      search_endpoint:   ${{ steps.tf_output.outputs.search_endpoint }}
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: azure/login@v2
-        with:
-          client-id:       ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id:       ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "~1.7"
-          terraform_wrapper: false
-
-      - name: Terraform Init
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        env:
-          ARM_CLIENT_ID:       ${{ vars.AZURE_CLIENT_ID }}
-          ARM_TENANT_ID:       ${{ vars.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-          ARM_USE_OIDC:        "true"
-        run: terraform init
-
-      - name: Terraform Plan
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        env:
-          ARM_CLIENT_ID:               ${{ vars.AZURE_CLIENT_ID }}
-          ARM_TENANT_ID:               ${{ vars.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID:         ${{ vars.AZURE_SUBSCRIPTION_ID }}
-          ARM_USE_OIDC:                "true"
-          TF_VAR_env:                  prod
-          TF_VAR_sql_admin_username:   ${{ secrets.SQL_ADMIN_USER }}
-          TF_VAR_sql_admin_password:   ${{ secrets.SQL_ADMIN_PASSWORD }}
-          TF_VAR_function_subnet_id:   ${{ vars.FUNCTION_SUBNET_ID }}
-          TF_VAR_security_alert_emails: ${{ vars.SECURITY_ALERT_EMAILS }}
-          TF_VAR_cors_allowed_origins:  ${{ vars.CORS_ALLOWED_ORIGINS }}
-        run: terraform plan -out=tfplan
-
-      - name: Upload plan artifact
-        uses: actions/upload-artifact@v6
-        with:
-          name: tfplan
-          path: ${{ env.TF_WORKING_DIR }}/tfplan
-          retention-days: 1
-
-  # ── Terraform apply (gated on manual approval via GitHub environment) ──────
-  apply:
-    name: Terraform Apply
-    runs-on: ubuntu-latest
-    needs: plan
+    needs: [unit_tests, dep_scan]
     environment: prod-apply         # Configure this environment with required reviewers
     outputs:
-      function_app_name: ${{ steps.tf_output.outputs.function_app_name }}
-      search_endpoint:   ${{ steps.tf_output.outputs.search_endpoint }}
+      function_app_name: ${{ steps.bicep_outputs.outputs.function_app_name }}
+      search_endpoint:   ${{ steps.bicep_outputs.outputs.search_endpoint }}
     steps:
       - uses: actions/checkout@v6
 
@@ -153,52 +75,45 @@ jobs:
           tenant-id:       ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "~1.7"
-          terraform_wrapper: false
-
-      - name: Download plan artifact
-        uses: actions/download-artifact@v7
-        with:
-          name: tfplan
-          path: ${{ env.TF_WORKING_DIR }}
-
-      - name: Terraform Init
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        env:
-          ARM_CLIENT_ID:       ${{ vars.AZURE_CLIENT_ID }}
-          ARM_TENANT_ID:       ${{ vars.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-          ARM_USE_OIDC:        "true"
-        run: terraform init
-
-      - name: Terraform Apply
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        env:
-          ARM_CLIENT_ID:       ${{ vars.AZURE_CLIENT_ID }}
-          ARM_TENANT_ID:       ${{ vars.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-          ARM_USE_OIDC:        "true"
-        run: terraform apply tfplan   # No -auto-approve: applies the pre-reviewed plan file only
-
-      - name: Capture Terraform outputs
-        id: tf_output
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        env:
-          ARM_CLIENT_ID:       ${{ vars.AZURE_CLIENT_ID }}
-          ARM_TENANT_ID:       ${{ vars.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-          ARM_USE_OIDC:        "true"
+      - name: Get service principal object ID
+        id: sp_lookup
         run: |
-          echo "function_app_name=$(terraform output -raw function_app_name)" >> "$GITHUB_OUTPUT"
-          echo "search_endpoint=$(terraform output -raw search_endpoint)"     >> "$GITHUB_OUTPUT"
+          SP_OID=$(az ad sp show --id "${{ vars.AZURE_CLIENT_ID }}" --query id -o tsv)
+          echo "oid=$SP_OID" >> "$GITHUB_OUTPUT"
+
+      - name: Create resource group if not exists
+        run: |
+          az group create \
+            --name     "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --location eastus \
+            --output   none
+
+      - name: Deploy Bicep template
+        run: |
+          az deployment group create \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --template-file  azuredeploy.bicep \
+            --parameters \
+                environmentName=prod \
+                sqlAdminUsername="${{ secrets.SQL_ADMIN_USER }}" \
+                sqlAdminPassword="${{ secrets.SQL_ADMIN_PASSWORD }}" \
+                securityAlertEmail="${{ vars.SECURITY_ALERT_EMAILS }}" \
+                deployerObjectId="${{ steps.sp_lookup.outputs.oid }}" \
+                deployerPrincipalType=ServicePrincipal \
+            --output json \
+            > deployment-output.json
+
+      - name: Capture Bicep outputs
+        id: bicep_outputs
+        run: |
+          echo "function_app_name=$(jq -r '.properties.outputs.functionAppName.value' deployment-output.json)" >> "$GITHUB_OUTPUT"
+          echo "search_endpoint=$(jq -r '.properties.outputs.searchEndpoint.value' deployment-output.json)"     >> "$GITHUB_OUTPUT"
 
   # ── Search indexes ─────────────────────────────────────────────────────────
   search:
     name: Configure AI Search Indexes
     runs-on: ubuntu-latest
-    needs: apply
+    needs: infra
     steps:
       - uses: actions/checkout@v6
 
@@ -217,12 +132,12 @@ jobs:
       - name: Create / update search index schemas
         run: |
           python scripts/setup_search_index.py \
-            --endpoint "${{ needs.apply.outputs.search_endpoint }}" \
+            --endpoint "${{ needs.infra.outputs.search_endpoint }}" \
             --key      "${{ secrets.AZURE_SEARCH_ADMIN_KEY }}"
 
       - name: Seed compliance-frameworks index
         env:
-          AZURE_SEARCH_ENDPOINT: ${{ needs.apply.outputs.search_endpoint }}
+          AZURE_SEARCH_ENDPOINT: ${{ needs.infra.outputs.search_endpoint }}
           AZURE_SEARCH_KEY:      ${{ secrets.AZURE_SEARCH_ADMIN_KEY }}
         run: python scripts/seed_frameworks_index.py
 
@@ -230,7 +145,7 @@ jobs:
   functions:
     name: Deploy Azure Functions
     runs-on: ubuntu-latest
-    needs: apply
+    needs: infra
     steps:
       - uses: actions/checkout@v6
 
@@ -251,7 +166,7 @@ jobs:
       - name: Deploy to Function App
         uses: azure/functions-action@v1
         with:
-          app-name:                       ${{ needs.apply.outputs.function_app_name }}
+          app-name:                       ${{ needs.infra.outputs.function_app_name }}
           package:                        ./src/functions
           scm-do-build-during-deployment: false
 
@@ -259,7 +174,7 @@ jobs:
   prompt_flows:
     name: Deploy Prompt Flows to AI Foundry
     runs-on: ubuntu-latest
-    needs: apply
+    needs: infra
     steps:
       - uses: actions/checkout@v6
 
@@ -309,7 +224,7 @@ jobs:
   dashboard:
     name: Deploy Dashboard (Static Web App)
     runs-on: ubuntu-latest
-    needs: apply
+    needs: infra
     steps:
       - uses: actions/checkout@v6
 
@@ -321,7 +236,7 @@ jobs:
         run: |
           cat > dashboard/env.js <<EOF
           // Generated by CI/CD — do not edit manually.
-          window.COMPLIANCE_API_BASE = "https://${{ needs.apply.outputs.function_app_name }}.azurewebsites.net/api/advisor";
+          window.COMPLIANCE_API_BASE = "https://${{ needs.infra.outputs.function_app_name }}.azurewebsites.net/api/advisor";
           window.COMPLIANCE_API_KEY  = "";
           EOF
 
