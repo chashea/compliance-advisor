@@ -4,6 +4,27 @@ An AI-powered compliance advisor that aggregates Microsoft Secure Score data
 across multiple M365 tenants and delivers natural-language insights via
 Azure AI Foundry Prompt Flows.
 
+## Deploy to Azure
+
+Click the button below to provision all infrastructure in your Azure subscription
+(Key Vault · SQL · AI Search · Azure OpenAI · AI Foundry Hub + Project · Azure Functions):
+
+[![Deploy to Azure](https://aka.ms/deploytoazure)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fchashea%2Fcompliance-advisor%2Fmain%2Fazuredeploy.json)
+
+**You will be prompted for:**
+| Parameter | Description |
+|-----------|-------------|
+| `environmentName` | Short label used in resource names (`dev`, `staging`, `prod`) |
+| `location` | Azure region — must support GPT-4o ([check availability](https://aka.ms/oai/models)) |
+| `sqlAdminUsername` | SQL Server admin login |
+| `sqlAdminPassword` | SQL Server admin password (≥ 12 chars, upper + lower + digit + symbol) |
+| `securityAlertEmail` | Email for SQL Defender alerts (optional) |
+| `deployerObjectId` | Your Azure AD Object ID — run `az ad signed-in-user show --query id -o tsv` in Cloud Shell |
+
+After the portal deployment completes, run the [post-deployment steps](#post-deployment-steps) below.
+
+---
+
 ## Architecture
 
 ```
@@ -80,6 +101,49 @@ chmod +x scripts/onboard_tenant.sh
 
 The client secret is read from **stdin** (not a CLI flag) to avoid appearing in
 shell history or process listings.
+
+## Post-Deployment Steps
+
+After the "Deploy to Azure" button deployment (or Terraform apply) completes:
+
+### Apply SQL Schema
+```bash
+sqlcmd -S <server>.database.windows.net -d ComplianceAdvisor -i sql/schema.sql
+```
+The server FQDN is shown in the portal deployment outputs as `sqlServerFqdn`.
+
+### Create AI Search Indexes and Seed Framework Data
+```bash
+pip install azure-search-documents azure-identity
+
+# Create index schemas
+python scripts/setup_search_index.py \
+  --endpoint <searchEndpoint>   # from deployment outputs
+  --key <admin-key>
+
+# Seed compliance-frameworks index (NIST, ISO 27001, SOC 2, CIS)
+export AZURE_SEARCH_ENDPOINT=<searchEndpoint>
+export AZURE_SEARCH_KEY=<admin-key>
+python scripts/seed_frameworks_index.py
+```
+
+### Deploy Function App Code
+```bash
+cd src/functions
+pip install -r requirements.txt --target=".python_packages/lib/site-packages"
+func azure functionapp publish <functionAppName>   # from deployment outputs
+```
+
+### Deploy Prompt Flows
+```bash
+pip install promptflow promptflow-azure
+pfazure flow create --flow ./prompt_flows/compliance_advisor \
+  --resource-group <rg> --workspace-name <aiFoundryProjectName>
+pfazure flow create --flow ./prompt_flows/executive_briefing \
+  --resource-group <rg> --workspace-name <aiFoundryProjectName>
+pfazure flow create --flow ./prompt_flows/weekly_digest \
+  --resource-group <rg> --workspace-name <aiFoundryProjectName>
+```
 
 ## Dashboard
 

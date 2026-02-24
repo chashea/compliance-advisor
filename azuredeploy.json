@@ -1,0 +1,592 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.39.26.7824",
+      "templateHash": "16148912351135922372"
+    }
+  },
+  "parameters": {
+    "environmentName": {
+      "type": "string",
+      "defaultValue": "prod",
+      "allowedValues": [
+        "dev",
+        "staging",
+        "prod"
+      ],
+      "maxLength": 8,
+      "metadata": {
+        "description": "Short environment label used in resource names (max 8 chars)."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region for all resources. Must support Azure OpenAI GPT-4o — see https://aka.ms/oai/models."
+      }
+    },
+    "sqlAdminUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "SQL Server administrator login name."
+      }
+    },
+    "sqlAdminPassword": {
+      "type": "securestring",
+      "minLength": 12,
+      "metadata": {
+        "description": "SQL Server administrator password (≥ 12 chars, must include upper, lower, digit, symbol)."
+      }
+    },
+    "securityAlertEmail": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Email address for SQL Defender threat-detection alerts. Leave blank to skip."
+      }
+    },
+    "deployerObjectId": {
+      "type": "string",
+      "metadata": {
+        "description": "Object ID of the user/service principal running this deployment. Grants Key Vault Secrets Officer so secrets can be written during deployment. Run: az ad signed-in-user show --query id -o tsv"
+      }
+    }
+  },
+  "variables": {
+    "prefix": "[format('compliance-advisor-{0}', parameters('environmentName'))]",
+    "uniq": "[uniqueString(resourceGroup().id)]",
+    "tags": {
+      "environment": "[parameters('environmentName')]",
+      "project": "compliance-advisor",
+      "managedBy": "arm-template"
+    },
+    "roleKvSecretsOfficer": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b86a8fe4-44ce-4948-aee5-eccb2c155cd7')]",
+    "roleKvSecretsUser": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]",
+    "roleCogOpenAIUser": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')]",
+    "roleCogOpenAIContributor": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'a001fd3d-188f-4b5d-821b-7da978bf7442')]",
+    "roleSearchIndexDataReader": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '1407120a-92aa-4202-b7e9-c0e197c71c8f')]",
+    "roleAcrPull": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2023-09-01",
+      "name": "[format('log-{0}', variables('prefix'))]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        },
+        "retentionInDays": 30
+      }
+    },
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[format('appi-{0}', variables('prefix'))]",
+      "location": "[parameters('location')]",
+      "kind": "web",
+      "tags": "[variables('tags')]",
+      "properties": {
+        "Application_Type": "web",
+        "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', format('log-{0}', variables('prefix')))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', format('log-{0}', variables('prefix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults",
+      "apiVersion": "2023-07-01",
+      "name": "[format('kv-{0}', variables('prefix'))]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "properties": {
+        "tenantId": "[subscription().tenantId]",
+        "sku": {
+          "family": "A",
+          "name": "standard"
+        },
+        "enableRbacAuthorization": true,
+        "softDeleteRetentionInDays": 90,
+        "enablePurgeProtection": true
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[format('Microsoft.KeyVault/vaults/{0}', format('kv-{0}', variables('prefix')))]",
+      "name": "[guid(resourceId('Microsoft.KeyVault/vaults', format('kv-{0}', variables('prefix'))), parameters('deployerObjectId'), 'SecretsOfficer')]",
+      "properties": {
+        "roleDefinitionId": "[variables('roleKvSecretsOfficer')]",
+        "principalId": "[parameters('deployerObjectId')]",
+        "principalType": "User"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', format('kv-{0}', variables('prefix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Search/searchServices",
+      "apiVersion": "2024-03-01-preview",
+      "name": "[format('srch-{0}', variables('prefix'))]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "sku": {
+        "name": "basic"
+      },
+      "properties": {
+        "replicaCount": 1,
+        "partitionCount": 1,
+        "semanticSearch": "free"
+      }
+    },
+    {
+      "type": "Microsoft.CognitiveServices/accounts",
+      "apiVersion": "2024-04-01-preview",
+      "name": "[format('oai-{0}', variables('prefix'))]",
+      "location": "[parameters('location')]",
+      "kind": "OpenAI",
+      "tags": "[variables('tags')]",
+      "sku": {
+        "name": "S0"
+      },
+      "properties": {
+        "customSubDomainName": "[format('oai{0}', variables('uniq'))]"
+      }
+    },
+    {
+      "type": "Microsoft.CognitiveServices/accounts/deployments",
+      "apiVersion": "2024-04-01-preview",
+      "name": "[format('{0}/{1}', format('oai-{0}', variables('prefix')), 'gpt-4o')]",
+      "sku": {
+        "name": "Standard",
+        "capacity": 10
+      },
+      "properties": {
+        "model": {
+          "format": "OpenAI",
+          "name": "gpt-4o",
+          "version": "2024-11-20"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.CognitiveServices/accounts', format('oai-{0}', variables('prefix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Sql/servers",
+      "apiVersion": "2023-08-01-preview",
+      "name": "[format('sql-{0}', variables('prefix'))]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "properties": {
+        "administratorLogin": "[parameters('sqlAdminUsername')]",
+        "administratorLoginPassword": "[parameters('sqlAdminPassword')]",
+        "minimalTlsVersion": "1.2"
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/firewallRules",
+      "apiVersion": "2023-08-01-preview",
+      "name": "[format('{0}/{1}', format('sql-{0}', variables('prefix')), 'AllowAzureServices')]",
+      "properties": {
+        "startIpAddress": "0.0.0.0",
+        "endIpAddress": "0.0.0.0"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', format('sql-{0}', variables('prefix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases",
+      "apiVersion": "2023-08-01-preview",
+      "name": "[format('{0}/{1}', format('sql-{0}', variables('prefix')), 'ComplianceAdvisor')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "sku": {
+        "name": "GP_S_Gen5_1",
+        "tier": "GeneralPurpose",
+        "family": "Gen5",
+        "capacity": 1
+      },
+      "properties": {
+        "collation": "SQL_Latin1_General_CP1_CI_AS",
+        "licenseType": "LicenseIncluded",
+        "minCapacity": "[json('0.5')]",
+        "autoPauseDelay": 60
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', format('sql-{0}', variables('prefix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Sql/servers/securityAlertPolicies",
+      "apiVersion": "2023-08-01-preview",
+      "name": "[format('{0}/{1}', format('sql-{0}', variables('prefix')), 'Default')]",
+      "properties": {
+        "state": "Enabled",
+        "emailAddresses": "[if(empty(parameters('securityAlertEmail')), createArray(), createArray(parameters('securityAlertEmail')))]",
+        "retentionDays": 30
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', format('sql-{0}', variables('prefix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-05-01",
+      "name": "[format('staih{0}', variables('uniq'))]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "kind": "StorageV2",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "properties": {
+        "minimumTlsVersion": "TLS1_2",
+        "supportsHttpsTrafficOnly": true
+      }
+    },
+    {
+      "type": "Microsoft.ContainerRegistry/registries",
+      "apiVersion": "2023-07-01",
+      "name": "[format('acr{0}', variables('uniq'))]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "sku": {
+        "name": "Basic"
+      },
+      "properties": {
+        "adminUserEnabled": false
+      }
+    },
+    {
+      "type": "Microsoft.MachineLearningServices/workspaces",
+      "apiVersion": "2024-04-01",
+      "name": "[format('aih-{0}', variables('prefix'))]",
+      "location": "[parameters('location')]",
+      "kind": "Hub",
+      "tags": "[variables('tags')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "applicationInsights": "[resourceId('Microsoft.Insights/components', format('appi-{0}', variables('prefix')))]",
+        "keyVault": "[resourceId('Microsoft.KeyVault/vaults', format('kv-{0}', variables('prefix')))]",
+        "storageAccount": "[resourceId('Microsoft.Storage/storageAccounts', format('staih{0}', variables('uniq')))]",
+        "containerRegistry": "[resourceId('Microsoft.ContainerRegistry/registries', format('acr{0}', variables('uniq')))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ContainerRegistry/registries', format('acr{0}', variables('uniq')))]",
+        "[resourceId('Microsoft.Insights/components', format('appi-{0}', variables('prefix')))]",
+        "[resourceId('Microsoft.KeyVault/vaults', format('kv-{0}', variables('prefix')))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', format('staih{0}', variables('uniq')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.MachineLearningServices/workspaces",
+      "apiVersion": "2024-04-01",
+      "name": "[format('aip-{0}', variables('prefix'))]",
+      "location": "[parameters('location')]",
+      "kind": "Project",
+      "tags": "[variables('tags')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "hubResourceId": "[resourceId('Microsoft.MachineLearningServices/workspaces', format('aih-{0}', variables('prefix')))]",
+        "applicationInsights": "[resourceId('Microsoft.Insights/components', format('appi-{0}', variables('prefix')))]",
+        "keyVault": "[resourceId('Microsoft.KeyVault/vaults', format('kv-{0}', variables('prefix')))]",
+        "storageAccount": "[resourceId('Microsoft.Storage/storageAccounts', format('staih{0}', variables('uniq')))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.MachineLearningServices/workspaces', format('aih-{0}', variables('prefix')))]",
+        "[resourceId('Microsoft.Insights/components', format('appi-{0}', variables('prefix')))]",
+        "[resourceId('Microsoft.KeyVault/vaults', format('kv-{0}', variables('prefix')))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', format('staih{0}', variables('uniq')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.MachineLearningServices/workspaces/connections",
+      "apiVersion": "2024-04-01",
+      "name": "[format('{0}/{1}', format('aih-{0}', variables('prefix')), 'azure-openai')]",
+      "properties": {
+        "authType": "ApiKey",
+        "category": "AzureOpenAI",
+        "target": "[reference(resourceId('Microsoft.CognitiveServices/accounts', format('oai-{0}', variables('prefix'))), '2024-04-01-preview').endpoint]",
+        "credentials": {
+          "key": "[listKeys(resourceId('Microsoft.CognitiveServices/accounts', format('oai-{0}', variables('prefix'))), '2024-04-01-preview').key1]"
+        },
+        "metadata": {
+          "ApiType": "Azure",
+          "ApiVersion": "2024-05-01-preview",
+          "DeploymentApiVersion": "2023-10-01-preview"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.MachineLearningServices/workspaces', format('aih-{0}', variables('prefix')))]",
+        "[resourceId('Microsoft.CognitiveServices/accounts', format('oai-{0}', variables('prefix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.MachineLearningServices/workspaces/connections",
+      "apiVersion": "2024-04-01",
+      "name": "[format('{0}/{1}', format('aih-{0}', variables('prefix')), 'azure-ai-search')]",
+      "properties": {
+        "authType": "ApiKey",
+        "category": "CognitiveSearch",
+        "target": "[format('https://{0}.search.windows.net', format('srch-{0}', variables('prefix')))]",
+        "credentials": {
+          "key": "[listAdminKeys(resourceId('Microsoft.Search/searchServices', format('srch-{0}', variables('prefix'))), '2024-03-01-preview').primaryKey]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.MachineLearningServices/workspaces', format('aih-{0}', variables('prefix')))]",
+        "[resourceId('Microsoft.Search/searchServices', format('srch-{0}', variables('prefix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-05-01",
+      "name": "[format('stfunc{0}', variables('uniq'))]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "kind": "StorageV2",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "properties": {
+        "minimumTlsVersion": "TLS1_2",
+        "supportsHttpsTrafficOnly": true
+      }
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2023-12-01",
+      "name": "[format('asp-{0}', variables('prefix'))]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "kind": "linux",
+      "sku": {
+        "name": "Y1",
+        "tier": "Dynamic"
+      },
+      "properties": {
+        "reserved": true
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2023-12-01",
+      "name": "[format('func-{0}', variables('prefix'))]",
+      "location": "[parameters('location')]",
+      "kind": "functionapp,linux",
+      "tags": "[variables('tags')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', format('asp-{0}', variables('prefix')))]",
+        "httpsOnly": true,
+        "siteConfig": {
+          "linuxFxVersion": "Python|3.11",
+          "minTlsVersion": "1.2",
+          "ftpsState": "Disabled",
+          "appSettings": [
+            {
+              "name": "FUNCTIONS_EXTENSION_VERSION",
+              "value": "~4"
+            },
+            {
+              "name": "FUNCTIONS_WORKER_RUNTIME",
+              "value": "python"
+            },
+            {
+              "name": "AzureWebJobsStorage",
+              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', format('stfunc{0}', variables('uniq')), listKeys(resourceId('Microsoft.Storage/storageAccounts', format('stfunc{0}', variables('uniq'))), '2023-05-01').keys[0].value, environment().suffixes.storage)]"
+            },
+            {
+              "name": "KEY_VAULT_URL",
+              "value": "[reference(resourceId('Microsoft.KeyVault/vaults', format('kv-{0}', variables('prefix'))), '2023-07-01').vaultUri]"
+            },
+            {
+              "name": "AZURE_SEARCH_ENDPOINT",
+              "value": "[format('https://{0}.search.windows.net', format('srch-{0}', variables('prefix')))]"
+            },
+            {
+              "name": "AZURE_SEARCH_INDEX_NAME",
+              "value": "compliance-posture"
+            },
+            {
+              "name": "AZURE_OPENAI_ENDPOINT",
+              "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', format('oai-{0}', variables('prefix'))), '2024-04-01-preview').endpoint]"
+            },
+            {
+              "name": "AZURE_OPENAI_DEPLOYMENT_NAME",
+              "value": "gpt-4o"
+            },
+            {
+              "name": "AZURE_OPENAI_API_VERSION",
+              "value": "2024-05-01-preview"
+            },
+            {
+              "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+              "value": "[reference(resourceId('Microsoft.Insights/components', format('appi-{0}', variables('prefix'))), '2020-02-02').ConnectionString]"
+            },
+            {
+              "name": "MSSQL_CONNECTION",
+              "value": "[format('Driver={{ODBC Driver 18 for SQL Server}};Server=tcp:{0},1433;Database=ComplianceAdvisor;Uid={1};Pwd={2};Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;', reference(resourceId('Microsoft.Sql/servers', format('sql-{0}', variables('prefix'))), '2023-08-01-preview').fullyQualifiedDomainName, parameters('sqlAdminUsername'), parameters('sqlAdminPassword'))]"
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', format('appi-{0}', variables('prefix')))]",
+        "[resourceId('Microsoft.Web/serverfarms', format('asp-{0}', variables('prefix')))]",
+        "[resourceId('Microsoft.CognitiveServices/accounts/deployments', format('oai-{0}', variables('prefix')), 'gpt-4o')]",
+        "[resourceId('Microsoft.KeyVault/vaults', format('kv-{0}', variables('prefix')))]",
+        "[resourceId('Microsoft.CognitiveServices/accounts', format('oai-{0}', variables('prefix')))]",
+        "[resourceId('Microsoft.Search/searchServices', format('srch-{0}', variables('prefix')))]",
+        "[resourceId('Microsoft.Sql/servers', format('sql-{0}', variables('prefix')))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', format('stfunc{0}', variables('uniq')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[format('Microsoft.KeyVault/vaults/{0}', format('kv-{0}', variables('prefix')))]",
+      "name": "[guid(resourceId('Microsoft.KeyVault/vaults', format('kv-{0}', variables('prefix'))), resourceId('Microsoft.Web/sites', format('func-{0}', variables('prefix'))), 'SecretsUser')]",
+      "properties": {
+        "roleDefinitionId": "[variables('roleKvSecretsUser')]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites', format('func-{0}', variables('prefix'))), '2023-12-01', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', format('func-{0}', variables('prefix')))]",
+        "[resourceId('Microsoft.KeyVault/vaults', format('kv-{0}', variables('prefix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[format('Microsoft.CognitiveServices/accounts/{0}', format('oai-{0}', variables('prefix')))]",
+      "name": "[guid(resourceId('Microsoft.CognitiveServices/accounts', format('oai-{0}', variables('prefix'))), resourceId('Microsoft.Web/sites', format('func-{0}', variables('prefix'))), 'OpenAIUser')]",
+      "properties": {
+        "roleDefinitionId": "[variables('roleCogOpenAIUser')]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites', format('func-{0}', variables('prefix'))), '2023-12-01', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', format('func-{0}', variables('prefix')))]",
+        "[resourceId('Microsoft.CognitiveServices/accounts', format('oai-{0}', variables('prefix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[format('Microsoft.CognitiveServices/accounts/{0}', format('oai-{0}', variables('prefix')))]",
+      "name": "[guid(resourceId('Microsoft.CognitiveServices/accounts', format('oai-{0}', variables('prefix'))), resourceId('Microsoft.MachineLearningServices/workspaces', format('aip-{0}', variables('prefix'))), 'OpenAIContributor')]",
+      "properties": {
+        "roleDefinitionId": "[variables('roleCogOpenAIContributor')]",
+        "principalId": "[reference(resourceId('Microsoft.MachineLearningServices/workspaces', format('aip-{0}', variables('prefix'))), '2024-04-01', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.MachineLearningServices/workspaces', format('aip-{0}', variables('prefix')))]",
+        "[resourceId('Microsoft.CognitiveServices/accounts', format('oai-{0}', variables('prefix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[format('Microsoft.Search/searchServices/{0}', format('srch-{0}', variables('prefix')))]",
+      "name": "[guid(resourceId('Microsoft.Search/searchServices', format('srch-{0}', variables('prefix'))), resourceId('Microsoft.MachineLearningServices/workspaces', format('aip-{0}', variables('prefix'))), 'SearchIndexDataReader')]",
+      "properties": {
+        "roleDefinitionId": "[variables('roleSearchIndexDataReader')]",
+        "principalId": "[reference(resourceId('Microsoft.MachineLearningServices/workspaces', format('aip-{0}', variables('prefix'))), '2024-04-01', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.MachineLearningServices/workspaces', format('aip-{0}', variables('prefix')))]",
+        "[resourceId('Microsoft.Search/searchServices', format('srch-{0}', variables('prefix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[format('Microsoft.ContainerRegistry/registries/{0}', format('acr{0}', variables('uniq')))]",
+      "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', format('acr{0}', variables('uniq'))), resourceId('Microsoft.MachineLearningServices/workspaces', format('aih-{0}', variables('prefix'))), 'AcrPull')]",
+      "properties": {
+        "roleDefinitionId": "[variables('roleAcrPull')]",
+        "principalId": "[reference(resourceId('Microsoft.MachineLearningServices/workspaces', format('aih-{0}', variables('prefix'))), '2024-04-01', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ContainerRegistry/registries', format('acr{0}', variables('uniq')))]",
+        "[resourceId('Microsoft.MachineLearningServices/workspaces', format('aih-{0}', variables('prefix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/secrets",
+      "apiVersion": "2023-07-01",
+      "name": "[format('{0}/{1}', format('kv-{0}', variables('prefix')), 'azure-search-key')]",
+      "properties": {
+        "value": "[listAdminKeys(resourceId('Microsoft.Search/searchServices', format('srch-{0}', variables('prefix'))), '2024-03-01-preview').primaryKey]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', format('kv-{0}', variables('prefix')))]",
+        "[extensionResourceId(resourceId('Microsoft.KeyVault/vaults', format('kv-{0}', variables('prefix'))), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.KeyVault/vaults', format('kv-{0}', variables('prefix'))), parameters('deployerObjectId'), 'SecretsOfficer'))]",
+        "[resourceId('Microsoft.Search/searchServices', format('srch-{0}', variables('prefix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/secrets",
+      "apiVersion": "2023-07-01",
+      "name": "[format('{0}/{1}', format('kv-{0}', variables('prefix')), 'azure-openai-api-key')]",
+      "properties": {
+        "value": "[listKeys(resourceId('Microsoft.CognitiveServices/accounts', format('oai-{0}', variables('prefix'))), '2024-04-01-preview').key1]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', format('kv-{0}', variables('prefix')))]",
+        "[extensionResourceId(resourceId('Microsoft.KeyVault/vaults', format('kv-{0}', variables('prefix'))), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.KeyVault/vaults', format('kv-{0}', variables('prefix'))), parameters('deployerObjectId'), 'SecretsOfficer'))]",
+        "[resourceId('Microsoft.CognitiveServices/accounts', format('oai-{0}', variables('prefix')))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "functionAppName": {
+      "type": "string",
+      "value": "[format('func-{0}', variables('prefix'))]"
+    },
+    "sqlServerFqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Sql/servers', format('sql-{0}', variables('prefix'))), '2023-08-01-preview').fullyQualifiedDomainName]"
+    },
+    "searchEndpoint": {
+      "type": "string",
+      "value": "[format('https://{0}.search.windows.net', format('srch-{0}', variables('prefix')))]"
+    },
+    "keyVaultUri": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.KeyVault/vaults', format('kv-{0}', variables('prefix'))), '2023-07-01').vaultUri]"
+    },
+    "aiFoundryProjectName": {
+      "type": "string",
+      "value": "[format('aip-{0}', variables('prefix'))]"
+    },
+    "openaiEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', format('oai-{0}', variables('prefix'))), '2024-04-01-preview').endpoint]"
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "value": "[resourceGroup().name]"
+    }
+  }
+}
