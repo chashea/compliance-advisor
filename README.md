@@ -40,12 +40,19 @@ terraform apply \
 sqlcmd -S <server>.database.windows.net -d ComplianceAdvisor -i sql/schema.sql
 ```
 
-### 3. Create AI Search Indexes
+### 3. Create AI Search Indexes and Seed Framework Data
 ```bash
-pip install azure-search-documents
+pip install azure-search-documents azure-identity azure-keyvault-secrets
+
+# Create index schemas
 python scripts/setup_search_index.py \
   --endpoint https://<search-name>.search.windows.net \
   --key <admin-key>
+
+# Seed the compliance-frameworks index with NIST, ISO 27001, SOC 2, CIS data
+export AZURE_SEARCH_ENDPOINT=https://<search-name>.search.windows.net
+export AZURE_SEARCH_KEY=<admin-key>
+python scripts/seed_frameworks_index.py
 ```
 
 ### 4. Onboard Your First Tenant
@@ -105,13 +112,13 @@ python -m http.server 8080 --directory dashboard
 Open `http://localhost:8080` (or whichever port your server reports).
 
 By default the dashboard assumes the API is at the same origin. To point at a
-remote Function App, edit `CONFIG.apiBase` in `dashboard/app.js`:
+remote Function App for local development, edit `dashboard/env.js`:
 ```js
-const CONFIG = {
-  apiBase: "https://<your-function-app>.azurewebsites.net",
-  functionKey: "<your-function-key>"
-};
+window.COMPLIANCE_API_BASE = "https://<your-function-app>.azurewebsites.net/api/advisor";
+window.COMPLIANCE_API_KEY  = "<your-function-key>";  // omit when using SWA auth
 ```
+
+In production, CI/CD generates `env.js` automatically from the Terraform outputs.
 
 ### Deploy as Azure Static Web App
 
@@ -169,35 +176,70 @@ The compliance advisor exposes a REST API for dashboards, bots, and integrations
 |----------|-------------|
 | `POST /api/advisor/ask` | Ask the AI advisor a natural-language question |
 | `POST /api/advisor/briefing` | Generate an executive briefing (optionally filtered by department) |
-| `POST /api/advisor/trends` | Get score trends, week-over-week changes, and category breakdowns |
-| `POST /api/advisor/departments` | Get department/agency rollup with risk-tier summary |
+| `POST /api/advisor/compliance` | Compliance Manager scores, trends, and week-over-week changes |
+| `POST /api/advisor/assessments` | Assessment summary, control pass rates, and top gaps |
+| `POST /api/advisor/regulations` | Regulation coverage — pass rates per framework across all tenants |
+| `POST /api/advisor/actions` | Improvement actions with implementation steps and test plans |
+| `POST /api/advisor/trends` | Secure Score trends, week-over-week changes, and category breakdowns |
+| `POST /api/advisor/departments` | Department/agency rollup with risk-tier summary |
 | `POST /api/advisor/status` | Health check — tenant count and sync timestamps |
 
 ## Prompt Flow: Weekly Digest
 
 Scheduled flow that posts a GPT-4o generated summary to Teams every Monday.
 
-Configure the Teams webhook URL in AI Foundry as a scheduled run input.
+The Teams webhook URL is read at runtime from Key Vault (`teams-webhook-url` secret).
+Store it once with:
+```bash
+az keyvault secret set \
+  --vault-name kv-compliance-advisor-prod \
+  --name       teams-webhook-url \
+  --value      "<your-teams-incoming-webhook-url>"
+```
+
+The schedule (every Monday at 08:00 UTC) is configured automatically on each deploy
+via `scripts/configure_weekly_schedule.py`. To configure it manually:
+```bash
+export AZURE_SUBSCRIPTION_ID=<sub-id>
+export AZURE_RESOURCE_GROUP=rg-compliance-advisor-prod
+export AI_FOUNDRY_WORKSPACE=aip-compliance-advisor-prod
+python scripts/configure_weekly_schedule.py
+```
 
 ## CI/CD
 
 Push to `main` triggers the GitHub Actions workflow which:
-1. Deploys Terraform infrastructure
-2. Creates/updates AI Search indexes
-3. Deploys Azure Functions
-4. Deploys Prompt Flows to AI Foundry
+1. Runs unit tests, Terraform security scan, and dependency audit in parallel
+2. Deploys Terraform infrastructure (manual approval gate)
+3. Creates/updates AI Search indexes and seeds framework data
+4. Deploys Azure Functions
+5. Deploys Prompt Flows to AI Foundry and configures the weekly digest schedule
+6. Deploys the CISO dashboard to Azure Static Web Apps
 
 **Required GitHub Secrets:**
 
 | Secret | Description |
 |--------|-------------|
-| `AZURE_CREDENTIALS` | Service principal JSON (`az ad sp create-for-rbac --sdk-auth`) |
 | `SQL_ADMIN_USER` | SQL server admin username |
 | `SQL_ADMIN_PASSWORD` | SQL server admin password |
 | `AZURE_SEARCH_ADMIN_KEY` | AI Search admin key |
-| `AI_FOUNDRY_WORKSPACE` | AI Foundry workspace name |
+| `AI_FOUNDRY_WORKSPACE` | AI Foundry project workspace name |
+| `SWA_DEPLOYMENT_TOKEN` | Static Web App deployment token (`az staticwebapp secrets list`) |
 
-The service principal in `AZURE_CREDENTIALS` needs **Contributor** on the resource group and **User Access Administrator** to assign the Key Vault role to the Function App's managed identity.
+**Required GitHub Variables (`vars.`):**
+
+| Variable | Description |
+|----------|-------------|
+| `AZURE_CLIENT_ID` | Service principal / managed identity client ID (OIDC federation) |
+| `AZURE_TENANT_ID` | Entra ID tenant ID |
+| `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
+| `FUNCTION_SUBNET_ID` | VNet subnet resource ID for Function App VNet integration |
+| `SECURITY_ALERT_EMAILS` | Comma-separated emails for SQL security alerts |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated allowed origins for the Function App |
+
+The pipeline uses **OIDC federation** — no long-lived credentials are stored as secrets.
+The service principal needs **Contributor** on the resource group and **User Access Administrator**
+to assign the Key Vault Secrets User role to the Function App's managed identity.
 
 ## Project Structure
 
@@ -215,7 +257,10 @@ compliance-advisor/
 │   └── weekly_digest/      # Scheduled Teams report with trends
 ├── dashboard/              # CISO dashboard (Chart.js static web app)
 ├── scripts/
-│   ├── onboard_tenant.sh   # Tenant onboarding runbook
-│   └── setup_search_index.py
+│   ├── onboard_tenant.sh            # Tenant onboarding runbook
+│   ├── offboard_tenant.sh           # Tenant offboarding / deactivation
+│   ├── setup_search_index.py        # Create AI Search index schemas
+│   ├── seed_frameworks_index.py     # Seed compliance-frameworks index
+│   └── configure_weekly_schedule.py # Configure weekly digest cron schedule
 └── .github/workflows/      # CI/CD pipeline
 ```

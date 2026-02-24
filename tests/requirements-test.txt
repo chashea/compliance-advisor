@@ -1,2 +1,25 @@
+# Requires Python 3.10+ (source uses X | Y union syntax).
+# Install into the project venv: src/functions/.venv/bin/pip install -r tests/requirements-test.txt
+# Run: src/functions/.venv/bin/python -m pytest
+
+# Test runner
 pytest==8.3.3
 pytest-cov==5.0.0
+
+# Azure SDK packages (needed for src module imports under test)
+azure-functions==1.21.3
+azure-identity==1.17.1
+azure-keyvault-secrets==4.8.0
+azure-search-documents==11.6.0
+
+# Graph SDK (imported by shared.auth and shared.graph_client)
+msgraph-beta-sdk>=1.5.0
+
+# Data / HTTP (directly imported in tests)
+requests==2.32.3
+pandas==2.2.2
+openpyxl==3.1.5
+numpy>=1.26.0
+
+# Note: azure-durable-functions is NOT listed here — no test imports it directly.
+# Note: pyodbc is NOT listed here — conftest.py gracefully mocks it if unavailable.

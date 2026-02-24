@@ -8,3 +8,6 @@ pythonpath = [
     "prompt_flows/weekly_digest/nodes",
 ]
 addopts = "-ra -q --tb=short"
+
+# Run tests with the project venv (Python 3.10+ required for X | Y union syntax):
+#   src/functions/.venv/bin/python -m pytest
