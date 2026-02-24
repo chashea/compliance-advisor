@@ -81,20 +81,6 @@ chmod +x scripts/onboard_tenant.sh
 The client secret is read from **stdin** (not a CLI flag) to avoid appearing in
 shell history or process listings.
 
-### 5. Upload Compliance Manager Data (Optional)
-
-Export from Compliance Manager UI:
-> Improvement actions → Export actions → Save .xlsx
-
-Then call the ingestion API (or upload via the portal UI you build on top):
-```python
-from src.ingestion.cm_parser import parse_and_store
-
-with open("cm_export.xlsx", "rb") as f:
-    rows = parse_and_store(tenant_id="<guid>", xlsx_bytes=f.read())
-print(f"Loaded {rows} improvement actions")
-```
-
 ## Dashboard
 
 A lightweight CISO-facing dashboard that visualises posture, trends, and
@@ -248,8 +234,7 @@ compliance-advisor/
 ├── infra/                  # Terraform IaC (Key Vault, SQL, Search, Functions)
 ├── src/
 │   ├── functions/          # Azure Durable Functions (timer, orchestrator, activities, HTTP API)
-│   ├── shared/             # auth, graph_client, sql_client helpers
-│   └── ingestion/          # Compliance Manager Excel parser
+│   └── shared/             # auth, graph_client, sql_client helpers
 ├── sql/                    # Schema, views, trend queries
 ├── prompt_flows/
 │   ├── compliance_advisor/ # RAG Q&A agent
