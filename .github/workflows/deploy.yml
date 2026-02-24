@@ -28,11 +28,13 @@ jobs:
         with:
           working_directory: ${{ env.TF_WORKING_DIR }}
           format: sarif
+          additional_args: --out results.sarif
           soft_fail: false
 
       - name: Upload SARIF results
         uses: github/codeql-action/upload-sarif@v4
         if: always()
+        continue-on-error: true   # SARIF upload is best-effort; tfsec gate above is what blocks the pipeline
         with:
           sarif_file: ${{ env.TF_WORKING_DIR }}/results.sarif
 
