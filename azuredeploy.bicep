@@ -24,8 +24,7 @@ param location string = resourceGroup().location
 @description('SQL Server administrator login name.')
 param sqlAdminUsername string
 
-@description('SQL Server administrator password (≥ 12 chars, must include upper, lower, digit, symbol).')
-@minLength(12)
+@description('SQL Server administrator password.')
 @secure()
 param sqlAdminPassword string
 
@@ -97,8 +96,8 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     tenantId               : subscription().tenantId
     sku                    : { family: 'A', name: 'standard' }
     enableRbacAuthorization: true
-    softDeleteRetentionInDays: 90
-    enablePurgeProtection  : true
+    softDeleteRetentionInDays: 7
+    enablePurgeProtection  : false
   }
 }
 

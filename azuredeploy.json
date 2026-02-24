@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "5049608484531355676"
+      "templateHash": "3901458397658244176"
     }
   },
   "parameters": {
@@ -37,9 +37,8 @@
     },
     "sqlAdminPassword": {
       "type": "securestring",
-      "minLength": 12,
       "metadata": {
-        "description": "SQL Server administrator password (≥ 12 chars, must include upper, lower, digit, symbol)."
+        "description": "SQL Server administrator password."
       }
     },
     "securityAlertEmail": {
@@ -125,8 +124,8 @@
           "name": "standard"
         },
         "enableRbacAuthorization": true,
-        "softDeleteRetentionInDays": 90,
-        "enablePurgeProtection": true
+        "softDeleteRetentionInDays": 7,
+        "enablePurgeProtection": false
       }
     },
     {
