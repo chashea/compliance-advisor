@@ -33,6 +33,7 @@
   </header>
 
   <main class="dashboard">
+    <div class="main-content">
     <!-- ── Status Bar ──────────────────────────────────────────────────── -->
     <section id="status-bar" class="status-bar">
       <span class="status-bar__dot"></span>
@@ -223,11 +224,13 @@
       </div>
     </section>
 
-    <!-- ── Ask the Advisor ─────────────────────────────────────────────── -->
-    <section class="chart-row">
-      <div class="card card--full">
+    </div><!-- /.main-content -->
+
+    <!-- ── Ask the Advisor (right sidebar) ──────────────────────────── -->
+    <aside class="advisor-panel">
+      <div class="card advisor-card">
         <h2 class="card__title">Ask the Advisor</h2>
-        <div class="card__body">
+        <div class="card__body advisor-body">
           <div class="ask-row">
             <input type="text" id="ask-input" class="ask-input"
                    placeholder="e.g. How are we tracking against NIST 800-53 assessments?">
@@ -236,7 +239,7 @@
           <div id="ask-response" class="ask-response"></div>
         </div>
       </div>
-    </section>
+    </aside>
   </main>
 
   <footer class="footer">
