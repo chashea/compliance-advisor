@@ -170,55 +170,12 @@ jobs:
           package:                        ./src/functions
           scm-do-build-during-deployment: false
 
-  # ── Prompt Flows ───────────────────────────────────────────────────────────
-  prompt_flows:
-    name: Deploy Prompt Flows to AI Foundry
-    runs-on: ubuntu-latest
-    needs: infra
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: azure/login@v2
-        with:
-          client-id:       ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id:       ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-
-      - run: pip install promptflow promptflow-azure
-
-      - name: Deploy compliance_advisor flow
-        run: |
-          pfazure flow create \
-            --flow            ./prompt_flows/compliance_advisor \
-            --resource-group  ${{ env.AZURE_RESOURCE_GROUP }} \
-            --workspace-name  ${{ secrets.AI_FOUNDRY_WORKSPACE }} \
-            --set             display_name="Compliance Advisor"
-
-      - name: Deploy weekly_digest flow
-        run: |
-          pfazure flow create \
-            --flow            ./prompt_flows/weekly_digest \
-            --resource-group  ${{ env.AZURE_RESOURCE_GROUP }} \
-            --workspace-name  ${{ secrets.AI_FOUNDRY_WORKSPACE }} \
-            --set             display_name="Weekly Digest"
-
-      - name: Install azure-ai-ml for schedule management
-        run: pip install azure-ai-ml
-
-      - name: Configure weekly digest schedule
-        # Idempotent — creates or updates the Monday 08:00 UTC cron schedule.
-        # Uses continue-on-error because on a brand-new workspace the flow
-        # may not yet be fully indexed; re-running the pipeline will succeed.
-        continue-on-error: true
-        env:
-          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-          AZURE_RESOURCE_GROUP:  ${{ env.AZURE_RESOURCE_GROUP }}
-          AI_FOUNDRY_WORKSPACE:  ${{ secrets.AI_FOUNDRY_WORKSPACE }}
-        run: python scripts/configure_weekly_schedule.py
+  # ── Foundry Agents ─────────────────────────────────────────────────────────
+  # Agents are created lazily on first API call via the azure-ai-projects SDK.
+  # No separate deployment step is required — the Function App code handles
+  # agent creation and caching at runtime using its Managed Identity.
+  # The weekly digest schedule is now a timer-triggered Azure Function
+  # (timer_weekly_digest, Monday 08:00 UTC) instead of a Prompt Flow JobSchedule.
 
   # ── Dashboard (Static Web App) ─────────────────────────────────────────────
   dashboard:

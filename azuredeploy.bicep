@@ -21,12 +21,27 @@ param environmentName string = 'prod'
 @description('Azure region for all resources. Must support Azure OpenAI GPT-4o — see https://aka.ms/oai/models.')
 param location string = resourceGroup().location
 
-@description('SQL Server administrator login name.')
+@description('Azure region for the Function App and its App Service Plan. Override when the primary region lacks App Service quota.')
+param functionAppLocation string = location
+
+@description('Azure region for SQL Server. Override when the primary region is not accepting new SQL servers.')
+param sqlLocation string = location
+
+@description('SQL Server administrator login name (used as a fallback; Entra ID is the primary auth).')
 param sqlAdminUsername string
 
-@description('SQL Server administrator password.')
+@description('SQL Server administrator password (used as a fallback; Entra ID is the primary auth).')
 @secure()
 param sqlAdminPassword string
+
+@description('Display name of the Entra ID admin for SQL Server.')
+param sqlEntraAdminName string = 'Charles Shea'
+
+@description('Object ID of the Entra ID admin for SQL Server (defaults to deployer).')
+param sqlEntraAdminObjectId string = deployerObjectId
+
+@description('Login (UPN) of the Entra ID admin for SQL Server.')
+param sqlEntraAdminLogin string = ''
 
 @description('Email address for SQL Defender threat-detection alerts. Leave blank to skip.')
 param securityAlertEmail string = ''
@@ -58,6 +73,7 @@ var roleCogOpenAIUser           = subscriptionResourceId('Microsoft.Authorizatio
 var roleCogOpenAIContributor    = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'a001fd3d-188f-4b5d-821b-7da978bf7442')
 var roleSearchIndexDataReader   = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '1407120a-92aa-4202-b7e9-c0e197c71c8f')
 var roleAcrPull                 = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
+var roleAzureAIUser             = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b556d68e-0be0-4f35-a333-ad7ee1ce17ea')
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Observability
@@ -89,7 +105,7 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
-  name    : 'kv-${prefix}'
+  name    : 'kv-compadv-${environmentName}'
   location: location
   tags    : tags
   properties: {
@@ -162,12 +178,20 @@ resource gpt4o 'Microsoft.CognitiveServices/accounts/deployments@2024-04-01-prev
 
 resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
   name    : 'sql-${prefix}'
-  location: location
+  location: sqlLocation
   tags    : tags
   properties: {
     administratorLogin        : sqlAdminUsername
     administratorLoginPassword: sqlAdminPassword
     minimalTlsVersion         : '1.2'
+    administrators: {
+      administratorType        : 'ActiveDirectory'
+      principalType            : 'User'
+      login                    : !empty(sqlEntraAdminLogin) ? sqlEntraAdminLogin : sqlEntraAdminName
+      sid                      : sqlEntraAdminObjectId
+      tenantId                 : subscription().tenantId
+      azureADOnlyAuthentication: true
+    }
   }
 }
 
@@ -181,7 +205,7 @@ resource sqlFirewall 'Microsoft.Sql/servers/firewallRules@2023-08-01-preview' = 
 resource sqlDb 'Microsoft.Sql/servers/databases@2023-08-01-preview' = {
   parent  : sqlServer
   name    : 'ComplianceAdvisor'
-  location: location
+  location: sqlLocation
   tags    : tags
   sku     : { name: 'GP_S_Gen5_1', tier: 'GeneralPurpose', family: 'Gen5', capacity: 1 }
   properties: {
@@ -219,7 +243,7 @@ resource storageHub 'Microsoft.Storage/storageAccounts@2023-05-01' = {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Container Registry (required for Prompt Flow online deployments)
+// Container Registry (required by AI Foundry Hub for agent deployments)
 // ─────────────────────────────────────────────────────────────────────────────
 
 resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
@@ -315,16 +339,16 @@ resource storageFunc 'Microsoft.Storage/storageAccounts@2023-05-01' = {
 
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name    : 'asp-${prefix}'
-  location: location
+  location: functionAppLocation
   tags    : tags
   kind    : 'linux'
-  sku     : { name: 'Y1', tier: 'Dynamic' }
+  sku     : { name: 'B1', tier: 'Basic' }
   properties: { reserved: true }
 }
 
 resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
   name    : 'func-${prefix}'
-  location: location
+  location: functionAppLocation
   kind    : 'functionapp,linux'
   tags    : tags
   identity: { type: 'SystemAssigned' }
@@ -346,7 +370,8 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         { name: 'AZURE_OPENAI_DEPLOYMENT_NAME',         value: gpt4o.name }
         { name: 'AZURE_OPENAI_API_VERSION',             value: '2024-05-01-preview' }
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
-        { name: 'MSSQL_CONNECTION',                     value: 'Driver={ODBC Driver 18 for SQL Server};Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Database=ComplianceAdvisor;Uid=${sqlAdminUsername};Pwd=${sqlAdminPassword};Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;' }
+        { name: 'PROJECT_ENDPOINT',                     value: 'https://${aiHub.name}.services.ai.azure.com/api/projects/${aiProject.name}' }
+        { name: 'MSSQL_CONNECTION',                     value: 'Driver={ODBC Driver 18 for SQL Server};Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Database=ComplianceAdvisor;Authentication=ActiveDirectoryManagedIdentity;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;' }
       ]
     }
   }
@@ -378,7 +403,7 @@ resource raFuncOpenAI 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
-// AI Project → OpenAI Contributor (Prompt Flow execution)
+// AI Project → OpenAI Contributor (Foundry Agent Service execution)
 resource raProjectOpenAI 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name : guid(openai.id, aiProject.id, 'OpenAIContributor')
   scope: openai
@@ -389,13 +414,24 @@ resource raProjectOpenAI 'Microsoft.Authorization/roleAssignments@2022-04-01' = 
   }
 }
 
-// AI Project → Search Index Data Reader (RAG retrieval in Prompt Flows)
+// AI Project → Search Index Data Reader (RAG retrieval via Foundry Agent Service)
 resource raProjectSearch 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name : guid(search.id, aiProject.id, 'SearchIndexDataReader')
   scope: search
   properties: {
     roleDefinitionId: roleSearchIndexDataReader
     principalId     : aiProject.identity.principalId
+    principalType   : 'ServicePrincipal'
+  }
+}
+
+// Function App → Azure AI User on AI Project (Foundry Agent Service access)
+resource raFuncAIUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name : guid(aiProject.id, functionApp.id, 'AzureAIUser')
+  scope: aiProject
+  properties: {
+    roleDefinitionId: roleAzureAIUser
+    principalId     : functionApp.identity.principalId
     principalType   : 'ServicePrincipal'
   }
 }

@@ -67,7 +67,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 # ── Handlers ──────────────────────────────────────────────────────────────────
 
 def _handle_ask(body: dict, log: logging.Logger) -> dict:
-    """Forward a question to the compliance advisor prompt flow via AI Foundry."""
+    """Ask the compliance advisor agent a question (grounded via AI Search)."""
     question = body.get("question", "").strip()
     tenant_id = body.get("tenant_id", "").strip()
     cross_tenant = body.get("cross_tenant", False)
@@ -75,42 +75,32 @@ def _handle_ask(body: dict, log: logging.Logger) -> dict:
     if not question:
         raise ValueError("'question' is required")
 
-    # Call the deployed prompt flow endpoint
-    import requests
-    endpoint = os.environ.get("PROMPT_FLOW_ENDPOINT")
-    key = os.environ.get("PROMPT_FLOW_KEY")
+    from shared.agents.compliance_advisor import ask_advisor
 
-    if not endpoint:
-        raise ValueError("Prompt flow endpoint not configured")
-
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {key}"}
-    payload = {
-        "question": question,
-        "tenant_id": tenant_id,
-        "cross_tenant": cross_tenant,
-    }
-
-    resp = requests.post(endpoint, headers=headers, json=payload, timeout=60)
-    resp.raise_for_status()
-    result = resp.json()
-
+    result = ask_advisor(question, tenant_id=tenant_id, cross_tenant=cross_tenant)
     log.info("Advisor answered question: %s", question[:80])
-    return {
-        "answer": result.get("answer", ""),
-        "sources": result.get("sources", []),
-    }
+    return result
 
 
 def _handle_briefing(body: dict, log: logging.Logger) -> dict:
-    """Generate a structured executive briefing from current data."""
+    """Generate a structured executive briefing via the Foundry briefing agent."""
     department = body.get("department")
 
+    from shared.agents.executive_briefing import generate_briefing
+
+    try:
+        result = generate_briefing(department=department)
+        log.info("Generated executive briefing (department=%s)", department)
+        return result
+    except Exception:
+        log.warning("Executive briefing agent unavailable, returning raw SQL data")
+
+    # Fallback to raw SQL data if agent is not configured
     conn = get_connection()
     try:
         set_admin_context(conn)
         cursor = conn.cursor()
 
-        # Latest scores (optionally filtered by department)
         if department:
             cursor.execute("""
                 SELECT tenant_id, display_name, department, risk_tier,
@@ -129,82 +119,22 @@ def _handle_briefing(body: dict, log: logging.Logger) -> dict:
         cols = [c[0] for c in cursor.description]
         scores = [dict(zip(cols, r)) for r in cursor.fetchall()]
 
-        # Week-over-week changes
-        if department:
-            cursor.execute("""
-                SELECT display_name, department, current_pct, prior_pct,
-                       wow_change, trend_direction
-                FROM v_weekly_change
-                WHERE department = ?
-                ORDER BY wow_change ASC
-            """, department)
-        else:
-            cursor.execute("""
-                SELECT display_name, department, current_pct, prior_pct,
-                       wow_change, trend_direction
-                FROM v_weekly_change
-                ORDER BY wow_change ASC
-            """)
-        cols = [c[0] for c in cursor.description]
-        trends = [dict(zip(cols, r)) for r in cursor.fetchall()]
-
-        # Department rollup
         cursor.execute("SELECT * FROM v_department_rollup ORDER BY avg_score_pct ASC")
         cols = [c[0] for c in cursor.description]
         dept_rollup = [dict(zip(cols, r)) for r in cursor.fetchall()]
 
-        # Risk tier summary
-        cursor.execute("SELECT * FROM v_risk_tier_summary ORDER BY avg_score_pct ASC")
-        cols = [c[0] for c in cursor.description]
-        risk_summary = [dict(zip(cols, r)) for r in cursor.fetchall()]
-
-        # Top 10 gaps
-        if department:
-            cursor.execute("""
-                SELECT TOP 10 tg.control_name, tg.title, tg.control_category,
-                       tg.points_gap, tg.display_name, tg.remediation_url
-                FROM v_top_gaps tg
-                JOIN tenants t ON t.tenant_id = tg.tenant_id
-                WHERE t.department = ?
-                ORDER BY tg.points_gap DESC
-            """, department)
-        else:
-            cursor.execute("""
-                SELECT TOP 10 control_name, title, control_category,
-                       points_gap, display_name, remediation_url
-                FROM v_top_gaps
-                ORDER BY points_gap DESC
-            """)
+        cursor.execute("""
+            SELECT TOP 10 control_name, title, control_category,
+                   points_gap, display_name, remediation_url
+            FROM v_top_gaps ORDER BY points_gap DESC
+        """)
         cols = [c[0] for c in cursor.description]
         top_gaps = [dict(zip(cols, r)) for r in cursor.fetchall()]
 
     finally:
         conn.close()
 
-    # Build the briefing via the executive briefing prompt flow
-    briefing_data = {
-        "scores": scores,
-        "trends": trends,
-        "department_rollup": dept_rollup,
-        "risk_tier_summary": risk_summary,
-        "top_gaps": top_gaps,
-        "department_filter": department,
-    }
-
-    # Try to call the exec briefing prompt flow; fall back to raw data
-    try:
-        import requests
-        endpoint = os.environ.get("EXEC_BRIEFING_ENDPOINT")
-        key = os.environ.get("PROMPT_FLOW_KEY")
-        if endpoint:
-            headers = {"Content-Type": "application/json", "Authorization": f"Bearer {key}"}
-            resp = requests.post(endpoint, headers=headers, json=briefing_data, timeout=90)
-            resp.raise_for_status()
-            return resp.json()
-    except Exception:
-        log.warning("Executive briefing prompt flow unavailable, returning raw data")
-
-    return briefing_data
+    return {"scores": scores, "department_rollup": dept_rollup, "top_gaps": top_gaps}
 
 
 def _handle_trends(body: dict, log: logging.Logger) -> dict:

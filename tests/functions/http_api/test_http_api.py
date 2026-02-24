@@ -66,26 +66,29 @@ class TestHandleAsk:
         resp = main(_make_request("ask", {}))
         assert resp.status_code == 400
 
-    def test_missing_endpoint_returns_400(self, monkeypatch):
-        monkeypatch.delenv("PROMPT_FLOW_ENDPOINT", raising=False)
-        from http_api import main
-        resp = main(_make_request("ask", {"question": "What is my score?"}))
-        assert resp.status_code == 400
+    def test_calls_foundry_agent(self):
+        mock_result = {"answer": "Your score is 72%", "sources": []}
 
-    def test_calls_prompt_flow(self, monkeypatch):
-        monkeypatch.setenv("PROMPT_FLOW_ENDPOINT", "https://pf.example.com")
-        monkeypatch.setenv("PROMPT_FLOW_KEY", "key123")
-
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = {"answer": "Your score is 72%", "sources": []}
-        mock_resp.raise_for_status.return_value = None
-
-        with patch("requests.post", return_value=mock_resp):
+        with patch("shared.agents.compliance_advisor.ask_advisor", return_value=mock_result):
             from http_api import main
             resp = main(_make_request("ask", {"question": "What is my score?"}))
 
         data = json.loads(resp.get_body())
         assert data["answer"] == "Your score is 72%"
+
+    def test_passes_tenant_context(self):
+        mock_result = {"answer": "Tenant score: 85%", "sources": []}
+
+        with patch("shared.agents.compliance_advisor.ask_advisor", return_value=mock_result) as mock_ask:
+            from http_api import main
+            resp = main(_make_request("ask", {
+                "question": "What is my score?",
+                "tenant_id": "abc-123",
+                "cross_tenant": True,
+            }))
+            mock_ask.assert_called_once_with(
+                "What is my score?", tenant_id="abc-123", cross_tenant=True
+            )
 
 
 class TestHandleTrends:
