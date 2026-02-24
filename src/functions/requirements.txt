@@ -1,5 +1,5 @@
 azure-functions==1.24.0
-azure-durable-functions==1.2.9
+azure-functions-durable==1.2.9
 azure-identity==1.25.2
 azure-keyvault-secrets==4.10.0
 azure-search-documents==11.6.0

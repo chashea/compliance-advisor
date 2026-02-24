@@ -21,5 +21,5 @@ pandas==2.2.2
 openpyxl==3.1.5
 numpy>=1.26.0
 
-# Note: azure-durable-functions is NOT listed here — no test imports it directly.
+# Note: azure-functions-durable is NOT listed here — no test imports it directly.
 # Note: pyodbc is NOT listed here — conftest.py gracefully mocks it if unavailable.

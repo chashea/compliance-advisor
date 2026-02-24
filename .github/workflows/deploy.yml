@@ -9,6 +9,7 @@ on:
 permissions:
   id-token: write
   contents: read
+  security-events: write   # required to upload tfsec SARIF results
 
 env:
   AZURE_RESOURCE_GROUP: rg-compliance-advisor-prod
@@ -33,7 +34,7 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
-          sarif_file: results.sarif
+          sarif_file: ${{ env.TF_WORKING_DIR }}/results.sarif
 
   # ── Dependency vulnerability scan ─────────────────────────────────────────
   dep_scan:
