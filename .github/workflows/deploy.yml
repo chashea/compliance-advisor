@@ -20,7 +20,7 @@ jobs:
     name: Terraform Security Scan (tfsec)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Run tfsec
         uses: aquasecurity/tfsec-action@v1.0.0
@@ -40,7 +40,7 @@ jobs:
     name: Python Dependency Scan (pip-audit)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v5
         with:
@@ -56,7 +56,7 @@ jobs:
     name: Unit Tests (pytest)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v5
         with:
@@ -88,7 +88,7 @@ jobs:
       function_app_name: ${{ steps.tf_output.outputs.function_app_name }}
       search_endpoint:   ${{ steps.tf_output.outputs.search_endpoint }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: azure/login@v2
         with:
@@ -142,7 +142,7 @@ jobs:
       function_app_name: ${{ steps.tf_output.outputs.function_app_name }}
       search_endpoint:   ${{ steps.tf_output.outputs.search_endpoint }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: azure/login@v2
         with:
@@ -197,7 +197,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: apply
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: azure/login@v2
         with:
@@ -229,7 +229,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: apply
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: azure/login@v2
         with:
@@ -258,7 +258,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: apply
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: azure/login@v2
         with:
@@ -308,7 +308,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: apply
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Generate runtime config
         # Writes the Function App URL into env.js so the dashboard hits the
