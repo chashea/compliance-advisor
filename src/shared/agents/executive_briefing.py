@@ -1,6 +1,7 @@
 """
 Executive Briefing agent — generates CISO-ready compliance posture reports
-using Foundry Agent Service with custom function tools for SQL data retrieval.
+using Microsoft Foundry Agent Service with custom function tools for SQL data retrieval.
+Does not connect to M365 GCC; data comes from our API (Graph-synced SQL) only.
 
 Replaces the prompt_flows/executive_briefing Prompt Flow.
 """

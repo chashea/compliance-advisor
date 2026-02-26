@@ -1,9 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Compliance Advisor — One-click Azure deployment
+// Compliance Advisor — One-click Azure deployment (Microsoft Foundry)
 //
-// Provisions: Key Vault · Azure SQL · AI Search · Azure OpenAI · AI Foundry
-//             Hub + Project · Azure Functions · Application Insights ·
-//             Container Registry · Storage Accounts
+// Provisions: Key Vault · Azure SQL · AI Search · Microsoft Foundry (AIServices)
+//             Foundry Project · Azure Functions · Application Insights ·
+//             Storage Accounts
 //
 // Usage:
 //   az deployment group create \
@@ -53,6 +53,17 @@ param deployerObjectId string
 @allowed(['User', 'ServicePrincipal', 'Group'])
 param deployerPrincipalType string = 'User'
 
+@description('Optional: object IDs granted Reader on the resource group for monitoring/audit (e.g. security team). Leave empty to skip.')
+param readerPrincipalIds array = []
+
+@description('Principal type for readerPrincipalIds — usually User or Group.')
+@allowed(['User', 'ServicePrincipal', 'Group'])
+param readerPrincipalType string = 'User'
+
+@description('Leave empty for commercial and M365 GCC (global endpoints). Set to "usgovernment" only for GCC High/DoD (uses .us endpoints).')
+@allowed(['', 'usgovernment'])
+param graphNationalCloud string = ''
+
 // ── Naming ────────────────────────────────────────────────────────────────────
 
 var prefix = 'compliance-advisor-${environmentName}'
@@ -69,11 +80,12 @@ var tags = {
 
 var roleKvSecretsOfficer        = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b86a8fe4-44ce-4948-aee5-eccb2c155cd7')
 var roleKvSecretsUser           = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
-var roleCogOpenAIUser           = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
 var roleCogOpenAIContributor    = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'a001fd3d-188f-4b5d-821b-7da978bf7442')
 var roleSearchIndexDataReader   = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '1407120a-92aa-4202-b7e9-c0e197c71c8f')
-var roleAcrPull                 = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
+var roleSearchServiceContributor = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7ca78c08-252a-4471-8644-bb5ff32d4ba0')
+var roleStorageBlobDataContributor = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
 var roleAzureAIUser             = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b556d68e-0be0-4f35-a333-ad7ee1ce17ea')
+var roleReader                  = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'acdd72a7-3385-48ef-bd42-f606fba81ae7')
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Observability
@@ -145,22 +157,50 @@ resource search 'Microsoft.Search/searchServices@2024-03-01-preview' = {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Azure OpenAI
+// Storage — Agent file storage (used by Foundry Agent Service)
 // ─────────────────────────────────────────────────────────────────────────────
 
-resource openai 'Microsoft.CognitiveServices/accounts@2024-04-01-preview' = {
-  name    : 'oai-${prefix}'
+resource storageAgent 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name    : 'staih${uniq}'
   location: location
-  kind    : 'OpenAI'
   tags    : tags
-  sku     : { name: 'S0' }
+  kind    : 'StorageV2'
+  sku     : { name: 'Standard_LRS' }
   properties: {
-    customSubDomainName: 'oai${uniq}'
+    minimumTlsVersion    : 'TLS1_2'
+    supportsHttpsTrafficOnly: true
   }
 }
 
-resource gpt4o 'Microsoft.CognitiveServices/accounts/deployments@2024-04-01-preview' = {
-  parent: openai
+// ─────────────────────────────────────────────────────────────────────────────
+// Microsoft Foundry Account (AIServices)
+//
+// Microsoft Foundry (AIServices): hosts model deployments and
+// project management for Foundry Agent Service.
+// ─────────────────────────────────────────────────────────────────────────────
+
+var foundryName = 'aif-${prefix}'
+
+resource foundry 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' = {
+  name    : foundryName
+  location: location
+  tags    : tags
+  kind    : 'AIServices'
+  sku     : { name: 'S0' }
+  identity: { type: 'SystemAssigned' }
+  properties: {
+    allowProjectManagement : true
+    customSubDomainName    : 'aif${uniq}'
+    publicNetworkAccess    : 'Enabled'
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Model Deployment (under the Foundry account)
+// ─────────────────────────────────────────────────────────────────────────────
+
+resource gpt4o 'Microsoft.CognitiveServices/accounts/deployments@2025-04-01-preview' = {
+  parent: foundry
   name  : 'gpt-4o'
   sku   : { name: 'Standard', capacity: 10 }
   properties: {
@@ -170,6 +210,84 @@ resource gpt4o 'Microsoft.CognitiveServices/accounts/deployments@2024-04-01-prev
       version: '2024-11-20'
     }
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Foundry Project
+// ─────────────────────────────────────────────────────────────────────────────
+
+var aiProjectName = 'aip-${prefix}'
+
+resource aiProject 'Microsoft.CognitiveServices/accounts/projects@2025-04-01-preview' = {
+  parent  : foundry
+  name    : aiProjectName
+  location: location
+  tags    : tags
+  identity: { type: 'SystemAssigned' }
+  properties: {
+    description: 'Compliance Advisor Foundry project — agents and RAG'
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Foundry Connections (AI Search + Storage — visible to all projects)
+// ─────────────────────────────────────────────────────────────────────────────
+
+var searchConnectionName  = 'azure-ai-search'
+var storageConnectionName = 'agent-storage'
+
+resource searchConnection 'Microsoft.CognitiveServices/accounts/connections@2025-04-01-preview' = {
+  parent: foundry
+  name  : searchConnectionName
+  properties: {
+    category   : 'CognitiveSearch'
+    target     : 'https://${search.name}.search.windows.net'
+    authType   : 'AAD'
+    isSharedToAll: true
+    metadata: {
+      ApiType   : 'Azure'
+      ResourceId: search.id
+      location  : search.location
+    }
+  }
+}
+
+resource storageConnection 'Microsoft.CognitiveServices/accounts/connections@2025-04-01-preview' = {
+  parent: foundry
+  name  : storageConnectionName
+  properties: {
+    category   : 'AzureStorageAccount'
+    target     : storageAgent.properties.primaryEndpoints.blob
+    authType   : 'AAD'
+    isSharedToAll: true
+    metadata: {
+      ApiType   : 'Azure'
+      ResourceId: storageAgent.id
+      location  : storageAgent.location
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Capability Hosts (enable Foundry Agent Service)
+// ─────────────────────────────────────────────────────────────────────────────
+
+resource accountCapabilityHost 'Microsoft.CognitiveServices/accounts/capabilityHosts@2025-04-01-preview' = {
+  parent: foundry
+  name  : 'default'
+  properties: {
+    capabilityHostKind: 'Agents'
+  }
+  dependsOn: [searchConnection, storageConnection]
+}
+
+resource projectCapabilityHost 'Microsoft.CognitiveServices/accounts/projects/capabilityHosts@2025-04-01-preview' = {
+  parent: aiProject
+  name  : 'default'
+  properties: {
+    aiServicesConnections   : [searchConnectionName, storageConnectionName]
+  }
+  dependsOn: [accountCapabilityHost]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -227,101 +345,6 @@ resource sqlDefender 'Microsoft.Sql/servers/securityAlertPolicies@2023-08-01-pre
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Storage — AI Hub (separate from Function App storage)
-// ─────────────────────────────────────────────────────────────────────────────
-
-resource storageHub 'Microsoft.Storage/storageAccounts@2023-05-01' = {
-  name    : 'staih${uniq}'
-  location: location
-  tags    : tags
-  kind    : 'StorageV2'
-  sku     : { name: 'Standard_LRS' }
-  properties: {
-    minimumTlsVersion    : 'TLS1_2'
-    supportsHttpsTrafficOnly: true
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Container Registry (required by AI Foundry Hub for agent deployments)
-// ─────────────────────────────────────────────────────────────────────────────
-
-resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
-  name    : 'acr${uniq}'
-  location: location
-  tags    : tags
-  sku     : { name: 'Basic' }
-  properties: { adminUserEnabled: false }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// AI Foundry Hub
-// ─────────────────────────────────────────────────────────────────────────────
-
-resource aiHub 'Microsoft.MachineLearningServices/workspaces@2024-04-01' = {
-  name    : 'aih-${prefix}'
-  location: location
-  kind    : 'Hub'
-  tags    : tags
-  identity: { type: 'SystemAssigned' }
-  properties: {
-    applicationInsights: appInsights.id
-    keyVault           : keyVault.id
-    storageAccount     : storageHub.id
-    containerRegistry  : acr.id
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// AI Foundry Project
-// ─────────────────────────────────────────────────────────────────────────────
-
-resource aiProject 'Microsoft.MachineLearningServices/workspaces@2024-04-01' = {
-  name    : 'aip-${prefix}'
-  location: location
-  kind    : 'Project'
-  tags    : tags
-  identity: { type: 'SystemAssigned' }
-  properties: {
-    hubResourceId      : aiHub.id
-    applicationInsights: appInsights.id
-    keyVault           : keyVault.id
-    storageAccount     : storageHub.id
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Hub Connections (OpenAI + AI Search visible to all Projects)
-// ─────────────────────────────────────────────────────────────────────────────
-
-resource openaiConnection 'Microsoft.MachineLearningServices/workspaces/connections@2024-04-01' = {
-  parent: aiHub
-  name  : 'azure-openai'
-  properties: {
-    authType: 'ApiKey'
-    category: 'AzureOpenAI'
-    target  : openai.properties.endpoint
-    credentials: { key: openai.listKeys().key1 }
-    metadata: {
-      ApiType             : 'Azure'
-      ApiVersion          : '2024-05-01-preview'
-      DeploymentApiVersion: '2023-10-01-preview'
-    }
-  }
-}
-
-resource searchConnection 'Microsoft.MachineLearningServices/workspaces/connections@2024-04-01' = {
-  parent: aiHub
-  name  : 'azure-ai-search'
-  properties: {
-    authType: 'ApiKey'
-    category: 'CognitiveSearch'
-    target  : 'https://${search.name}.search.windows.net'
-    credentials: { key: search.listAdminKeys().primaryKey }
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Function App (Storage + Plan + App)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -366,22 +389,26 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         { name: 'KEY_VAULT_URL',                        value: keyVault.properties.vaultUri }
         { name: 'AZURE_SEARCH_ENDPOINT',                value: 'https://${search.name}.search.windows.net' }
         { name: 'AZURE_SEARCH_INDEX_NAME',              value: 'compliance-posture' }
-        { name: 'AZURE_OPENAI_ENDPOINT',                value: openai.properties.endpoint }
+        { name: 'AZURE_OPENAI_ENDPOINT',                value: foundry.properties.endpoint }
         { name: 'AZURE_OPENAI_DEPLOYMENT_NAME',         value: gpt4o.name }
         { name: 'AZURE_OPENAI_API_VERSION',             value: '2024-05-01-preview' }
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
-        { name: 'PROJECT_ENDPOINT',                     value: 'https://${aiHub.name}.services.ai.azure.com/api/projects/${aiProject.name}' }
+        { name: 'PROJECT_ENDPOINT',                     value: 'https://aif${uniq}.services.ai.azure.com/api/projects/${aiProjectName}' }
         { name: 'MSSQL_CONNECTION',                     value: 'Driver={ODBC Driver 18 for SQL Server};Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Database=ComplianceAdvisor;Authentication=ActiveDirectoryManagedIdentity;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;' }
+        { name: 'GRAPH_NATIONAL_CLOUD',                 value: graphNationalCloud }
       ]
     }
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Role Assignments
+// Role Assignments (RBAC — least privilege)
 // ─────────────────────────────────────────────────────────────────────────────
+// All access is via Azure RBAC or SQL database roles. Key Vault uses RBAC only
+// (enableRbacAuthorization: true). Deployer role (kvDeployerRole) is defined
+// after Key Vault; restrict or remove deployer from Key Vault in production if desired.
 
-// Function App → Key Vault Secrets User
+// Function App (MI) → Key Vault Secrets User (read secrets at runtime)
 resource raFuncKv 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name : guid(keyVault.id, functionApp.id, 'SecretsUser')
   scope: keyVault
@@ -392,40 +419,7 @@ resource raFuncKv 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
-// Function App → OpenAI User
-resource raFuncOpenAI 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name : guid(openai.id, functionApp.id, 'OpenAIUser')
-  scope: openai
-  properties: {
-    roleDefinitionId: roleCogOpenAIUser
-    principalId     : functionApp.identity.principalId
-    principalType   : 'ServicePrincipal'
-  }
-}
-
-// AI Project → OpenAI Contributor (Foundry Agent Service execution)
-resource raProjectOpenAI 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name : guid(openai.id, aiProject.id, 'OpenAIContributor')
-  scope: openai
-  properties: {
-    roleDefinitionId: roleCogOpenAIContributor
-    principalId     : aiProject.identity.principalId
-    principalType   : 'ServicePrincipal'
-  }
-}
-
-// AI Project → Search Index Data Reader (RAG retrieval via Foundry Agent Service)
-resource raProjectSearch 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name : guid(search.id, aiProject.id, 'SearchIndexDataReader')
-  scope: search
-  properties: {
-    roleDefinitionId: roleSearchIndexDataReader
-    principalId     : aiProject.identity.principalId
-    principalType   : 'ServicePrincipal'
-  }
-}
-
-// Function App → Azure AI User on AI Project (Foundry Agent Service access)
+// Function App (MI) → Azure AI User on Foundry Project (invoke agents)
 resource raFuncAIUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name : guid(aiProject.id, functionApp.id, 'AzureAIUser')
   scope: aiProject
@@ -436,16 +430,60 @@ resource raFuncAIUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
-// AI Hub → ACR Pull (online endpoint deployments)
-resource raHubAcr 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name : guid(acr.id, aiHub.id, 'AcrPull')
-  scope: acr
+// Foundry Project (MI) → OpenAI Contributor on Foundry account (model access for agents)
+resource raProjectOpenAI 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name : guid(foundry.id, aiProject.id, 'OpenAIContributor')
+  scope: foundry
   properties: {
-    roleDefinitionId: roleAcrPull
-    principalId     : aiHub.identity.principalId
+    roleDefinitionId: roleCogOpenAIContributor
+    principalId     : aiProject.identity.principalId
     principalType   : 'ServicePrincipal'
   }
 }
+
+// Foundry Project (MI) → Search Index Data Reader (RAG retrieval)
+resource raProjectSearch 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name : guid(search.id, aiProject.id, 'SearchIndexDataReader')
+  scope: search
+  properties: {
+    roleDefinitionId: roleSearchIndexDataReader
+    principalId     : aiProject.identity.principalId
+    principalType   : 'ServicePrincipal'
+  }
+}
+
+// Foundry Project (MI) → Search Service Contributor (index management)
+resource raProjectSearchContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name : guid(search.id, aiProject.id, 'SearchServiceContributor')
+  scope: search
+  properties: {
+    roleDefinitionId: roleSearchServiceContributor
+    principalId     : aiProject.identity.principalId
+    principalType   : 'ServicePrincipal'
+  }
+}
+
+// Foundry Project (MI) → Storage Blob Data Contributor (agent file storage)
+resource raProjectStorage 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name : guid(storageAgent.id, aiProject.id, 'StorageBlobDataContributor')
+  scope: storageAgent
+  properties: {
+    roleDefinitionId: roleStorageBlobDataContributor
+    principalId     : aiProject.identity.principalId
+    principalType   : 'ServicePrincipal'
+  }
+}
+
+// Optional: Readers on resource group (e.g. security/ops — read-only)
+resource raReaders 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for (readerId, i) in readerPrincipalIds: {
+  name : guid(resourceGroup().id, readerId, 'Reader-${i}')
+  scope: resourceGroup()
+  properties: {
+    roleDefinitionId: roleReader
+    principalId     : readerId
+    principalType   : readerPrincipalType
+  }
+}]
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Key Vault Secrets
@@ -461,7 +499,7 @@ resource secretSearchKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
 resource secretOpenAIKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   parent: keyVault
   name  : 'azure-openai-api-key'
-  properties: { value: openai.listKeys().key1 }
+  properties: { value: foundry.listKeys().key1 }
   dependsOn: [kvDeployerRole]
 }
 
@@ -473,6 +511,7 @@ output functionAppName      string = functionApp.name
 output sqlServerFqdn        string = sqlServer.properties.fullyQualifiedDomainName
 output searchEndpoint       string = 'https://${search.name}.search.windows.net'
 output keyVaultUri          string = keyVault.properties.vaultUri
-output aiFoundryProjectName string = aiProject.name
-output openaiEndpoint       string = openai.properties.endpoint
+output foundryProjectName   string = aiProject.name
+output foundryEndpoint      string = foundry.properties.endpoint
+output projectEndpoint      string = 'https://aif${uniq}.services.ai.azure.com/api/projects/${aiProjectName}'
 output resourceGroupName    string = resourceGroup().name

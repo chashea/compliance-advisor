@@ -1,6 +1,11 @@
 """
-Foundry Agent Service client — singleton AIProjectClient for creating and
+Microsoft Foundry Agent Service client — singleton AIProjectClient for creating and
 running agents via the azure-ai-projects SDK.
+
+Important: Foundry does not connect to M365 or GCC. The agent only reads from
+Azure AI Search and from our HTTP API (SQL). All M365 GCC data is ingested via
+Microsoft Graph (global endpoints) in the sync activities (collect_tenant_data,
+collect_compliance_data). Keep GRAPH_NATIONAL_CLOUD unset for M365 GCC.
 """
 import os
 

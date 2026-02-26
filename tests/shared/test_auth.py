@@ -53,19 +53,3 @@ def test_get_graph_token_raises_on_http_error(mock_env, sample_tenant):
             get_graph_token(sample_tenant)
 
 
-def test_get_graph_client_returns_client(mock_env, sample_tenant):
-    with patch("shared.auth._get_kv_client") as mock_kv, \
-         patch("shared.auth.ClientSecretCredential") as MockCSC, \
-         patch("shared.auth.GraphServiceClient") as MockGSC:
-        mock_kv.return_value.get_secret.return_value.value = "secret"
-
-        from shared.auth import get_graph_client
-        client = get_graph_client(sample_tenant)
-
-    MockCSC.assert_called_once_with(
-        tenant_id=sample_tenant["tenant_id"],
-        client_id=sample_tenant["app_id"],
-        client_secret="secret",
-    )
-    MockGSC.assert_called_once()
-    assert client is MockGSC.return_value

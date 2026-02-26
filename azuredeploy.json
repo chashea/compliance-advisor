@@ -587,7 +587,7 @@
       "type": "string",
       "value": "[reference(resourceId('Microsoft.KeyVault/vaults', format('kv-{0}', variables('prefix'))), '2023-07-01').vaultUri]"
     },
-    "aiFoundryProjectName": {
+    "foundryProjectName": {
       "type": "string",
       "value": "[format('aip-{0}', variables('prefix'))]"
     },

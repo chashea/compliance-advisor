@@ -170,7 +170,7 @@ jobs:
           package:                        ./src/functions
           scm-do-build-during-deployment: false
 
-  # ── Foundry Agents ─────────────────────────────────────────────────────────
+  # ── Microsoft Foundry Agents ───────────────────────────────────────────────
   # Agents are created lazily on first API call via the azure-ai-projects SDK.
   # No separate deployment step is required — the Function App code handles
   # agent creation and caching at runtime using its Managed Identity.

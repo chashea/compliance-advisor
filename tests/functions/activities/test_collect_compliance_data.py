@@ -19,20 +19,15 @@ def activity():
 
 
 class TestCollectComplianceData:
-    def test_happy_path_sdk(self, sample_tenant, activity):
+    def test_happy_path(self, sample_tenant, activity):
         assessments = [{"id": "a1", "displayName": "Test", "status": "active", "regulation": "SOC 2"}]
         controls = [{"id": "c1", "displayName": "MFA", "controlFamily": "Identity"}]
 
-        with patch.object(activity, "get_graph_client"), \
-             patch.object(activity, "get_graph_token", return_value="raw-tok"), \
-             patch.object(activity, "get_compliance_score_sdk", return_value={"currentScore": 80, "maxScore": 100}), \
-             patch.object(activity, "get_compliance_score_breakdown_sdk", return_value=[]), \
-             patch.object(activity, "get_compliance_assessments_sdk", return_value=assessments), \
-             patch.object(activity, "get_assessment_controls_sdk", return_value=controls), \
-             patch.object(activity, "get_compliance_score", return_value=None), \
+        with patch.object(activity, "get_graph_token", return_value="raw-tok"), \
+             patch.object(activity, "get_compliance_score", return_value={"currentScore": 80, "maxScore": 100}), \
              patch.object(activity, "get_compliance_score_breakdown", return_value=[]), \
-             patch.object(activity, "get_compliance_assessments", return_value=[]), \
-             patch.object(activity, "get_assessment_controls", return_value=[]), \
+             patch.object(activity, "get_compliance_assessments", return_value=assessments), \
+             patch.object(activity, "get_assessment_controls", return_value=controls), \
              patch.object(activity, "get_connection") as mock_conn, \
              patch.object(activity, "set_tenant_context"), \
              patch.object(activity, "upsert_compliance_score"), \
@@ -47,16 +42,13 @@ class TestCollectComplianceData:
         mock_upsert_a.assert_called_once()
         mock_upsert_ac.assert_called_once()
 
-    def test_falls_back_to_http_when_sdk_score_is_none(self, sample_tenant, activity):
-        with patch.object(activity, "get_graph_client"), \
-             patch.object(activity, "get_graph_token", return_value="raw-tok"), \
-             patch.object(activity, "get_compliance_score_sdk", return_value=None), \
-             patch.object(activity, "get_compliance_score_breakdown_sdk", return_value=[]), \
-             patch.object(activity, "get_compliance_assessments_sdk", return_value=[]), \
-             patch.object(activity, "get_assessment_controls_sdk", return_value=[]), \
-             patch.object(activity, "get_compliance_score", return_value={"currentScore": 75, "maxScore": 100}) as mock_http, \
+    def test_derives_score_from_assessments_when_score_endpoint_unavailable(self, sample_tenant, activity):
+        assessments = [{"id": "a1", "displayName": "Test", "complianceScore": 75}]
+
+        with patch.object(activity, "get_graph_token", return_value="raw-tok"), \
+             patch.object(activity, "get_compliance_score", return_value=None), \
              patch.object(activity, "get_compliance_score_breakdown", return_value=[]), \
-             patch.object(activity, "get_compliance_assessments", return_value=[]), \
+             patch.object(activity, "get_compliance_assessments", return_value=assessments), \
              patch.object(activity, "get_assessment_controls", return_value=[]), \
              patch.object(activity, "get_connection"), \
              patch.object(activity, "set_tenant_context"), \
@@ -67,22 +59,17 @@ class TestCollectComplianceData:
             result = activity.main(sample_tenant)
 
         assert result["success"] is True
-        mock_http.assert_called_once()
+        assert result["compliance_score"] == 75.0
         mock_upsert.assert_called()
 
     def test_skips_controls_for_assessment_without_id(self, sample_tenant, activity):
         assessment_no_id = {"displayName": "No ID", "status": "active"}
 
-        with patch.object(activity, "get_graph_client"), \
-             patch.object(activity, "get_graph_token", return_value="tok"), \
-             patch.object(activity, "get_compliance_score_sdk", return_value={"currentScore": 80, "maxScore": 100}), \
-             patch.object(activity, "get_compliance_score_breakdown_sdk", return_value=[]), \
-             patch.object(activity, "get_compliance_assessments_sdk", return_value=[assessment_no_id]), \
-             patch.object(activity, "get_assessment_controls_sdk") as mock_get_ctrls, \
-             patch.object(activity, "get_compliance_score", return_value=None), \
+        with patch.object(activity, "get_graph_token", return_value="tok"), \
+             patch.object(activity, "get_compliance_score", return_value={"currentScore": 80, "maxScore": 100}), \
              patch.object(activity, "get_compliance_score_breakdown", return_value=[]), \
-             patch.object(activity, "get_compliance_assessments", return_value=[]), \
-             patch.object(activity, "get_assessment_controls", return_value=[]), \
+             patch.object(activity, "get_compliance_assessments", return_value=[assessment_no_id]), \
+             patch.object(activity, "get_assessment_controls") as mock_get_ctrls, \
              patch.object(activity, "get_connection"), \
              patch.object(activity, "set_tenant_context"), \
              patch.object(activity, "upsert_compliance_score"), \
@@ -96,7 +83,7 @@ class TestCollectComplianceData:
         mock_upsert_ac.assert_not_called()
 
     def test_returns_failure_on_exception(self, sample_tenant, activity):
-        with patch.object(activity, "get_graph_client", side_effect=RuntimeError("boom")):
+        with patch.object(activity, "get_graph_token", side_effect=RuntimeError("boom")):
             result = activity.main(sample_tenant)
 
         assert result["success"] is False
@@ -104,16 +91,16 @@ class TestCollectComplianceData:
 
 
 class TestNormalizeAssessment:
-    def test_handles_snake_case_sdk_keys(self, activity):
-        a = {"display_name": "Test", "compliance_score": 85, "id": "a1"}
+    def test_handles_camel_case_keys(self, activity):
+        a = {"displayName": "Test", "complianceScore": 85, "id": "a1"}
         result = activity._normalize_assessment(a)
         assert result["displayName"] == "Test"
         assert result["complianceScore"] == 85
 
 
 class TestNormalizeControl:
-    def test_falls_back_through_key_chain(self, activity):
-        c = {"control_name": "MFA", "id": "c1"}
+    def test_falls_back_to_control_name(self, activity):
+        c = {"controlName": "MFA", "id": "c1"}
         result = activity._normalize_control(c)
         assert result["displayName"] == "MFA"
 

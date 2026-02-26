@@ -1,6 +1,11 @@
 """
 Activity: pull Secure Score data for a single tenant and persist it.
 One instance of this runs per tenant, all in parallel.
+
+M365 GCC connection: This is the only path that connects to M365 (GCC or commercial).
+Uses Microsoft Graph global endpoints (login.microsoftonline.com, graph.microsoft.com).
+Do not set GRAPH_NATIONAL_CLOUD for M365 GCC — it uses global endpoints. Foundry
+does not connect to M365; it only consumes data already synced via Graph here.
 """
 import logging
 import sys, os

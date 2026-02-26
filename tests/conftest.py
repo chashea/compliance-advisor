@@ -1,34 +1,12 @@
 """Root conftest.py — shared pytest fixtures for the compliance-advisor test suite."""
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 # Mock pyodbc if the unixODBC native library is not installed
 try:
     import pyodbc  # noqa: F401
 except ImportError:
     sys.modules["pyodbc"] = MagicMock()
-
-# Pre-mock specific msgraph_beta SDK compliance_manager paths that may not
-# exist in all versions. We only mock the leaf paths that the source imports,
-# being careful NOT to overwrite parent modules that the SDK itself uses.
-import importlib as _il
-try:
-    _il.import_module("msgraph_beta.generated.security.compliance_manager.assessments.assessments_request_builder")
-except (ImportError, ModuleNotFoundError, AttributeError):
-    # The compliance_manager sub-tree doesn't exist — mock it
-    # First, ensure the real generated module is loaded
-    try:
-        import msgraph_beta.generated  # noqa: F401
-    except Exception:
-        pass
-    _cm_mocks = [
-        "msgraph_beta.generated.security.compliance_manager",
-        "msgraph_beta.generated.security.compliance_manager.assessments",
-        "msgraph_beta.generated.security.compliance_manager.assessments.assessments_request_builder",
-    ]
-    for _mod in _cm_mocks:
-        if _mod not in sys.modules:
-            sys.modules[_mod] = MagicMock()
 
 import pytest
 

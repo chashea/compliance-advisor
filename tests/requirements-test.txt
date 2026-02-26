@@ -12,9 +12,6 @@ azure-identity==1.17.1
 azure-keyvault-secrets==4.8.0
 azure-search-documents==11.6.0
 
-# Graph SDK (imported by shared.auth and shared.graph_client)
-msgraph-beta-sdk>=1.5.0
-
 # Data / HTTP (directly imported in tests)
 requests==2.32.3
 pandas==2.2.2

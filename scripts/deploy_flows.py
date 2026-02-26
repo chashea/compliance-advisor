@@ -1,4 +1,4 @@
-"""Deploy prompt flows to the AI Foundry project using identity-based auth."""
+"""Deploy prompt flows to the Microsoft Foundry project using identity-based auth."""
 import sys
 from azure.identity import DefaultAzureCredential
 from promptflow.azure import PFClient

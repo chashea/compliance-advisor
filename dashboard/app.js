@@ -31,6 +31,7 @@ const PALETTE = Object.values(CHART_COLORS);
 let charts = {};
 let currentData = {};
 let demoMode = false;
+let sortState = {}; // { tableId: { key, dir: 1|-1 } }
 
 // ── DOM References ──────────────────────────────────────────────────────────
 const $ = (sel) => document.querySelector(sel);
@@ -63,9 +64,33 @@ function setStatus(state, text) {
   txt.textContent = text;
 }
 
+function setLoadingSkeleton(show) {
+  const sk = $("#loading-skeleton");
+  const main = $(".main-content");
+  if (!sk || !main) return;
+  if (show) {
+    sk.hidden = false;
+    main.style.visibility = "hidden";
+      main.style.minHeight = "400px";
+  } else {
+    sk.hidden = true;
+    main.style.visibility = "";
+    main.style.minHeight = "";
+  }
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
-// DEMO DATA — realistic Compliance Manager data when API is unreachable
+// DEMO DATA — aligned with Microsoft Purview Compliance Manager
+// (implementation_status, test_status, categories per Purview docs)
 // ═════════════════════════════════════════════════════════════════════════════
+
+// Purview implementation status: notImplemented | planned | alternative | implemented | outOfScope
+// Purview test status: notAssessed | none | inProgress | partiallyTested | passed | failed* | outOfScope
+// Purview improvement action categories: Control Access, Discover and Respond, etc.
+const PURVIEW_CATEGORIES = [
+  "Control Access", "Discover and Respond", "Govern Information", "Infrastructure Cloud",
+  "Manage Compliance", "Manage Devices", "Protect Against Threats", "Protect Information",
+];
 
 function generateDemoData(days) {
   const deptNames = ["Finance", "Health & Human Services", "Defense", "Education", "Energy"];
@@ -203,16 +228,16 @@ function generateDemoData(days) {
     };
   });
 
-  // Top gaps (now with solution fields from the updated view)
+  // Top gaps — improvement actions with Purview-aligned implementation_status & test_status
   const topGaps = [
-    { control_name: "AC-2 Account Management", control_family: "Access Control", regulation: "NIST 800-53 Rev 5", implementation_status: "notImplemented", test_status: "failed", points_gap: 8.5, score_impact: "high", owner: "Identity Team", action_url: "https://compliance.microsoft.com/compliancemanager", implementation_details: "1. Enable Azure AD Privileged Identity Management (PIM) for all admin roles.\n2. Configure access reviews on a 90-day cycle for all privileged accounts.\n3. Implement automated account provisioning/deprovisioning via SCIM.\n4. Deploy Conditional Access policies requiring MFA for all admin sign-ins.", test_plan: "Verify PIM activation logs exist for the past 30 days. Confirm access reviews completed with documented approvals. Run automated scan for orphaned accounts.", service: "Azure AD" },
-    { control_name: "AU-6 Audit Review & Analysis", control_family: "Audit & Accountability", regulation: "NIST 800-53 Rev 5", implementation_status: "planned", test_status: "notAssessed", points_gap: 7.2, score_impact: "high", owner: "SOC Team", action_url: "https://compliance.microsoft.com/compliancemanager", implementation_details: "1. Enable Unified Audit Log in Microsoft 365.\n2. Configure Microsoft Sentinel with M365 data connector.\n3. Create analytics rules for anomalous sign-in patterns, data exfiltration, and privilege escalation.\n4. Establish weekly audit log review process with SOC rotation.", test_plan: "Confirm audit logs are flowing to Sentinel workspace. Verify at least 3 analytics rules are active. Review incident queue for past 7 days.", service: "Microsoft Sentinel" },
-    { control_name: "CM-7 Least Functionality", control_family: "Configuration Management", regulation: "NIST 800-53 Rev 5", implementation_status: "notImplemented", test_status: "failed", points_gap: 6.8, score_impact: "high", owner: "Endpoint Team", action_url: "https://compliance.microsoft.com/compliancemanager", implementation_details: "1. Deploy Microsoft Defender for Endpoint attack surface reduction (ASR) rules.\n2. Disable unnecessary Windows services and features via Intune configuration profiles.\n3. Block execution of unsigned scripts using AppLocker / WDAC policies.\n4. Remove local admin rights from standard users using LAPS.", test_plan: "Run ASR rule audit report — confirm at least 10 rules in enforce mode. Scan 10 sample endpoints for disabled services. Verify AppLocker event logs show no bypasses.", service: "Intune" },
-    { control_name: "A.8.1 Asset Management", control_family: "Asset Management", regulation: "ISO 27001:2022", implementation_status: "alternative", test_status: "failed", points_gap: 5.9, score_impact: "medium", owner: "IT Operations", action_url: "https://compliance.microsoft.com/compliancemanager", implementation_details: "1. Deploy Microsoft Defender for Endpoint device inventory across all managed devices.\n2. Configure automatic device tagging by department and sensitivity level.\n3. Integrate with Intune for software inventory and compliance checks.\n4. Establish quarterly asset reconciliation process.", test_plan: "Export device inventory — confirm 95% coverage vs HR headcount. Verify sensitivity labels applied to at least 80% of devices.", service: "Defender for Endpoint" },
-    { control_name: "CC6.1 Logical Access Security", control_family: "Logical Access", regulation: "SOC 2 Type II", implementation_status: "planned", test_status: "notAssessed", points_gap: 5.4, score_impact: "medium", owner: "Identity Team", action_url: "https://compliance.microsoft.com/compliancemanager", implementation_details: "1. Enforce MFA for all users via Conditional Access (Security Defaults minimum).\n2. Implement risk-based Conditional Access requiring step-up for high-risk sign-ins.\n3. Configure session controls to limit persistent browser sessions to 12 hours.\n4. Deploy passwordless authentication (FIDO2 / Windows Hello) for privileged users.", test_plan: "Pull sign-in logs confirming MFA challenge rate > 99%. Validate CA policies cover all cloud apps. Test passwordless flow for 5 admin accounts.", service: "Azure AD" },
-    { control_name: "IR-4 Incident Handling", control_family: "Incident Response", regulation: "NIST 800-53 Rev 5", implementation_status: "notImplemented", test_status: "failed", points_gap: 4.8, score_impact: "medium", owner: "SOC Team", action_url: "https://compliance.microsoft.com/compliancemanager", implementation_details: "1. Create incident response playbooks in Microsoft Sentinel (Logic App automation).\n2. Configure automated incident enrichment with threat intelligence.\n3. Set up automated notification to CISO for Severity 1 incidents.\n4. Schedule quarterly tabletop exercises and document lessons learned.", test_plan: "Trigger test incident and verify playbook executes within 5 minutes. Confirm enrichment adds TI context. Verify notification reaches CISO inbox.", service: "Microsoft Sentinel" },
-    { control_name: "SC-8 Transmission Confidentiality", control_family: "System & Communications Protection", regulation: "FedRAMP Moderate", implementation_status: "planned", test_status: "notAssessed", points_gap: 4.3, score_impact: "low", owner: "Network Team", action_url: "https://compliance.microsoft.com/compliancemanager", implementation_details: "1. Enforce TLS 1.2+ across all M365 services and disable legacy protocols.\n2. Configure Exchange Online to require TLS for partner domain connectors.\n3. Enable Microsoft Purview Information Protection for sensitive data in transit.\n4. Deploy Azure Private Link for internal traffic to PaaS services.", test_plan: "Run TLS configuration scan across all endpoints. Verify no TLS 1.0/1.1 connections in past 30 days. Confirm sensitivity labels applied to email containing PII.", service: "Exchange Online" },
-    { control_name: "RA-5 Vulnerability Scanning", control_family: "Risk Assessment", regulation: "CMMC Level 2", implementation_status: "notImplemented", test_status: "failed", points_gap: 3.9, score_impact: "low", owner: "SecOps Team", action_url: "https://compliance.microsoft.com/compliancemanager", implementation_details: "1. Enable Microsoft Defender Vulnerability Management across all enrolled devices.\n2. Configure weekly automated vulnerability scans.\n3. Establish SLA for remediation: Critical 48h, High 7d, Medium 30d, Low 90d.\n4. Create Power BI dashboard for vulnerability trending and SLA compliance.", test_plan: "Confirm scan coverage ≥ 95% of managed devices. Pull vulnerability report showing remediation within SLA for past quarter. Verify Critical vulnerabilities at 0 for > 48h.", service: "Defender Vulnerability Mgmt" },
+    { control_name: "AC-2 Account Management", control_family: "Access Control", control_category: "Control Access", regulation: "NIST 800-53 Rev 5", implementation_status: "notImplemented", test_status: "notAssessed", points_gap: 8.5, score_impact: "high", owner: "Identity Team", action_url: "https://compliance.microsoft.com/compliancemanager", implementation_details: "1. Enable Azure AD Privileged Identity Management (PIM) for all admin roles.\n2. Configure access reviews on a 90-day cycle for all privileged accounts.\n3. Implement automated account provisioning/deprovisioning via SCIM.\n4. Deploy Conditional Access policies requiring MFA for all admin sign-ins.", test_plan: "Verify PIM activation logs exist for the past 30 days. Confirm access reviews completed with documented approvals. Run automated scan for orphaned accounts.", service: "Azure AD" },
+    { control_name: "AU-6 Audit Review & Analysis", control_family: "Audit & Accountability", control_category: "Discover and Respond", regulation: "NIST 800-53 Rev 5", implementation_status: "planned", test_status: "notAssessed", points_gap: 7.2, score_impact: "high", owner: "SOC Team", action_url: "https://compliance.microsoft.com/compliancemanager", implementation_details: "1. Enable Unified Audit Log in Microsoft 365.\n2. Configure Microsoft Sentinel with M365 data connector.\n3. Create analytics rules for anomalous sign-in patterns, data exfiltration, and privilege escalation.\n4. Establish weekly audit log review process with SOC rotation.", test_plan: "Confirm audit logs are flowing to Sentinel workspace. Verify at least 3 analytics rules are active. Review incident queue for past 7 days.", service: "Microsoft Sentinel" },
+    { control_name: "CM-7 Least Functionality", control_family: "Configuration Management", control_category: "Manage Devices", regulation: "NIST 800-53 Rev 5", implementation_status: "notImplemented", test_status: "failedHighRisk", points_gap: 6.8, score_impact: "high", owner: "Endpoint Team", action_url: "https://compliance.microsoft.com/compliancemanager", implementation_details: "1. Deploy Microsoft Defender for Endpoint attack surface reduction (ASR) rules.\n2. Disable unnecessary Windows services and features via Intune configuration profiles.\n3. Block execution of unsigned scripts using AppLocker / WDAC policies.\n4. Remove local admin rights from standard users using LAPS.", test_plan: "Run ASR rule audit report — confirm at least 10 rules in enforce mode. Scan 10 sample endpoints for disabled services. Verify AppLocker event logs show no bypasses.", service: "Intune" },
+    { control_name: "A.8.1 Asset Management", control_family: "Asset Management", control_category: "Govern Information", regulation: "ISO 27001:2022", implementation_status: "alternative", test_status: "partiallyTested", points_gap: 5.9, score_impact: "medium", owner: "IT Operations", action_url: "https://compliance.microsoft.com/compliancemanager", implementation_details: "1. Deploy Microsoft Defender for Endpoint device inventory across all managed devices.\n2. Configure automatic device tagging by department and sensitivity level.\n3. Integrate with Intune for software inventory and compliance checks.\n4. Establish quarterly asset reconciliation process.", test_plan: "Export device inventory — confirm 95% coverage vs HR headcount. Verify sensitivity labels applied to at least 80% of devices.", service: "Defender for Endpoint" },
+    { control_name: "CC6.1 Logical Access Security", control_family: "Logical Access", control_category: "Control Access", regulation: "SOC 2 Type II", implementation_status: "planned", test_status: "toBeDetermined", points_gap: 5.4, score_impact: "medium", owner: "Identity Team", action_url: "https://compliance.microsoft.com/compliancemanager", implementation_details: "1. Enforce MFA for all users via Conditional Access (Security Defaults minimum).\n2. Implement risk-based Conditional Access requiring step-up for high-risk sign-ins.\n3. Configure session controls to limit persistent browser sessions to 12 hours.\n4. Deploy passwordless authentication (FIDO2 / Windows Hello) for privileged users.", test_plan: "Pull sign-in logs confirming MFA challenge rate > 99%. Validate CA policies cover all cloud apps. Test passwordless flow for 5 admin accounts.", service: "Azure AD" },
+    { control_name: "IR-4 Incident Handling", control_family: "Incident Response", control_category: "Discover and Respond", regulation: "NIST 800-53 Rev 5", implementation_status: "notImplemented", test_status: "failedMediumRisk", points_gap: 4.8, score_impact: "medium", owner: "SOC Team", action_url: "https://compliance.microsoft.com/compliancemanager", implementation_details: "1. Create incident response playbooks in Microsoft Sentinel (Logic App automation).\n2. Configure automated incident enrichment with threat intelligence.\n3. Set up automated notification to CISO for Severity 1 incidents.\n4. Schedule quarterly tabletop exercises and document lessons learned.", test_plan: "Trigger test incident and verify playbook executes within 5 minutes. Confirm enrichment adds TI context. Verify notification reaches CISO inbox.", service: "Microsoft Sentinel" },
+    { control_name: "SC-8 Transmission Confidentiality", control_family: "System & Communications Protection", control_category: "Protect Information", regulation: "FedRAMP Moderate", implementation_status: "planned", test_status: "inProgress", points_gap: 4.3, score_impact: "low", owner: "Network Team", action_url: "https://compliance.microsoft.com/compliancemanager", implementation_details: "1. Enforce TLS 1.2+ across all M365 services and disable legacy protocols.\n2. Configure Exchange Online to require TLS for partner domain connectors.\n3. Enable Microsoft Purview Information Protection for sensitive data in transit.\n4. Deploy Azure Private Link for internal traffic to PaaS services.", test_plan: "Run TLS configuration scan across all endpoints. Verify no TLS 1.0/1.1 connections in past 30 days. Confirm sensitivity labels applied to email containing PII.", service: "Exchange Online" },
+    { control_name: "RA-5 Vulnerability Scanning", control_family: "Risk Assessment", control_category: "Protect Against Threats", regulation: "CMMC Level 2", implementation_status: "notImplemented", test_status: "failedLowRisk", points_gap: 3.9, score_impact: "low", owner: "SecOps Team", action_url: "https://compliance.microsoft.com/compliancemanager", implementation_details: "1. Enable Microsoft Defender Vulnerability Management across all enrolled devices.\n2. Configure weekly automated vulnerability scans.\n3. Establish SLA for remediation: Critical 48h, High 7d, Medium 30d, Low 90d.\n4. Create Power BI dashboard for vulnerability trending and SLA compliance.", test_plan: "Confirm scan coverage ≥ 95% of managed devices. Pull vulnerability report showing remediation within SLA for past quarter. Verify Critical vulnerabilities at 0 for > 48h.", service: "Defender Vulnerability Mgmt" },
   ];
 
   return {
@@ -271,31 +296,40 @@ function generateDemoData(days) {
 async function loadDashboard() {
   const department = $("#department-filter").value;
   const days = parseInt($("#days-filter").value, 10);
+  const forceDemo = $("#demo-mode-toggle")?.checked ?? false;
 
   setStatus("loading", "Loading compliance data…");
+  setLoadingSkeleton(true);
 
   try {
-    const [statusData, complianceData, assessmentData, regulationData, actionsData] = await Promise.all([
-      api("status"),
-      api("compliance", { department: department || undefined, days }),
-      api("assessments", { department: department || undefined }),
-      api("regulations"),
-      api("actions", { department: department || undefined }),
-    ]);
+    if (forceDemo) {
+      demoMode = true;
+      currentData = generateDemoData(days);
+    } else {
+      const [statusData, complianceData, assessmentData, regulationData, actionsData] = await Promise.all([
+        api("status"),
+        api("compliance", { department: department || undefined, days }),
+        api("assessments", { department: department || undefined }),
+        api("regulations"),
+        api("actions", { department: department || undefined }),
+      ]);
 
-    currentData = {
-      status: statusData,
-      compliance: complianceData,
-      assessments: assessmentData,
-      regulations: regulationData,
-      actions: actionsData,
-    };
-    demoMode = false;
+      currentData = {
+        status: statusData,
+        compliance: complianceData,
+        assessments: assessmentData,
+        regulations: regulationData,
+        actions: actionsData,
+      };
+      demoMode = false;
+    }
   } catch (err) {
     console.warn("API unavailable — loading demo data.", err.message);
     demoMode = true;
     currentData = generateDemoData(days);
   }
+
+  setLoadingSkeleton(false);
 
   const { status: statusData, compliance, assessments: assessmentData, regulations: regulationData, actions: actionsData } = currentData;
 
@@ -308,11 +342,19 @@ async function loadDashboard() {
   renderDepartmentChart(compliance.department_rollup);
   renderRegulationChart(regulationData.regulations);
   renderFamilyChart(assessmentData.control_families);
-  renderAssessmentTable(assessmentData.assessments);
-  renderWoWTable(compliance.weekly_changes);
+  renderAssessmentTable(assessmentData.assessments, { sorted: getSorted("assessment-table", assessmentData.assessments, assessmentTableSortKeys) });
+  renderWoWTable(compliance.weekly_changes, { sorted: getSorted("wow-table", compliance.weekly_changes, wowTableSortKeys) });
   renderGapsTable(assessmentData.top_gaps);
   renderActionsTable(actionsData);
   renderActionsSummary(actionsData?.summary);
+
+  updateSortHeaders("assessment-table");
+  updateSortHeaders("wow-table");
+
+  // Enable Copy when briefing has real content
+  const briefingEl = $("#briefing-content");
+  const copyBtn = $("#copy-briefing-btn");
+  if (copyBtn) copyBtn.disabled = !briefingEl?.innerText?.trim() || briefingEl.innerText.includes("Click \"Generate Briefing\"");
 
   if (demoMode) {
     setStatus("ok", "DEMO MODE — showing sample Compliance Manager data (API unavailable)");
@@ -460,6 +502,16 @@ function renderDepartmentChart(data) {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: { x: { beginAtZero: true, max: 100, title: { display: true, text: "Compliance %" } } },
+      onClick: (_ev, elements) => {
+        if (elements.length && $("#department-filter")) {
+          const idx = elements[0].index;
+          const dept = sorted[idx]?.department;
+          if (dept) {
+            $("#department-filter").value = dept;
+            loadDashboard();
+          }
+        }
+      },
     },
   });
 }
@@ -548,16 +600,17 @@ function renderFamilyChart(data) {
 // TABLES
 // ═════════════════════════════════════════════════════════════════════════════
 
-function renderAssessmentTable(assessments) {
+function renderAssessmentTable(assessments, options = {}) {
   const tbody = $("#assessment-table tbody");
   tbody.innerHTML = "";
+  const list = options.sorted ?? assessments ?? [];
 
-  if (!assessments?.length) {
+  if (!list?.length) {
     tbody.innerHTML = '<tr><td colspan="8" style="color:var(--text-muted)">No assessment data</td></tr>';
     return;
   }
 
-  assessments.forEach((a) => {
+  list.forEach((a) => {
     const scoreCls = (a.compliance_score ?? a.pass_rate) < 50 ? "kpi-card__value--bad" :
                      (a.compliance_score ?? a.pass_rate) < 70 ? "" : "kpi-card__value--good";
     tbody.innerHTML += `
@@ -574,16 +627,65 @@ function renderAssessmentTable(assessments) {
   });
 }
 
-function renderWoWTable(changes) {
+const assessmentTableSortKeys = ["assessment_name", "regulation", "display_name", "compliance_score", "pass_rate", "passed_controls", "failed_controls", "total_controls"];
+const wowTableSortKeys = ["display_name", "department", "current_pct", "prior_pct", "wow_change", "trend_direction"];
+
+function getSorted(tableId, data, keys) {
+  if (!data?.length) return data;
+  const state = sortState[tableId];
+  if (!state?.key) return data;
+  const key = state.key;
+  const dir = state.dir || 1;
+  const isNum = $(`#${tableId} thead th[data-sort="${key}"]`)?.hasAttribute("data-sort-num");
+  return [...data].sort((a, b) => {
+    let va = a[key];
+    let vb = b[key];
+    if (isNum) {
+      va = Number(va);
+      vb = Number(vb);
+      return dir * (isNaN(va) ? 0 : va - (isNaN(vb) ? 0 : vb));
+    }
+    const sa = String(va ?? "").toLowerCase();
+    const sb = String(vb ?? "").toLowerCase();
+    return dir * (sa < sb ? -1 : sa > sb ? 1 : 0);
+  });
+}
+
+function updateSortHeaders(tableId) {
+  const table = $(`#${tableId}`);
+  if (!table) return;
+  const state = sortState[tableId];
+  table.querySelectorAll("thead th[data-sort]").forEach((th) => {
+    th.classList.remove("sorted-asc", "sorted-desc");
+    const icon = th.querySelector(".sort-icon");
+    if (icon) icon.textContent = "";
+    if (state?.key === th.getAttribute("data-sort")) {
+      th.classList.add(state.dir === 1 ? "sorted-asc" : "sorted-desc");
+      if (icon) icon.textContent = state.dir === 1 ? " ▲" : " ▼";
+    }
+  });
+}
+
+function reapplySortAndRenderTables() {
+  const { compliance, assessments: assessmentData, actions: actionsData } = currentData;
+  if (!compliance || !assessmentData) return;
+  renderAssessmentTable(assessmentData.assessments, { sorted: getSorted("assessment-table", assessmentData.assessments, assessmentTableSortKeys) });
+  renderWoWTable(compliance.weekly_changes, { sorted: getSorted("wow-table", compliance.weekly_changes, wowTableSortKeys) });
+  updateSortHeaders("assessment-table");
+  updateSortHeaders("wow-table");
+}
+
+function renderWoWTable(changes, options = {}) {
   const tbody = $("#wow-table tbody");
   tbody.innerHTML = "";
+  const list = options.sorted ?? changes ?? [];
 
-  if (!changes?.length) {
+  if (!list?.length) {
     tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-muted)">No data</td></tr>';
     return;
   }
 
-  changes.forEach((c) => {
+  list.forEach((c) => {
     const dir = c.trend_direction || "Stable";
     const cls = dir === "Improving" ? "badge--improving" :
                 dir === "Declining" ? "badge--declining" : "badge--stable";
@@ -612,13 +714,9 @@ function renderGapsTable(gaps) {
   }
 
   gaps.forEach((g) => {
-    const statusBadge = g.implementation_status === "notImplemented"
-      ? '<span class="badge badge--declining">Not Impl</span>'
-      : g.implementation_status === "planned"
-      ? '<span class="badge badge--stable">Planned</span>'
-      : g.implementation_status === "alternative"
-      ? '<span class="badge badge--stable">Alt</span>'
-      : `<span class="badge">${esc(g.implementation_status || g.test_status || "–")}</span>`;
+    const impl = g.implementation_status;
+    const implClass = impl === "notImplemented" ? "badge--declining" : impl === "implemented" ? "badge--improving" : impl === "outOfScope" ? "badge--stable" : "badge--stable";
+    const statusBadge = impl ? `<span class="badge ${implClass}">${esc(purviewImplementationLabel(impl))}</span>` : `<span class="badge">${esc(purviewTestLabel(g.test_status))}</span>`;
 
     const impactBadge = g.score_impact
       ? `<span class="badge badge--${g.score_impact}">${esc(g.score_impact)}</span>`
@@ -667,13 +765,9 @@ function renderActionsTable(actionsData) {
   }
 
   actions.forEach((a, idx) => {
-    const statusBadge = a.implementation_status === "notImplemented"
-      ? '<span class="badge badge--declining">Not Impl</span>'
-      : a.implementation_status === "planned"
-      ? '<span class="badge badge--stable">Planned</span>'
-      : a.implementation_status === "alternative"
-      ? '<span class="badge badge--stable">Alt</span>'
-      : `<span class="badge">${esc(a.implementation_status || "–")}</span>`;
+    const impl = a.implementation_status;
+    const implClass = impl === "notImplemented" ? "badge--declining" : impl === "implemented" ? "badge--improving" : impl === "outOfScope" ? "badge--stable" : "badge--stable";
+    const statusBadge = impl ? `<span class="badge ${implClass}">${esc(purviewImplementationLabel(impl))}</span>` : `<span class="badge">–</span>`;
 
     const impactBadge = a.score_impact
       ? `<span class="badge badge--${a.score_impact}">${esc(a.score_impact)}</span>`
@@ -720,12 +814,20 @@ function renderActionsTable(actionsData) {
       </tr>`;
   });
 
-  // Attach expand/collapse handlers
+  attachActionExpandHandlers(tbody);
+}
+
+function attachActionExpandHandlers(tbody) {
+  if (!tbody) return;
+  tbody.querySelectorAll(".action-main-row").forEach((row) => {
+    row.replaceWith(row.cloneNode(true));
+  });
   tbody.querySelectorAll(".action-main-row").forEach((row) => {
     row.addEventListener("click", () => {
       const idx = row.dataset.actionIdx;
       const detail = document.getElementById(`action-detail-${idx}`);
       const btn = row.querySelector(".expand-btn");
+      if (!detail || !btn) return;
       const visible = detail.style.display !== "none";
       detail.style.display = visible ? "none" : "table-row";
       btn.classList.toggle("open", !visible);
@@ -761,6 +863,8 @@ async function generateBriefing() {
   } finally {
     btn.disabled = false;
     btn.textContent = "Generate Briefing";
+    const copyBtn = $("#copy-briefing-btn");
+    if (copyBtn) copyBtn.disabled = !$("#briefing-content")?.innerText?.trim() || $("#briefing-content").innerText.includes("Click \"Generate Briefing\"");
   }
 }
 
@@ -918,6 +1022,16 @@ function esc(str) {
   return el.innerHTML;
 }
 
+// Purview Compliance Manager — display labels for implementation_status and test_status
+function purviewImplementationLabel(status) {
+  const labels = { notImplemented: "Not implemented", planned: "Planned", alternative: "Alternative implementation", implemented: "Implemented", outOfScope: "Out of scope" };
+  return labels[status] || status || "–";
+}
+function purviewTestLabel(status) {
+  const labels = { notAssessed: "Not assessed", none: "None", inProgress: "In progress", partiallyTested: "Partially tested", toBeDetermined: "To be determined", couldNotBeDetermined: "Could not be determined", outOfScope: "Out of scope", failedLowRisk: "Failed (low risk)", failedMediumRisk: "Failed (medium risk)", failedHighRisk: "Failed (high risk)", passed: "Passed" };
+  return labels[status] || status || "–";
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // EVENT LISTENERS
 // ═════════════════════════════════════════════════════════════════════════════
@@ -948,4 +1062,53 @@ document.addEventListener("DOMContentLoaded", () => {
   };
   $("#actions-impact-filter").addEventListener("change", filterActions);
   $("#actions-status-filter").addEventListener("change", filterActions);
+
+  // Suggested questions (chips)
+  $("#ask-suggestions")?.addEventListener("click", (e) => {
+    const chip = e.target.closest(".chip");
+    if (!chip?.dataset.question) return;
+    const input = $("#ask-input");
+    if (input) {
+      input.value = chip.dataset.question;
+      input.focus();
+      askAdvisor();
+    }
+  });
+
+  // Table sorting (re-render from current data, no reload)
+  $$(".data-table--sortable thead th[data-sort]").forEach((th) => {
+    th.addEventListener("click", () => {
+      const table = th.closest("table");
+      const tableId = table?.id;
+      const key = th.getAttribute("data-sort");
+      if (!tableId || !key) return;
+      const state = sortState[tableId] || {};
+      const nextDir = state.key === key && state.dir === 1 ? -1 : 1;
+      sortState[tableId] = { key, dir: nextDir };
+      reapplySortAndRenderTables();
+    });
+  });
+
+  // Copy briefing
+  $("#copy-briefing-btn")?.addEventListener("click", () => {
+    const content = $("#briefing-content");
+    const text = content?.innerText || content?.textContent || "";
+    if (!text || text.includes("Click \"Generate Briefing\"")) return;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = $("#copy-briefing-btn");
+      if (btn) { btn.textContent = "Copied!"; setTimeout(() => { btn.textContent = "Copy"; }, 2000); }
+    }).catch(() => {});
+  });
+
+  // Demo mode toggle: reload when changed
+  $("#demo-mode-toggle")?.addEventListener("change", loadDashboard);
+
+  // KPI cards: click to scroll to related table
+  $$(".kpi-card[data-clickable][data-scroll]").forEach((card) => {
+    card.addEventListener("click", () => {
+      const id = card.getAttribute("data-scroll");
+      const el = id ? document.getElementById(id) : null;
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
 });

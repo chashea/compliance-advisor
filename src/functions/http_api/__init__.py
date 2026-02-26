@@ -83,7 +83,7 @@ def _handle_ask(body: dict, log: logging.Logger) -> dict:
 
 
 def _handle_briefing(body: dict, log: logging.Logger) -> dict:
-    """Generate a structured executive briefing via the Foundry briefing agent."""
+    """Generate a structured executive briefing via the Microsoft Foundry briefing agent."""
     department = body.get("department")
 
     from shared.agents.executive_briefing import generate_briefing

@@ -1,6 +1,6 @@
 """
 Timer trigger — runs every Monday at 08:00 UTC to generate and post the
-weekly compliance digest via the Foundry Agent Service.
+weekly compliance digest via the Microsoft Foundry Agent Service.
 
 Replaces the scheduled Prompt Flow weekly_digest cron job.
 """

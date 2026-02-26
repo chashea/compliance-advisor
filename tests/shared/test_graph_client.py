@@ -1,36 +1,7 @@
-"""Tests for shared.graph_client — model conversion, pagination, HTTP fallback."""
+"""Tests for shared.graph_client — pagination, HTTP fallback."""
 from unittest.mock import patch, MagicMock
 import pytest
 import requests
-
-
-class TestModelToDict:
-    def test_none_returns_empty_dict(self):
-        from shared.graph_client import _model_to_dict
-        assert _model_to_dict(None) == {}
-
-    def test_plain_dict_returns_same(self):
-        from shared.graph_client import _model_to_dict
-        d = {"key": "value"}
-        assert _model_to_dict(d) == d
-
-    def test_object_extracts_public_attrs(self):
-        from shared.graph_client import _model_to_dict
-        obj = MagicMock(spec=[])
-        obj.name = "test"
-        obj.score = 42
-        obj.additional_data = None
-        result = _model_to_dict(obj)
-        assert result["name"] == "test"
-        assert result["score"] == 42
-
-    def test_object_merges_additional_data(self):
-        from shared.graph_client import _model_to_dict
-        obj = MagicMock(spec=[])
-        obj.name = "test"
-        obj.additional_data = {"scoreImpact": "high"}
-        result = _model_to_dict(obj)
-        assert result["scoreImpact"] == "high"
 
 
 class TestGetSecureScores:

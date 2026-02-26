@@ -1,8 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Compliance Advisor — AI Foundry-only deployment
+// Compliance Advisor — Microsoft Foundry–only (legacy Hub/Project pattern)
 //
-// Deploys: Key Vault · AI Foundry Hub + Project · Hub Connections (OpenAI + Search)
+// Deploys: Key Vault · Microsoft Foundry Hub + Project · Connections (OpenAI + Search)
 // References existing: App Insights · Storage · ACR · OpenAI · AI Search
+// For new deployments, prefer the main azuredeploy.bicep (Microsoft Foundry AIServices).
 // ─────────────────────────────────────────────────────────────────────────────
 
 @description('Short environment label used in resource names.')
@@ -95,7 +96,7 @@ resource secretOpenAIKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AI Foundry Hub
+// Microsoft Foundry Hub (legacy ML workspace Hub)
 // ─────────────────────────────────────────────────────────────────────────────
 resource aiHub 'Microsoft.MachineLearningServices/workspaces@2024-04-01' = {
   name    : 'aih-${prefix}'
@@ -112,7 +113,7 @@ resource aiHub 'Microsoft.MachineLearningServices/workspaces@2024-04-01' = {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AI Foundry Project
+// Microsoft Foundry Project (legacy ML workspace Project)
 // ─────────────────────────────────────────────────────────────────────────────
 resource aiProject 'Microsoft.MachineLearningServices/workspaces@2024-04-01' = {
   name    : 'aip-${prefix}'
@@ -196,7 +197,7 @@ resource raHubAcr 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 // Outputs
 // ─────────────────────────────────────────────────────────────────────────────
 output keyVaultUri          string = keyVault.properties.vaultUri
-output aiFoundryHubName     string = aiHub.name
-output aiFoundryProjectName string = aiProject.name
+output foundryHubName     string = aiHub.name
+output foundryProjectName string = aiProject.name
 output openaiEndpoint       string = openai.properties.endpoint
 output searchEndpoint       string = 'https://${search.name}.search.windows.net'

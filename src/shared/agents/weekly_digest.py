@@ -1,6 +1,7 @@
 """
 Weekly Digest agent — generates enterprise compliance digest and posts to Teams
-using Foundry Agent Service with custom function tools.
+using Microsoft Foundry Agent Service with custom function tools.
+Does not connect to M365 GCC; data comes from our API (Graph-synced SQL) only.
 
 Replaces the prompt_flows/weekly_digest Prompt Flow.
 """

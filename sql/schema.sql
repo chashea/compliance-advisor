@@ -117,7 +117,8 @@ CREATE TABLE benchmark_scores (
 -- Compliance Manager — Assessments & Compliance Score
 -- ============================================================
 
--- Daily Compliance Score snapshots (pulled from Graph API)
+-- Compliance Manager compliance score (Purview) — points achieved from improvement actions
+-- category e.g. 'overall' for the main compliance score; see Purview scoring docs
 CREATE TABLE compliance_scores (
     id              INT           NOT NULL IDENTITY PRIMARY KEY,
     tenant_id       NVARCHAR(36)  NOT NULL REFERENCES tenants(tenant_id),
@@ -129,7 +130,8 @@ CREATE TABLE compliance_scores (
     CONSTRAINT uq_compliance_scores UNIQUE (tenant_id, snapshot_date, category)
 );
 
--- Compliance Manager assessments
+-- Compliance Manager assessments (Microsoft Purview Compliance Manager)
+-- Maps to Purview: assessment = evaluation vs a regulation/standard; contains controls & improvement actions
 CREATE TABLE assessments (
     id              INT           NOT NULL IDENTITY PRIMARY KEY,
     tenant_id       NVARCHAR(36)  NOT NULL REFERENCES tenants(tenant_id),
@@ -148,17 +150,20 @@ CREATE TABLE assessments (
     CONSTRAINT uq_assessments UNIQUE (tenant_id, assessment_id)
 );
 
--- Individual improvement actions within an assessment
+-- Individual improvement actions within an assessment (Purview Compliance Manager)
+-- implementation_status: notImplemented | planned | alternative | implemented | outOfScope (per Purview)
+-- test_status: notAssessed | none | inProgress | partiallyTested | toBeDetermined | couldNotBeDetermined |
+--              outOfScope | failedLowRisk | failedMediumRisk | failedHighRisk | passed (per Purview)
 CREATE TABLE assessment_controls (
     id                    INT           NOT NULL IDENTITY PRIMARY KEY,
     tenant_id             NVARCHAR(36)  NOT NULL REFERENCES tenants(tenant_id),
     assessment_id         NVARCHAR(100) NOT NULL,
-    control_id            NVARCHAR(100) NOT NULL,     -- Graph API control id
+    control_id            NVARCHAR(100) NOT NULL,     -- Graph/Purview control id
     control_name          NVARCHAR(300) NOT NULL,
     control_family        NVARCHAR(200) NULL,          -- e.g. "Access Control", "Audit & Accountability"
-    control_category      NVARCHAR(100) NULL,
-    implementation_status NVARCHAR(50)  NULL,          -- implemented, notImplemented, alternative, planned
-    test_status           NVARCHAR(50)  NULL,           -- passed, failed, notAssessed, inProgress
+    control_category      NVARCHAR(100) NULL,         -- Purview category: Control Access, Protect Information, etc.
+    implementation_status NVARCHAR(50)  NULL,          -- Purview: notImplemented, planned, alternative, implemented, outOfScope
+    test_status           NVARCHAR(50)  NULL,         -- Purview: notAssessed, passed, failedHighRisk, inProgress, etc.
     score                 FLOAT         NULL,
     max_score             FLOAT         NULL,
     score_impact          NVARCHAR(20)  NULL,           -- high, medium, low — how much this affects compliance score

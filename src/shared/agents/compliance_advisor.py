@@ -1,8 +1,12 @@
 """
-Compliance Advisor agent — RAG-powered Q&A using Foundry Agent Service
+Compliance Advisor agent — RAG-powered Q&A using Microsoft Foundry Agent Service
 with Azure AI Search grounding on the compliance-posture index.
 
 Replaces the prompt_flows/compliance_advisor Prompt Flow.
+
+M365 GCC: This agent does not connect to M365 GCC. It only reads from Azure AI Search
+(and optional tools). All tenant/compliance data is synced from M365 GCC via
+Microsoft Graph global endpoints in the Durable Functions sync activities.
 """
 import json
 import logging

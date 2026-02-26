@@ -29,6 +29,10 @@
       <button id="refresh-btn" class="btn btn--primary" title="Refresh data">
         ↻ Refresh
       </button>
+      <label class="demo-toggle" title="Use sample data for demos when API is unavailable">
+        <input type="checkbox" id="demo-mode-toggle" aria-label="Use demo data">
+        <span>Demo data</span>
+      </label>
     </div>
   </header>
 
@@ -39,6 +43,10 @@
       <span class="status-bar__dot"></span>
       <span id="status-text">Connecting…</span>
     </section>
+    <div id="loading-skeleton" class="loading-skeleton" aria-hidden="true" hidden>
+      <div class="skeleton-kpis"></div>
+      <div class="skeleton-charts"></div>
+    </div>
 
     <!-- ── KPI Cards ───────────────────────────────────────────────────── -->
     <section class="kpi-row">
@@ -54,15 +62,15 @@
         <span class="kpi-card__label">Active Assessments</span>
         <span class="kpi-card__value" id="kpi-assessments">–</span>
       </div>
-      <div class="kpi-card">
+      <div class="kpi-card" data-clickable data-scroll="wow-table" title="Click to scroll to Week-over-Week table">
         <span class="kpi-card__label">Improving</span>
         <span class="kpi-card__value kpi-card__value--good" id="kpi-improving">–</span>
       </div>
-      <div class="kpi-card">
+      <div class="kpi-card" data-clickable data-scroll="wow-table" title="Click to scroll to Week-over-Week table">
         <span class="kpi-card__label">Declining</span>
         <span class="kpi-card__value kpi-card__value--bad" id="kpi-declining">–</span>
       </div>
-      <div class="kpi-card">
+      <div class="kpi-card" data-clickable data-scroll="assessment-table" title="Click to scroll to Assessment Summary">
         <span class="kpi-card__label">Failed Controls</span>
         <span class="kpi-card__value kpi-card__value--bad" id="kpi-failed">–</span>
       </div>
@@ -105,17 +113,17 @@
       <div class="card card--full">
         <h2 class="card__title">Assessment Summary</h2>
         <div class="card__body">
-          <table class="data-table" id="assessment-table">
+          <table class="data-table data-table--sortable" id="assessment-table">
             <thead>
               <tr>
-                <th>Assessment</th>
-                <th>Regulation</th>
-                <th>Tenant</th>
-                <th>Score</th>
-                <th>Pass Rate</th>
-                <th>Passed</th>
-                <th>Failed</th>
-                <th>Total</th>
+                <th data-sort="assessment_name">Assessment <span class="sort-icon"></span></th>
+                <th data-sort="regulation">Regulation <span class="sort-icon"></span></th>
+                <th data-sort="display_name">Tenant <span class="sort-icon"></span></th>
+                <th data-sort="compliance_score" data-sort-num>Score <span class="sort-icon"></span></th>
+                <th data-sort="pass_rate" data-sort-num>Pass Rate <span class="sort-icon"></span></th>
+                <th data-sort="passed_controls" data-sort-num>Passed <span class="sort-icon"></span></th>
+                <th data-sort="failed_controls" data-sort-num>Failed <span class="sort-icon"></span></th>
+                <th data-sort="total_controls" data-sort-num>Total <span class="sort-icon"></span></th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -129,15 +137,15 @@
       <div class="card card--wide">
         <h2 class="card__title">Week-over-Week Changes</h2>
         <div class="card__body">
-          <table class="data-table" id="wow-table">
+          <table class="data-table data-table--sortable" id="wow-table">
             <thead>
               <tr>
-                <th>Tenant</th>
-                <th>Department</th>
-                <th>Current</th>
-                <th>Prior</th>
-                <th>Change</th>
-                <th>Trend</th>
+                <th data-sort="display_name">Tenant <span class="sort-icon"></span></th>
+                <th data-sort="department">Department <span class="sort-icon"></span></th>
+                <th data-sort="current_pct" data-sort-num>Current <span class="sort-icon"></span></th>
+                <th data-sort="prior_pct" data-sort-num>Prior <span class="sort-icon"></span></th>
+                <th data-sort="wow_change" data-sort-num>Change <span class="sort-icon"></span></th>
+                <th data-sort="trend_direction">Trend <span class="sort-icon"></span></th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -177,11 +185,13 @@
               <option value="medium">Medium Impact</option>
               <option value="low">Low Impact</option>
             </select>
-            <select id="actions-status-filter" aria-label="Filter by status">
-              <option value="">All Statuses</option>
-              <option value="notImplemented">Not Implemented</option>
+            <select id="actions-status-filter" aria-label="Filter by implementation status (Purview)">
+              <option value="">All implementation statuses</option>
+              <option value="notImplemented">Not implemented</option>
               <option value="planned">Planned</option>
-              <option value="alternative">Alternative</option>
+              <option value="alternative">Alternative implementation</option>
+              <option value="implemented">Implemented</option>
+              <option value="outOfScope">Out of scope</option>
             </select>
           </div>
         </div>
@@ -211,9 +221,14 @@
       <div class="card card--full">
         <div class="card__header">
           <h2 class="card__title">Executive Briefing</h2>
-          <button id="generate-briefing-btn" class="btn btn--secondary">
-            Generate Briefing
-          </button>
+          <div class="briefing-actions">
+            <button id="generate-briefing-btn" class="btn btn--secondary">
+              Generate Briefing
+            </button>
+            <button id="copy-briefing-btn" class="btn btn--ghost" title="Copy to clipboard" disabled>
+              Copy
+            </button>
+          </div>
         </div>
         <div class="card__body" id="briefing-content">
           <p class="placeholder-text">
@@ -236,6 +251,14 @@
                    placeholder="e.g. How are we tracking against NIST 800-53 assessments?">
             <button id="ask-btn" class="btn btn--primary">Ask</button>
           </div>
+          <p class="ask-suggestions-label">Try asking:</p>
+          <div id="ask-suggestions" class="ask-suggestions">
+            <button type="button" class="chip" data-question="What are our top 5 gaps against NIST 800-53?">Top NIST gaps</button>
+            <button type="button" class="chip" data-question="Which tenant has the lowest score this week?">Lowest score</button>
+            <button type="button" class="chip" data-question="Summarize Identity controls across all tenants">Identity controls</button>
+            <button type="button" class="chip" data-question="Which improvement actions would gain us the most points?">Best actions</button>
+            <button type="button" class="chip" data-question="Department compliance breakdown">Department breakdown</button>
+          </div>
           <div id="ask-response" class="ask-response"></div>
         </div>
       </div>
@@ -243,7 +266,7 @@
   </main>
 
   <footer class="footer">
-    <span>Compliance Advisor — Powered by Azure AI Foundry &amp; Microsoft Compliance Manager</span>
+    <span>Compliance Advisor — Powered by Microsoft Foundry &amp; Microsoft Compliance Manager</span>
   </footer>
 
   <script src="env.js"></script>

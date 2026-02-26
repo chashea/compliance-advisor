@@ -1,5 +1,5 @@
 """
-Configure the weekly digest cron schedule in Azure AI Foundry.
+Configure the weekly digest cron schedule in Microsoft Foundry.
 
 Creates (or updates) a schedule that runs the weekly_digest prompt flow
 every Monday at 08:00 UTC by submitting a CommandJob that invokes pfazure.
@@ -7,7 +7,7 @@ every Monday at 08:00 UTC by submitting a CommandJob that invokes pfazure.
 Usage (manual):
     export AZURE_SUBSCRIPTION_ID=<sub-id>
     export AZURE_RESOURCE_GROUP=rg-compliance-advisor-prod
-    export AI_FOUNDRY_WORKSPACE=aip-compliance-advisor-prod
+    export AI_FOUNDRY_WORKSPACE=aip-compliance-advisor-prod   # Microsoft Foundry project name
     python scripts/configure_weekly_schedule.py
 
 In CI this is called automatically after prompt flows are deployed.
@@ -38,7 +38,7 @@ def main() -> None:
     for name, value in [
         ("AZURE_SUBSCRIPTION_ID", subscription_id),
         ("AZURE_RESOURCE_GROUP",  resource_group),
-        ("AI_FOUNDRY_WORKSPACE",  workspace_name),
+        ("AI_FOUNDRY_WORKSPACE (Microsoft Foundry project)",  workspace_name),
     ]:
         if not value:
             sys.exit(f"Error: {name} environment variable is not set.")
@@ -47,7 +47,7 @@ def main() -> None:
     from azure.ai.ml.entities import CommandJob, CronTrigger, JobSchedule
     from azure.identity import DefaultAzureCredential
 
-    log.info("Connecting to AI Foundry workspace: %s / %s", resource_group, workspace_name)
+    log.info("Connecting to Microsoft Foundry project: %s / %s", resource_group, workspace_name)
     client = MLClient(
         credential=DefaultAzureCredential(),
         subscription_id=subscription_id,
