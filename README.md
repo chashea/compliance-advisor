@@ -294,6 +294,29 @@ The agent uses `AzureCliCredential` (`az login`) for Azure AI Foundry calls.
 The `AZURE_CLIENT_ID`/`AZURE_CLIENT_SECRET` in `.env` are used only by `sync.py`
 for Microsoft Graph — they are not used by the agent.
 
+### 7. Clean release workflow (recommended)
+
+Use this sequence whenever publishing changes to GitHub and deploying:
+
+1. Pull latest `main` and run tests locally.
+2. Deploy/update Foundry + Search infra from `infra/foundry.bicep`.
+3. Run sync to refresh Purview-backed data.
+4. Register a new Foundry agent version from current source.
+5. Run smoke checks (`/api/advisor/status`, one `search_knowledge` prompt).
+6. Commit, push, and tag release.
+
+Example command flow:
+
+```bash
+git pull origin main
+.venv/bin/python -m pytest -q tests/test_compliance_tools.py
+az deployment group create --resource-group rg-compliance-advisor --template-file infra/foundry.bicep
+.venv/bin/python sync.py
+.venv/bin/python agent.py --register-only
+curl -s -X POST http://localhost:8000/api/advisor/status
+git push origin main
+```
+
 ### Example questions
 
 - `What is our current Secure Score?`
