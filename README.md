@@ -2,7 +2,10 @@
 
 A single-tenant CISO dashboard that pulls real **Microsoft Secure Score** and
 **Compliance Manager** data from your M365 tenant via Microsoft Graph and
-visualises it locally with Chart.js. No Azure infrastructure required.
+visualises it locally with Chart.js.
+
+- Dashboard/API mode runs locally with no Azure infrastructure required.
+- Conversational agent mode requires Azure AI Foundry (and Azure AI Search for knowledge retrieval).
 
 ```
 .env (AZURE_TENANT_ID, CLIENT_ID, CLIENT_SECRET)
@@ -28,10 +31,10 @@ Browser → http://localhost:8000
 ## Prerequisites
 
 - Python 3.10+
-- An **Entra ID app registration** in your M365 tenant with:
-  - `SecurityEvents.Read.All` (Application permission, admin-consented) — for Secure Score
-  - `ComplianceManager.Read.All` (Application permission, admin-consented) — for Compliance Manager
-  - A client secret
+- An **Entra ID app registration** in your M365 tenant with app credentials
+  (`AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`) and Graph
+  permissions needed for the Secure Score and Compliance Manager endpoints your
+  tenant exposes.
 
 If you don't have credentials yet, skip straight to [Start the server](#4-start-the-server) —
 the dashboard falls back to built-in demo data automatically.
@@ -139,11 +142,11 @@ agent.py  ──→  Azure AI Foundry (GPT-4o, Responses API)
 ```
 
 GPT-4o never touches Microsoft Graph or the database directly. It calls one of
-eight Python functions, receives the JSON result, and writes a natural-language
+nine Python functions, receives the JSON result, and writes a natural-language
 answer. Conversation context is maintained via `previous_response_id` — no
 persistent assistant or thread objects are created.
 
-Eight function tools are registered:
+Nine function tools are registered:
 
 | Tool | What it returns |
 |------|-----------------|
@@ -186,9 +189,9 @@ consent) or by opening this URL in a GA browser session:
 https://login.microsoftonline.com/<TENANT_ID>/adminconsent?client_id=<AppId>
 ```
 
-> **Note:** `ComplianceManager.Read.All` only exists as a delegated (user-login)
-> permission in Microsoft Graph, not as an application permission. Compliance
-> Manager data will be empty with app-only auth; Secure Score data works fully.
+> **Note:** Compliance Manager Graph access differs by endpoint and tenant. If
+> Compliance Manager results are empty, verify API permissions/consent for your
+> tenant and validate with Graph Explorer for the same endpoints.
 
 ### 2. Provision Azure AI Foundry infrastructure
 
@@ -432,8 +435,8 @@ All endpoints accept `POST` with a JSON body. All responses are JSON.
 | `POST /api/advisor/assessments` | `top_gaps` (int, default 20), `department`, `regulation` | Assessment summary, top control gaps, family breakdown |
 | `POST /api/advisor/regulations` | _(none)_ | Regulation coverage and pass rates |
 | `POST /api/advisor/actions` | `top_n`, `department`, `regulation`, `status`, `owner`, `score_impact` | Prioritised improvement actions |
-| `POST /api/advisor/briefing` | `department` | Raw SQL executive briefing (AI agent not available in local MVP) |
-| `POST /api/advisor/ask` | `question` (string) | Returns stub — AI advisor not available in local MVP |
+| `POST /api/advisor/briefing` | `department` | Raw SQL executive briefing from local data |
+| `POST /api/advisor/ask` | `question` (string) | Local API stub response; use `agent.py` for Foundry-powered chat |
 
 ---
 
