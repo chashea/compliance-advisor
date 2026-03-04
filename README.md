@@ -259,15 +259,31 @@ pip install -r requirements.txt
 ### 6. Start the agent
 
 ```bash
+.venv\Scripts\python agent.py --register-only
+```
+
+Expected output:
+```
+Registered Foundry Agent: compliance-advisor v1 (id: ...)
+```
+
+Then start interactive chat:
+
+```bash
 .venv\Scripts\python agent.py
 ```
 
 Expected output:
 ```
+Registered Foundry Agent: compliance-advisor v2 (id: ...)
 Compliance Advisor ready. Type 'quit' to exit.
 
 You:
 ```
+
+Set `FOUNDRY_AGENT_NAME` in `.env` to control the portal-visible agent name.
+Each run registers a new version via `client.agents.create_version(...)` with
+the system prompt and function tool definitions.
 
 The agent uses `AzureCliCredential` (`az login`) for Azure AI Foundry calls.
 The `AZURE_CLIENT_ID`/`AZURE_CLIENT_SECRET` in `.env` are used only by `sync.py`
