@@ -89,15 +89,17 @@ def get_compliance_assessments(token: str) -> list[dict]:
     try:
         return list(_paginate(preferred, token))
     except requests.HTTPError as e:
-        if e.response is not None and e.response.status_code == 404:
-            log.warning("complianceManager/assessments not available, "
-                        "trying alternative endpoint")
+        if e.response is not None and e.response.status_code in (400, 404):
+            log.warning("complianceManager/assessments not available (HTTP %s), "
+                        "trying alternative endpoint", e.response.status_code)
             alt = f"{GRAPH_BETA}/compliance/complianceManagement/assessments"
             try:
                 return list(_paginate(alt, token))
-            except requests.HTTPError:
-                log.warning("No Compliance Manager assessment API available")
-                return []
+            except requests.HTTPError as e2:
+                if e2.response is not None and e2.response.status_code in (400, 404):
+                    log.warning("No Compliance Manager assessment API available")
+                    return []
+                raise
         raise
 
 
@@ -131,8 +133,8 @@ def get_compliance_score(token: str) -> dict | None:
     try:
         return _get(url, token)
     except requests.HTTPError as e:
-        if e.response is not None and e.response.status_code == 404:
-            log.info("complianceScore endpoint unavailable")
+        if e.response is not None and e.response.status_code in (400, 404):
+            log.info("complianceScore endpoint unavailable (HTTP %s)", e.response.status_code)
             return None
         raise
 

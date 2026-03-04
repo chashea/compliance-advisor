@@ -1,40 +1,43 @@
 // ============================================================
 // Compliance Advisor — Azure AI Foundry Infrastructure
-// Provisions: Azure OpenAI, GPT-4o deployment, AI Hub, AI Project
+// Provisions: AIServices account (unified Foundry, identity required), GPT-4o deployment, AI Project
 // Deploy: az deployment group create --resource-group rg-compliance-advisor --template-file infra/foundry.bicep
 // ============================================================
 
 @description('Azure region for all resources. Defaults to resource group location.')
 param location string = resourceGroup().location
 
-@description('Name for the AI Project (also used for Hub and OpenAI resource naming).')
+@description('Name for the AIServices account and child project.')
 param projectName string = 'compliance-advisor'
 
 // ── Derived names ─────────────────────────────────────────────────────────────
-var openAIName   = '${projectName}-openai'
-var hubName      = '${projectName}-hub'
+var accountName    = projectName
 var deploymentName = 'gpt-4o'
 
-// ── Azure OpenAI account ───────────────────────────────────────────────────────
-resource openAI 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
-  name: openAIName
+// ── AIServices account (unified Azure AI Foundry account) ─────────────────────
+resource aiServices 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
+  name: accountName
   location: location
-  kind: 'OpenAI'
+  kind: 'AIServices'
+  identity: {
+    type: 'SystemAssigned'
+  }
   sku: {
     name: 'S0'
   }
   properties: {
-    customSubDomainName: openAIName
+    customSubDomainName: accountName
     publicNetworkAccess: 'Enabled'
+    allowProjectManagement: true
   }
 }
 
-// ── GPT-4o model deployment (Standard tier, 10K TPM) ──────────────────────────
-resource gpt4oDeployment 'Microsoft.CognitiveServices/accounts/deployments@2023-05-01' = {
-  parent: openAI
+// ── GPT-4o model deployment (GlobalStandard tier, 10K TPM) ───────────────────
+resource gpt4oDeployment 'Microsoft.CognitiveServices/accounts/deployments@2025-06-01' = {
+  parent: aiServices
   name: deploymentName
   sku: {
-    name: 'Standard'
+    name: 'GlobalStandard'
     capacity: 10
   }
   properties: {
@@ -47,61 +50,23 @@ resource gpt4oDeployment 'Microsoft.CognitiveServices/accounts/deployments@2023-
   }
 }
 
-// ── AI Hub (Machine Learning workspace, kind: Hub) ────────────────────────────
-resource aiHub 'Microsoft.MachineLearningServices/workspaces@2024-04-01' = {
-  name: hubName
+// ── AI Project (child of AIServices account) ──────────────────────────────────
+resource aiProject 'Microsoft.CognitiveServices/accounts/projects@2025-06-01' = {
+  parent: aiServices
+  name: projectName
   location: location
-  kind: 'Hub'
   identity: {
     type: 'SystemAssigned'
   }
   properties: {
-    friendlyName: '${projectName} Hub'
-    description: 'AI Hub for Compliance Advisor agent'
-    publicNetworkAccess: 'Enabled'
-  }
-}
-
-// ── Connection: Hub → Azure OpenAI ────────────────────────────────────────────
-resource openAIConnection 'Microsoft.MachineLearningServices/workspaces/connections@2024-04-01' = {
-  parent: aiHub
-  name: 'openai-connection'
-  properties: {
-    category: 'AzureOpenAI'
-    target: openAI.properties.endpoint
-    authType: 'ApiKey'
-    isSharedToAll: true
-    credentials: {
-      key: openAI.listKeys().key1
-    }
-    metadata: {
-      ApiType: 'Azure'
-      ResourceId: openAI.id
-      DeploymentApiVersion: '2024-02-01'
-    }
+    description: 'Compliance Advisor conversational agent project'
   }
   dependsOn: [gpt4oDeployment]
 }
 
-// ── AI Project (Machine Learning workspace, kind: Project) ────────────────────
-resource aiProject 'Microsoft.MachineLearningServices/workspaces@2024-04-01' = {
-  name: projectName
-  location: location
-  kind: 'Project'
-  identity: {
-    type: 'SystemAssigned'
-  }
-  properties: {
-    friendlyName: 'Compliance Advisor'
-    description: 'Compliance Advisor conversational agent project'
-    hubResourceId: aiHub.id
-    publicNetworkAccess: 'Enabled'
-  }
-}
-
 // ── Outputs ───────────────────────────────────────────────────────────────────
-@description('Paste this value into .env as AIPROJECT_CONNECTION_STRING')
-output connectionString string = '${location}.api.azureml.ms;${subscription().subscriptionId};${resourceGroup().name};${projectName}'
+@description('Paste this value into .env as AIPROJECT_ENDPOINT')
+output endpoint string = 'https://${accountName}.services.ai.azure.com/api/projects/${projectName}'
 
 @description('Paste this value into .env as AZURE_OPENAI_DEPLOYMENT')
 output openAIDeploymentName string = deploymentName

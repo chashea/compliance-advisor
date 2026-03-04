@@ -64,7 +64,7 @@ def upsert_control_scores(
         """, (
             tenant_id, snapshot_date,
             ctrl.get("controlName"), ctrl.get("controlCategory"),
-            ctrl.get("score"), ctrl.get("maxScore"),
+            ctrl.get("score") or 0.0, ctrl.get("maxScore") or 0.0,
             ctrl.get("description"),
         ))
     conn.commit()

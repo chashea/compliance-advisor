@@ -126,13 +126,24 @@ turn — no stale index, no extra Azure service.
 ### How it works
 
 ```
-agent.py  →  Azure AI Foundry Agent Service (GPT-4o)
-                 │
-                 └─ function tools (compliance_tools.py)
-                       └─ data/compliance.db  (populated by sync.py)
+You (terminal)
+    │
+    ▼
+agent.py  ──→  Azure AI Foundry (GPT-4o, Responses API)
+                    │
+                    └─ function tool calls → compliance_tools.py
+                                                  │
+                                                  ▼
+                                          data/compliance.db
+                                          (populated by sync.py)
 ```
 
-Eight function tools are registered with the agent:
+GPT-4o never touches Microsoft Graph or the database directly. It calls one of
+eight Python functions, receives the JSON result, and writes a natural-language
+answer. Conversation context is maintained via `previous_response_id` — no
+persistent assistant or thread objects are created.
+
+Eight function tools are registered:
 
 | Tool | What it returns |
 |------|-----------------|
@@ -145,10 +156,42 @@ Eight function tools are registered with the agent:
 | `get_regulation_coverage` | Pass rates per framework (NIST, ISO, SOC 2, CIS…) |
 | `get_category_breakdown` | Avg gap by control category / control family |
 
-### 1. Provision Azure AI Foundry infrastructure
+### 1. Register an Entra ID app for Microsoft Graph
 
 ```bash
 az login
+
+# Create the app registration
+az ad app create --display-name "compliance-advisor"
+
+# Create its service principal (note the AppId from the output above)
+az ad sp create --id <AppId>
+
+# Add SecurityEvents.Read.All (application permission)
+az ad app permission add \
+  --id <AppId> \
+  --api 00000003-0000-0000-c000-000000000000 \
+  --api-permissions bf394140-e372-4bf9-a898-299cfc7564e5=Role
+
+# Create a client secret
+az ad app credential reset --id <AppId> --display-name "compliance-advisor-secret" --years 1
+```
+
+Then have a **Global Administrator** grant admin consent — either via the Entra
+portal (App registrations → compliance-advisor → API permissions → Grant admin
+consent) or by opening this URL in a GA browser session:
+
+```
+https://login.microsoftonline.com/<TENANT_ID>/adminconsent?client_id=<AppId>
+```
+
+> **Note:** `ComplianceManager.Read.All` only exists as a delegated (user-login)
+> permission in Microsoft Graph, not as an application permission. Compliance
+> Manager data will be empty with app-only auth; Secure Score data works fully.
+
+### 2. Provision Azure AI Foundry infrastructure
+
+```bash
 az group create --name rg-compliance-advisor --location eastus
 az deployment group create \
   --resource-group rg-compliance-advisor \
@@ -156,39 +199,79 @@ az deployment group create \
   --query "properties.outputs" -o table
 ```
 
-Copy the `connectionString` and `openAIDeploymentName` values from the output.
+Copy the `endpoint` value from the output.
 
-### 2. Add the connection string to .env
-
-Open `.env` and fill in the two new variables:
+Assign the **Azure AI Developer** RBAC role to your app's service principal on
+the AIServices resource so it can call the Foundry API:
 
 ```bash
-AIPROJECT_CONNECTION_STRING=<connectionString from deployment output>
+az rest --method PUT \
+  --url "https://management.azure.com/subscriptions/<SUB_ID>/resourceGroups/rg-compliance-advisor/providers/Microsoft.CognitiveServices/accounts/compliance-advisor/providers/Microsoft.Authorization/roleAssignments/<NEW-GUID>?api-version=2022-04-01" \
+  --body '{"properties":{"roleDefinitionId":"/subscriptions/<SUB_ID>/providers/Microsoft.Authorization/roleDefinitions/64702f94-c441-49e6-a78b-ef80e0188fee","principalId":"<SERVICE_PRINCIPAL_OBJECT_ID>","principalType":"ServicePrincipal"}}'
+```
+
+### 3. Configure .env
+
+```bash
+cp .env.example .env
+```
+
+Fill in all values:
+
+```bash
+AZURE_TENANT_ID=<tenant-guid>
+AZURE_CLIENT_ID=<app-client-id>
+AZURE_CLIENT_SECRET=<client-secret>
+TENANT_DISPLAY_NAME=My Organization
+TENANT_DEPARTMENT=IT
+TENANT_RISK_TIER=High
+SQLITE_DB_PATH=data/compliance.db
+
+AIPROJECT_ENDPOINT=<endpoint from deployment output>
 AZURE_OPENAI_DEPLOYMENT=gpt-4o
 ```
 
-Authentication uses `DefaultAzureCredential` — `az login` is sufficient for
-local development. For CI/CD, set `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and
-`AZURE_CLIENT_SECRET` (the same values already in `.env`).
+### 4. Install dependencies
 
-### 3. Install the Foundry SDK
+On **Windows ARM64**, install the `cryptography` binary wheel first to avoid a
+Rust build failure:
+
+```bash
+python -m venv .venv
+.venv\Scripts\pip install --upgrade pip
+.venv\Scripts\pip install --only-binary cryptography cryptography
+.venv\Scripts\pip install -r requirements.txt
+```
+
+On x64 / macOS / Linux, the standard install works:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Start the agent
+### 5. Initialise the database and sync data
 
 ```bash
-python agent.py
+.venv\Scripts\python init_db.py
+.venv\Scripts\python sync.py
+```
+
+### 6. Start the agent
+
+```bash
+.venv\Scripts\python agent.py
 ```
 
 Expected output:
 ```
-Compliance Advisor ready (agent: asst_xxxxxxxxxxxxxxxxxxxx). Type 'quit' to exit.
+Compliance Advisor ready. Type 'quit' to exit.
 
 You:
 ```
+
+The agent uses `AzureCliCredential` (`az login`) for Azure AI Foundry calls.
+The `AZURE_CLIENT_ID`/`AZURE_CLIENT_SECRET` in `.env` are used only by `sync.py`
+for Microsoft Graph — they are not used by the agent.
 
 ### Example questions
 
@@ -198,13 +281,6 @@ You:
 - `What should we prioritise to improve our score this week?`
 - `How has our compliance posture changed since last week?`
 - `Show me our SOC 2 pass rate`
-
-### Agent persistence
-
-The agent is created once in your Foundry project and reused on subsequent
-runs. Running `python agent.py` a second time prints the **same agent ID**
-(found via `client.agents.list_agents()`). To reset the agent, delete it from
-the Azure AI Foundry portal or via the SDK.
 
 ---
 
