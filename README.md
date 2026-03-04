@@ -116,6 +116,98 @@ Open **http://localhost:8000** in your browser.
 
 ---
 
+## Conversational Agent
+
+The Compliance Advisor includes an **Azure AI Foundry** conversational agent that
+answers natural-language questions about your compliance posture in real time.
+The agent calls Python functions that query the local SQLite database on every
+turn — no stale index, no extra Azure service.
+
+### How it works
+
+```
+agent.py  →  Azure AI Foundry Agent Service (GPT-4o)
+                 │
+                 └─ function tools (compliance_tools.py)
+                       └─ data/compliance.db  (populated by sync.py)
+```
+
+Eight function tools are registered with the agent:
+
+| Tool | What it returns |
+|------|-----------------|
+| `get_secure_score` | Current score %, current/max points, 30-day trend |
+| `get_top_gaps` | Top N controls by unrealised points, with remediation URLs |
+| `get_weekly_change` | Week-over-week delta for Secure Score and Compliance Score |
+| `get_compliance_score` | Compliance Manager score %, 30-day trend |
+| `get_assessments` | Active assessments with pass rates (filterable by regulation) |
+| `get_improvement_actions` | Prioritised actions (filterable by regulation) |
+| `get_regulation_coverage` | Pass rates per framework (NIST, ISO, SOC 2, CIS…) |
+| `get_category_breakdown` | Avg gap by control category / control family |
+
+### 1. Provision Azure AI Foundry infrastructure
+
+```bash
+az login
+az group create --name rg-compliance-advisor --location eastus
+az deployment group create \
+  --resource-group rg-compliance-advisor \
+  --template-file infra/foundry.bicep \
+  --query "properties.outputs" -o table
+```
+
+Copy the `connectionString` and `openAIDeploymentName` values from the output.
+
+### 2. Add the connection string to .env
+
+Open `.env` and fill in the two new variables:
+
+```bash
+AIPROJECT_CONNECTION_STRING=<connectionString from deployment output>
+AZURE_OPENAI_DEPLOYMENT=gpt-4o
+```
+
+Authentication uses `DefaultAzureCredential` — `az login` is sufficient for
+local development. For CI/CD, set `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and
+`AZURE_CLIENT_SECRET` (the same values already in `.env`).
+
+### 3. Install the Foundry SDK
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Start the agent
+
+```bash
+python agent.py
+```
+
+Expected output:
+```
+Compliance Advisor ready (agent: asst_xxxxxxxxxxxxxxxxxxxx). Type 'quit' to exit.
+
+You:
+```
+
+### Example questions
+
+- `What is our current Secure Score?`
+- `What are our top 5 compliance gaps?`
+- `Which NIST 800-53 controls are we failing?`
+- `What should we prioritise to improve our score this week?`
+- `How has our compliance posture changed since last week?`
+- `Show me our SOC 2 pass rate`
+
+### Agent persistence
+
+The agent is created once in your Foundry project and reused on subsequent
+runs. Running `python agent.py` a second time prints the **same agent ID**
+(found via `client.agents.list_agents()`). To reset the agent, delete it from
+the Azure AI Foundry portal or via the SDK.
+
+---
+
 ## Verification
 
 Run these checks in order after setup to confirm each layer is working.
