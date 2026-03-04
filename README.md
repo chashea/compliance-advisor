@@ -155,6 +155,7 @@ Eight function tools are registered:
 | `get_improvement_actions` | Prioritised actions (filterable by regulation) |
 | `get_regulation_coverage` | Pass rates per framework (NIST, ISO, SOC 2, CIS…) |
 | `get_category_breakdown` | Avg gap by control category / control family |
+| `search_knowledge` | Retrieved policy/framework/remediation passages from Azure AI Search |
 
 ### 1. Register an Entra ID app for Microsoft Graph
 
@@ -199,7 +200,7 @@ az deployment group create \
   --query "properties.outputs" -o table
 ```
 
-Copy the `endpoint` value from the output.
+Copy the `endpoint` and `searchEndpoint` values from the output.
 
 Assign the **Azure AI Developer** RBAC role to your app's service principal on
 the AIServices resource so it can call the Foundry API:
@@ -229,6 +230,10 @@ SQLITE_DB_PATH=data/compliance.db
 
 AIPROJECT_ENDPOINT=<endpoint from deployment output>
 AZURE_OPENAI_DEPLOYMENT=gpt-4o
+AZURE_SEARCH_ENDPOINT=https://<search-service>.search.windows.net
+AZURE_SEARCH_INDEX_NAME=<compliance-knowledge-index>
+# Optional when using AzureCliCredential for local dev:
+# AZURE_SEARCH_API_KEY=<query-or-admin-key>
 ```
 
 ### 4. Install dependencies

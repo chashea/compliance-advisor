@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
+from shared.ai_search_client import search_knowledge_documents
 from shared.sql_client import get_connection
 
 
@@ -268,3 +269,22 @@ def get_category_breakdown() -> str:
         )
     finally:
         conn.close()
+
+
+def search_knowledge(query: str, top: int = 5, category: str = None) -> str:
+    """Search compliance knowledge documents indexed in Azure AI Search.
+
+    Use this for regulation text, policy narratives, and remediation guidance
+    that is not represented in structured score tables.
+
+    Args:
+        query: Natural-language search query.
+        top: Maximum number of documents to return (default 5, max 20).
+        category: Optional document category filter (for example: "NIST",
+            "ISO27001", "SOC2", "RemediationGuide").
+    """
+    if not query or not query.strip():
+        raise ValueError("'query' is required")
+
+    docs = search_knowledge_documents(query=query.strip(), top=top, category=category)
+    return json.dumps({"results": docs}, default=str)

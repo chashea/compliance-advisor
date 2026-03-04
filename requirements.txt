@@ -5,3 +5,4 @@ python-dotenv==1.0.1
 aiofiles==24.1.0
 azure-ai-projects>=1.0.0b9
 azure-identity>=1.25.0
+azure-search-documents>=11.6.0

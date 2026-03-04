@@ -107,6 +107,21 @@ TOOLS = [
         "parameters": {"type": "object", "properties": {}, "required": []},
         "strict": False,
     },
+    {
+        "type": "function",
+        "name": "search_knowledge",
+        "description": compliance_tools.search_knowledge.__doc__,
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Natural-language knowledge search query."},
+                "top": {"type": "integer", "description": "Maximum number of documents to return (default 5, max 20)."},
+                "category": {"type": "string", "description": "Optional category filter such as NIST, ISO27001, SOC2, or RemediationGuide."},
+            },
+            "required": ["query"],
+        },
+        "strict": False,
+    },
 ]
 
 
@@ -145,6 +160,7 @@ _TOOL_FUNCTIONS = {
     "get_improvement_actions": compliance_tools.get_improvement_actions,
     "get_regulation_coverage": compliance_tools.get_regulation_coverage,
     "get_category_breakdown": compliance_tools.get_category_breakdown,
+    "search_knowledge": compliance_tools.search_knowledge,
 }
 
 
