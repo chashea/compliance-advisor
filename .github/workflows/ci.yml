@@ -22,7 +22,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install ruff black mypy pytest httpx
+          pip install ruff "black==25.11.0" mypy pytest httpx
 
       - name: Ruff lint
         run: ruff check .
