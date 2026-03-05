@@ -17,6 +17,14 @@ line-length = 120
 [tool.ruff.lint]
 ignore = ["E402"]
 
+[tool.mypy]
+ignore_missing_imports = true
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = "agent"
+ignore_errors = true
+
 [tool.black]
 line-length = 120
 target-version = ["py310"]

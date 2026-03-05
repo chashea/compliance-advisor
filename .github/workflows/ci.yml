@@ -31,7 +31,7 @@ jobs:
         run: black --check .
 
       - name: Mypy type check
-        run: mypy --ignore-missing-imports --no-error-summary --explicit-package-bases src/ api.py sync.py init_db.py compliance_tools.py
+        run: mypy --ignore-missing-imports --no-error-summary --explicit-package-bases src/ api.py sync.py init_db.py compliance_tools.py verify.py
 
       - name: Pytest
         run: pytest tests/ -v

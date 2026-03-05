@@ -4,6 +4,7 @@ Compliance Advisor — function tools for the Azure AI Foundry agent.
 Each function queries the local SQLite database (data/compliance.db) via the
 shared sql_client and returns a JSON string for the agent to interpret.
 """
+from __future__ import annotations
 
 import json
 import sys
@@ -147,7 +148,7 @@ def get_compliance_score() -> str:
         conn.close()
 
 
-def get_assessments(regulation: str = None) -> str:
+def get_assessments(regulation: str | None = None) -> str:
     """Return a summary of Compliance Manager assessments.
 
     Queries v_assessment_summary. Optionally filters by regulation/framework
@@ -187,7 +188,7 @@ def get_assessments(regulation: str = None) -> str:
         conn.close()
 
 
-def get_improvement_actions(count: int = 10, regulation: str = None) -> str:
+def get_improvement_actions(count: int = 10, regulation: str | None = None) -> str:
     """Return prioritised improvement actions from Compliance Manager.
 
     Queries v_improvement_actions. Actions are ordered by priority rank
@@ -300,7 +301,7 @@ def get_category_breakdown() -> str:
         conn.close()
 
 
-def search_knowledge(query: str, top: int = 5, category: str = None) -> str:
+def search_knowledge(query: str, top: int = 5, category: str | None = None) -> str:
     """Search compliance knowledge documents indexed in Azure AI Search.
 
     Use this for regulation text, policy narratives, and remediation guidance

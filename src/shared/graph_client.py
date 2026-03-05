@@ -58,10 +58,11 @@ def _get(url: str, token: str) -> dict:
 
 def _paginate(url: str, token: str) -> Generator[dict, None, None]:
     """Follow @odata.nextLink pagination and yield every item."""
-    while url:
-        data = _get(url, token)
+    next_url: str | None = url
+    while next_url:
+        data = _get(next_url, token)
         yield from data.get("value", [])
-        url = data.get("@odata.nextLink")
+        next_url = data.get("@odata.nextLink")
 
 
 # ═════════════════════════════════════════════════════════════════════════════
