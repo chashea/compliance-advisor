@@ -4,6 +4,7 @@ Compliance Advisor — function tools for the Azure AI Foundry agent.
 Each function queries the local SQLite database (data/compliance.db) via the
 shared sql_client and returns a JSON string for the agent to interpret.
 """
+
 from __future__ import annotations
 
 import json
