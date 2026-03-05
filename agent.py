@@ -4,6 +4,8 @@
 Registers a named Prompt Agent version in the Foundry project and then routes
 chat turns through that registered agent using `agent_reference`.
 """
+from __future__ import annotations
+
 import argparse
 import json
 import os

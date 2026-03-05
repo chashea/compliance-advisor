@@ -1,3 +1,8 @@
+[project]
+name = "compliance-advisor"
+version = "1.0.0"
+requires-python = ">=3.10"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [
@@ -5,6 +10,3 @@ pythonpath = [
     "src/functions",
 ]
 addopts = "-ra -q --tb=short"
-
-# Run tests with the project venv (Python 3.10+ required for X | Y union syntax):
-#   .venv/Scripts/python -m pytest

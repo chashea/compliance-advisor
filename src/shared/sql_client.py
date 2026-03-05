@@ -2,6 +2,8 @@
 SQLite helpers — connection factory and upsert utilities.
 Replaces the original Azure SQL / pyodbc implementation.
 """
+from __future__ import annotations
+
 import json
 import os
 import sqlite3

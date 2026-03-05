@@ -8,6 +8,7 @@ and v1.0 for Secure Score. Includes retry logic with exponential backoff for
 M365 GCC uses global endpoints. Set GRAPH_NATIONAL_CLOUD=usgovernment only for
 GCC High/DoD to use https://graph.microsoft.us.
 """
+from __future__ import annotations
 import logging
 import os
 from typing import Generator

@@ -1,6 +1,8 @@
 """
 Azure AI Search helpers for compliance knowledge retrieval.
 """
+from __future__ import annotations
+
 import os
 
 from azure.core.credentials import AzureKeyCredential
