@@ -1,34 +1,30 @@
-"""Tests for shared.sql_client — connection, context, upserts, regulation extraction."""
-from unittest.mock import patch, MagicMock, call
+"""Tests for shared.sql_client — SQLite connection, upserts, regulation extraction."""
+from unittest.mock import patch, MagicMock
 import pytest
 
 
 class TestGetConnection:
-    def test_uses_env_var(self, mock_env):
-        with patch("shared.sql_client.pyodbc.connect") as mock_connect:
+    def test_uses_env_var(self, monkeypatch):
+        monkeypatch.setenv("SQLITE_DB_PATH", "/tmp/test.db")
+        with patch("shared.sql_client.sqlite3.connect") as mock_connect:
+            mock_connect.return_value = MagicMock()
             from shared.sql_client import get_connection
             conn = get_connection()
-        mock_connect.assert_called_once()
-        assert "fake" in mock_connect.call_args[0][0]
+        mock_connect.assert_called_once_with("/tmp/test.db", check_same_thread=False)
 
 
 class TestSetTenantContext:
-    def test_executes_two_stored_procs(self, mock_connection):
+    def test_is_noop(self, mock_connection):
         from shared.sql_client import set_tenant_context
         set_tenant_context(mock_connection, "test-uuid")
-        cursor = mock_connection.cursor.return_value
-        assert cursor.execute.call_count == 2
-        first_sql = cursor.execute.call_args_list[0][0][0]
-        assert "tenant_id" in first_sql
+        mock_connection.cursor.assert_not_called()
 
 
 class TestSetAdminContext:
-    def test_executes_one_stored_proc(self, mock_connection):
+    def test_is_noop(self, mock_connection):
         from shared.sql_client import set_admin_context
         set_admin_context(mock_connection)
-        cursor = mock_connection.cursor.return_value
-        cursor.execute.assert_called_once()
-        assert "is_admin" in cursor.execute.call_args[0][0]
+        mock_connection.cursor.assert_not_called()
 
 
 class TestGetActiveTenants:
@@ -51,9 +47,9 @@ class TestUpsertSecureScore:
         upsert_secure_score(mock_connection, "tid", sample_secure_score)
 
         cursor = mock_connection.cursor.return_value
-        args = cursor.execute.call_args[0]
-        assert "tid" == args[1]
-        assert "2026-02-22" == args[2]
+        params = cursor.execute.call_args[0][1]
+        assert params[0] == "tid"
+        assert params[1] == "2026-02-22"
         mock_connection.commit.assert_called_once()
 
 
@@ -64,10 +60,9 @@ class TestUpsertControlProfiles:
         upsert_control_profiles(mock_connection, "tid", [profile])
 
         cursor = mock_connection.cursor.return_value
-        args = cursor.execute.call_args[0]
-        # latest_state and assigned_to should be None
-        assert args[11] is None  # control_state
-        assert args[12] is None  # assigned_to
+        params = cursor.execute.call_args[0][1]
+        assert params[10] is None  # control_state
+        assert params[11] is None  # assigned_to
 
     def test_extracts_latest_state(self, mock_connection):
         from shared.sql_client import upsert_control_profiles
@@ -81,9 +76,9 @@ class TestUpsertControlProfiles:
         upsert_control_profiles(mock_connection, "tid", [profile])
 
         cursor = mock_connection.cursor.return_value
-        args = cursor.execute.call_args[0]
-        assert args[11] == "active"
-        assert args[12] == "bob"
+        params = cursor.execute.call_args[0][1]
+        assert params[10] == "active"
+        assert params[11] == "bob"
 
 
 class TestExtractRegulation:

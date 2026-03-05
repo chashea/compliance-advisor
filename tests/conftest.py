@@ -2,12 +2,6 @@
 import sys
 from unittest.mock import MagicMock
 
-# Mock pyodbc if the unixODBC native library is not installed
-try:
-    import pyodbc  # noqa: F401
-except ImportError:
-    sys.modules["pyodbc"] = MagicMock()
-
 import pytest
 
 
@@ -15,13 +9,12 @@ import pytest
 
 @pytest.fixture
 def mock_env(monkeypatch):
-    monkeypatch.setenv("KEY_VAULT_URL", "https://fake-kv.vault.azure.net")
-    monkeypatch.setenv("MSSQL_CONNECTION", "Driver={ODBC Driver 18};Server=fake;")
+    monkeypatch.setenv("SQLITE_DB_PATH", ":memory:")
     monkeypatch.setenv("AZURE_SEARCH_ENDPOINT", "https://fake-search.search.windows.net")
-    monkeypatch.setenv("AZURE_SEARCH_INDEX_NAME", "compliance-posture")
+    monkeypatch.setenv("AZURE_SEARCH_INDEX_NAME", "compliance-knowledge")
 
 
-# ── SQL / pyodbc ───────────────────────────────────────────────────────────────
+# ── SQL / SQLite ──────────────────────────────────────────────────────────────
 
 @pytest.fixture
 def mock_cursor():
@@ -37,24 +30,6 @@ def mock_connection(mock_cursor):
     conn = MagicMock()
     conn.cursor.return_value = mock_cursor
     return conn
-
-
-# ── Azure Key Vault ────────────────────────────────────────────────────────────
-
-@pytest.fixture
-def mock_secret_client():
-    client = MagicMock()
-    secret = MagicMock()
-    secret.value = "fake-secret"
-    client.get_secret.return_value = secret
-    return client
-
-
-# ── Azure Identity ─────────────────────────────────────────────────────────────
-
-@pytest.fixture
-def mock_credential():
-    return MagicMock()
 
 
 # ── AI Search ─────────────────────────────────────────────────────────────────

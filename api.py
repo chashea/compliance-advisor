@@ -27,6 +27,18 @@ app = FastAPI(title="Compliance Advisor MVP")
 log = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
+# Optional: Foundry agent for /ask endpoint
+_foundry_respond = None
+if os.environ.get("AIPROJECT_ENDPOINT"):
+    try:
+        from agent import _respond as _agent_respond, register_foundry_agent_version
+
+        register_foundry_agent_version()
+        _foundry_respond = _agent_respond
+        log.info("Foundry agent loaded for /ask endpoint")
+    except Exception:
+        log.warning("Foundry agent unavailable — /ask will return stub response", exc_info=True)
+
 
 # ── Route ─────────────────────────────────────────────────────────────────────
 
@@ -73,7 +85,12 @@ def _handle_ask(body: dict, log: logging.Logger) -> dict:
     question = body.get("question", "").strip()
     if not question:
         raise ValueError("'question' is required")
-    return {"answer": "AI advisor not available in local MVP.", "sources": []}
+
+    if _foundry_respond is None:
+        return {"answer": "AI advisor not available in local MVP.", "sources": []}
+
+    answer, _ = _foundry_respond(question, previous_response_id=None)
+    return {"answer": answer, "sources": []}
 
 
 def _handle_briefing(body: dict, log: logging.Logger) -> dict:

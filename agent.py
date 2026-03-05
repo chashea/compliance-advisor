@@ -182,7 +182,7 @@ def _execute_tools(response) -> list[dict]:
     return results
 
 
-def _respond(user_message: str, previous_response_id: str | None, agent_name: str) -> tuple[str, str]:
+def _respond(user_message: str, previous_response_id: str | None = None, agent_name: str = AGENT_NAME) -> tuple[str, str]:
     """Send a message via the registered Foundry agent and process tool calls."""
     agent_reference = {"type": "agent_reference", "name": agent_name}
     resp = oai.responses.create(

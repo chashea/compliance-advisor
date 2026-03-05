@@ -1,32 +1,15 @@
-"""Tests for shared.auth — Key Vault singleton, Graph token, Graph client."""
+"""Tests for shared.auth — env-based Graph token acquisition."""
 from unittest.mock import patch, MagicMock
 import pytest
+import requests as req
 
 
-def test_get_kv_client_creates_singleton(mock_env):
-    from shared.auth import _get_kv_client
+def test_get_graph_token_calls_correct_url(monkeypatch, sample_tenant):
+    monkeypatch.setenv("AZURE_TENANT_ID", sample_tenant["tenant_id"])
+    monkeypatch.setenv("AZURE_CLIENT_ID", "test-client-id")
+    monkeypatch.setenv("AZURE_CLIENT_SECRET", "test-secret")
 
-    with patch("shared.auth.SecretClient") as MockSC, \
-         patch("shared.auth.DefaultAzureCredential"):
-        client1 = _get_kv_client()
-        client2 = _get_kv_client()
-
-    assert client1 is client2
-    MockSC.assert_called_once()
-
-
-def test_get_kv_client_missing_env_raises():
-    import shared.auth as auth_module
-    auth_module._kv_client = None
-
-    with pytest.raises(KeyError):
-        auth_module._get_kv_client()
-
-
-def test_get_graph_token_calls_correct_url(mock_env, sample_tenant):
-    with patch("shared.auth._get_kv_client") as mock_kv, \
-         patch("shared.auth.requests.post") as mock_post:
-        mock_kv.return_value.get_secret.return_value.value = "test-secret"
+    with patch("shared.auth.requests.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.json.return_value = {"access_token": "tok-123"}
         mock_post.return_value = mock_resp
@@ -40,12 +23,12 @@ def test_get_graph_token_calls_correct_url(mock_env, sample_tenant):
     assert "oauth2/v2.0/token" in call_url
 
 
-def test_get_graph_token_raises_on_http_error(mock_env, sample_tenant):
-    import requests as req
+def test_get_graph_token_raises_on_http_error(monkeypatch, sample_tenant):
+    monkeypatch.setenv("AZURE_TENANT_ID", sample_tenant["tenant_id"])
+    monkeypatch.setenv("AZURE_CLIENT_ID", "test-client-id")
+    monkeypatch.setenv("AZURE_CLIENT_SECRET", "test-secret")
 
-    with patch("shared.auth._get_kv_client") as mock_kv, \
-         patch("shared.auth.requests.post") as mock_post:
-        mock_kv.return_value.get_secret.return_value.value = "s"
+    with patch("shared.auth.requests.post") as mock_post:
         mock_post.return_value.raise_for_status.side_effect = req.HTTPError("401")
 
         from shared.auth import get_graph_token
@@ -53,3 +36,8 @@ def test_get_graph_token_raises_on_http_error(mock_env, sample_tenant):
             get_graph_token(sample_tenant)
 
 
+def test_get_graph_token_missing_env_raises(sample_tenant):
+    """Missing AZURE_TENANT_ID should raise KeyError."""
+    from shared.auth import get_graph_token
+    with pytest.raises(KeyError):
+        get_graph_token(sample_tenant)
