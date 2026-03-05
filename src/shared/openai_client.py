@@ -4,6 +4,7 @@ Azure OpenAI client — singleton AzureOpenAI for chat completions.
 Uses managed identity (DefaultAzureCredential) for authentication.
 Reads AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_VERSION from environment.
 """
+
 import os
 
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider

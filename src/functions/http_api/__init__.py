@@ -13,6 +13,7 @@ Routes:
     POST /api/advisor/regulations    — Regulation coverage overview
     POST /api/advisor/actions        — Improvement actions with solution details
 """
+
 import json
 import logging
 import os
@@ -35,22 +36,21 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         body = {}
 
     dispatch = {
-        "ask":         _handle_ask,
-        "briefing":    _handle_briefing,
-        "trends":      _handle_trends,
+        "ask": _handle_ask,
+        "briefing": _handle_briefing,
+        "trends": _handle_trends,
         "departments": _handle_departments,
-        "status":      _handle_status,
-        "compliance":  _handle_compliance,
+        "status": _handle_status,
+        "compliance": _handle_compliance,
         "assessments": _handle_assessments,
         "regulations": _handle_regulations,
-        "actions":     _handle_actions,
+        "actions": _handle_actions,
     }
 
     handler = dispatch.get(action)
     if not handler:
         return _json_response(
-            {"error": f"Unknown action: {action}",
-             "available_actions": list(dispatch.keys())},
+            {"error": f"Unknown action: {action}", "available_actions": list(dispatch.keys())},
             status_code=404,
         )
 
@@ -59,12 +59,13 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         return _json_response(result)
     except ValueError as e:
         return _json_response({"error": str(e)}, status_code=400)
-    except Exception as e:
+    except Exception:
         log.exception("Unhandled error in /advisor/%s", action)
         return _json_response({"error": "Internal server error"}, status_code=500)
 
 
 # ── Handlers ──────────────────────────────────────────────────────────────────
+
 
 def _handle_ask(body: dict, log: logging.Logger) -> dict:
     """Ask the compliance advisor agent a question (grounded via AI Search)."""
@@ -102,20 +103,25 @@ def _handle_briefing(body: dict, log: logging.Logger) -> dict:
         cursor = conn.cursor()
 
         if department:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT tenant_id, display_name, department, risk_tier,
                        score_pct, current_score, max_score, snapshot_date
                 FROM v_latest_scores
                 WHERE department = ?
                 ORDER BY score_pct ASC
-            """, department)
+            """,
+                department,
+            )
         else:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT tenant_id, display_name, department, risk_tier,
                        score_pct, current_score, max_score, snapshot_date
                 FROM v_latest_scores
                 ORDER BY score_pct ASC
-            """)
+            """
+            )
         cols = [c[0] for c in cursor.description]
         scores = [dict(zip(cols, r)) for r in cursor.fetchall()]
 
@@ -123,11 +129,13 @@ def _handle_briefing(body: dict, log: logging.Logger) -> dict:
         cols = [c[0] for c in cursor.description]
         dept_rollup = [dict(zip(cols, r)) for r in cursor.fetchall()]
 
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT TOP 10 control_name, title, control_category,
                    points_gap, display_name, remediation_url
             FROM v_top_gaps ORDER BY points_gap DESC
-        """)
+        """
+        )
         cols = [c[0] for c in cursor.description]
         top_gaps = [dict(zip(cols, r)) for r in cursor.fetchall()]
 
@@ -150,15 +158,20 @@ def _handle_trends(body: dict, log: logging.Logger) -> dict:
 
         # Score trend over time
         if tenant_id:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT snapshot_date, score_pct, current_score, max_score
                 FROM v_score_trend
                 WHERE tenant_id = ?
                   AND snapshot_date >= DATEADD(DAY, ?, CAST(SYSUTCDATETIME() AS DATE))
                 ORDER BY snapshot_date ASC
-            """, tenant_id, -days)
+            """,
+                tenant_id,
+                -days,
+            )
         elif department:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT snapshot_date,
                        AVG(score_pct) AS avg_score_pct,
                        MIN(score_pct) AS min_score_pct,
@@ -168,9 +181,13 @@ def _handle_trends(body: dict, log: logging.Logger) -> dict:
                   AND snapshot_date >= DATEADD(DAY, ?, CAST(SYSUTCDATETIME() AS DATE))
                 GROUP BY snapshot_date
                 ORDER BY snapshot_date ASC
-            """, department, -days)
+            """,
+                department,
+                -days,
+            )
         else:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT snapshot_date,
                        AVG(score_pct) AS avg_score_pct,
                        MIN(score_pct) AS min_score_pct,
@@ -180,41 +197,53 @@ def _handle_trends(body: dict, log: logging.Logger) -> dict:
                 WHERE snapshot_date >= DATEADD(DAY, ?, CAST(SYSUTCDATETIME() AS DATE))
                 GROUP BY snapshot_date
                 ORDER BY snapshot_date ASC
-            """, -days)
+            """,
+                -days,
+            )
 
         cols = [c[0] for c in cursor.description]
         trend_data = [dict(zip(cols, r)) for r in cursor.fetchall()]
 
         # Week-over-week changes
         if department:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT display_name, department, current_pct, prior_pct,
                        wow_change, trend_direction
                 FROM v_weekly_change
                 WHERE department = ?
                 ORDER BY wow_change ASC
-            """, department)
+            """,
+                department,
+            )
         else:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT display_name, department, current_pct, prior_pct,
                        wow_change, trend_direction
                 FROM v_weekly_change
                 ORDER BY wow_change ASC
-            """)
+            """
+            )
         cols = [c[0] for c in cursor.description]
         weekly_changes = [dict(zip(cols, r)) for r in cursor.fetchall()]
 
         # Category trends
         if department:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT control_category, snapshot_date, avg_score, avg_max_score, avg_gap
                 FROM v_category_trend
                 WHERE department = ?
                   AND snapshot_date >= DATEADD(DAY, ?, CAST(SYSUTCDATETIME() AS DATE))
                 ORDER BY control_category, snapshot_date
-            """, department, -days)
+            """,
+                department,
+                -days,
+            )
         else:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT control_category, snapshot_date,
                        AVG(avg_score) AS avg_score,
                        AVG(avg_max_score) AS avg_max_score,
@@ -223,7 +252,9 @@ def _handle_trends(body: dict, log: logging.Logger) -> dict:
                 WHERE snapshot_date >= DATEADD(DAY, ?, CAST(SYSUTCDATETIME() AS DATE))
                 GROUP BY control_category, snapshot_date
                 ORDER BY control_category, snapshot_date
-            """, -days)
+            """,
+                -days,
+            )
         cols = [c[0] for c in cursor.description]
         category_trends = [dict(zip(cols, r)) for r in cursor.fetchall()]
 
@@ -267,12 +298,14 @@ def _handle_status(body: dict, log: logging.Logger) -> dict:
     try:
         set_admin_context(conn)
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT COUNT(*) AS active_tenants,
                    MIN(last_synced_at) AS oldest_sync,
                    MAX(last_synced_at) AS newest_sync
             FROM tenants WHERE is_active = 1
-        """)
+        """
+        )
         row = cursor.fetchone()
     finally:
         conn.close()
@@ -297,26 +330,32 @@ def _handle_compliance(body: dict, log: logging.Logger) -> dict:
 
         # Latest compliance scores
         if department:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT tenant_id, display_name, department, risk_tier,
                        compliance_pct, current_score, max_score, snapshot_date
                 FROM v_latest_compliance_scores
                 WHERE department = ?
                 ORDER BY compliance_pct ASC
-            """, department)
+            """,
+                department,
+            )
         else:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT tenant_id, display_name, department, risk_tier,
                        compliance_pct, current_score, max_score, snapshot_date
                 FROM v_latest_compliance_scores
                 ORDER BY compliance_pct ASC
-            """)
+            """
+            )
         cols = [c[0] for c in cursor.description]
         latest_scores = [dict(zip(cols, r)) for r in cursor.fetchall()]
 
         # Compliance trend over time
         if department:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT snapshot_date,
                        AVG(compliance_pct) AS avg_compliance_pct,
                        MIN(compliance_pct) AS min_compliance_pct,
@@ -326,9 +365,13 @@ def _handle_compliance(body: dict, log: logging.Logger) -> dict:
                   AND snapshot_date >= DATEADD(DAY, ?, CAST(SYSUTCDATETIME() AS DATE))
                 GROUP BY snapshot_date
                 ORDER BY snapshot_date ASC
-            """, department, -days)
+            """,
+                department,
+                -days,
+            )
         else:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT snapshot_date,
                        AVG(compliance_pct) AS avg_compliance_pct,
                        MIN(compliance_pct) AS min_compliance_pct,
@@ -339,34 +382,43 @@ def _handle_compliance(body: dict, log: logging.Logger) -> dict:
                   AND snapshot_date >= DATEADD(DAY, ?, CAST(SYSUTCDATETIME() AS DATE))
                 GROUP BY snapshot_date
                 ORDER BY snapshot_date ASC
-            """, -days)
+            """,
+                -days,
+            )
         cols = [c[0] for c in cursor.description]
         trend_data = [dict(zip(cols, r)) for r in cursor.fetchall()]
 
         # Weekly changes
         if department:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT display_name, department, current_pct, prior_pct,
                        wow_change, trend_direction
                 FROM v_compliance_weekly_change
                 WHERE department = ?
                 ORDER BY wow_change ASC
-            """, department)
+            """,
+                department,
+            )
         else:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT display_name, department, current_pct, prior_pct,
                        wow_change, trend_direction
                 FROM v_compliance_weekly_change
                 ORDER BY wow_change ASC
-            """)
+            """
+            )
         cols = [c[0] for c in cursor.description]
         weekly_changes = [dict(zip(cols, r)) for r in cursor.fetchall()]
 
         # Department compliance rollup
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT * FROM v_compliance_department_rollup
             ORDER BY avg_compliance_pct ASC
-        """)
+        """
+        )
         cols = [c[0] for c in cursor.description]
         dept_rollup = [dict(zip(cols, r)) for r in cursor.fetchall()]
 
@@ -493,9 +545,9 @@ def _handle_actions(body: dict, log: logging.Logger) -> dict:
     """
     department = body.get("department")
     regulation = body.get("regulation")
-    status_filter = body.get("status")         # notImplemented, planned, alternative
+    status_filter = body.get("status")  # notImplemented, planned, alternative
     owner_filter = body.get("owner")
-    impact_filter = body.get("score_impact")    # high, medium, low
+    impact_filter = body.get("score_impact")  # high, medium, low
     top_n = min(body.get("top_n", 50), 200)
 
     conn = get_connection()
@@ -587,6 +639,7 @@ def _handle_actions(body: dict, log: logging.Logger) -> dict:
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _json_response(data: dict, status_code: int = 200) -> func.HttpResponse:
     """Return a JSON HTTP response with proper content type and date serialization."""

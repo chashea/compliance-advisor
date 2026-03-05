@@ -8,6 +8,7 @@ and v1.0 for Secure Score. Includes retry logic with exponential backoff for
 M365 GCC uses global endpoints. Set GRAPH_NATIONAL_CLOUD=usgovernment only for
 GCC High/DoD to use https://graph.microsoft.us.
 """
+
 from __future__ import annotations
 import logging
 import os
@@ -23,13 +24,14 @@ _is_usgov = _graph_cloud in ("usgovernment", "usgov", "gcc", "gcc high", "dod")
 _graph_host = "https://graph.microsoft.us" if _is_usgov else "https://graph.microsoft.com"
 GRAPH_BASE = f"{_graph_host}/v1.0"
 GRAPH_BETA = f"{_graph_host}/beta"
-MAX_DAYS   = 90
-log        = logging.getLogger(__name__)
+MAX_DAYS = 90
+log = logging.getLogger(__name__)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
 # HTTP helpers with retry
 # ═════════════════════════════════════════════════════════════════════════════
+
 
 def _session() -> requests.Session:
     session = requests.Session()
@@ -66,6 +68,7 @@ def _paginate(url: str, token: str) -> Generator[dict, None, None]:
 # Secure Score (v1.0)
 # ═════════════════════════════════════════════════════════════════════════════
 
+
 def get_secure_scores(token: str, days: int = MAX_DAYS) -> list[dict]:
     """Return up to `days` daily Secure Score snapshots, newest first."""
     if not isinstance(days, int) or not (1 <= days <= MAX_DAYS):
@@ -84,6 +87,7 @@ def get_control_profiles(token: str) -> list[dict]:
 # Compliance Manager (beta)
 # ═════════════════════════════════════════════════════════════════════════════
 
+
 def get_compliance_assessments(token: str) -> list[dict]:
     """Return all Compliance Manager assessments."""
     preferred = f"{GRAPH_BETA}/security/complianceManager/assessments"
@@ -91,8 +95,10 @@ def get_compliance_assessments(token: str) -> list[dict]:
         return list(_paginate(preferred, token))
     except requests.HTTPError as e:
         if e.response is not None and e.response.status_code in (400, 404):
-            log.warning("complianceManager/assessments not available (HTTP %s), "
-                        "trying alternative endpoint", e.response.status_code)
+            log.warning(
+                "complianceManager/assessments not available (HTTP %s), " "trying alternative endpoint",
+                e.response.status_code,
+            )
             alt = f"{GRAPH_BETA}/compliance/complianceManagement/assessments"
             try:
                 return list(_paginate(alt, token))
@@ -107,23 +113,25 @@ def get_compliance_assessments(token: str) -> list[dict]:
 def get_assessment_controls(token: str, assessment_id: str) -> list[dict]:
     """Return all controls for a specific assessment.
     Includes solution/remediation fields when available from the API."""
-    select = ("id,displayName,controlFamily,controlCategory,"
-              "implementationStatus,testStatus,score,maxScore,owner,actionUrl,"
-              "implementationDetails,testPlan,managementResponse,"
-              "evidenceOfCompletion,service,scoreImpact")
-    url = (f"{GRAPH_BETA}/security/complianceManager/assessments/"
-           f"{assessment_id}/controls?$select={select}")
+    select = (
+        "id,displayName,controlFamily,controlCategory,"
+        "implementationStatus,testStatus,score,maxScore,owner,actionUrl,"
+        "implementationDetails,testPlan,managementResponse,"
+        "evidenceOfCompletion,service,scoreImpact"
+    )
+    url = f"{GRAPH_BETA}/security/complianceManager/assessments/" f"{assessment_id}/controls?$select={select}"
     try:
         return list(_paginate(url, token))
     except requests.HTTPError as e:
         if e.response is not None and e.response.status_code == 404:
-            alt = (f"{GRAPH_BETA}/compliance/complianceManagement/assessments/"
-                   f"{assessment_id}/controls?$select={select}")
+            alt = (
+                f"{GRAPH_BETA}/compliance/complianceManagement/assessments/"
+                f"{assessment_id}/controls?$select={select}"
+            )
             try:
                 return list(_paginate(alt, token))
             except requests.HTTPError:
-                log.warning("Could not fetch controls for assessment %s",
-                            assessment_id)
+                log.warning("Could not fetch controls for assessment %s", assessment_id)
                 return []
         raise
 

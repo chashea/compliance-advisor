@@ -5,6 +5,7 @@ import sqlite3
 from pathlib import Path
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 db_path = os.environ.get("SQLITE_DB_PATH", "data/compliance.db")

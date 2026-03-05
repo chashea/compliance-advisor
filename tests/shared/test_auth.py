@@ -1,4 +1,5 @@
 """Tests for shared.auth — env-based Graph token acquisition."""
+
 from unittest.mock import patch, MagicMock
 import pytest
 import requests as req
@@ -15,6 +16,7 @@ def test_get_graph_token_calls_correct_url(monkeypatch, sample_tenant):
         mock_post.return_value = mock_resp
 
         from shared.auth import get_graph_token
+
         token = get_graph_token(sample_tenant)
 
     assert token == "tok-123"
@@ -32,6 +34,7 @@ def test_get_graph_token_raises_on_http_error(monkeypatch, sample_tenant):
         mock_post.return_value.raise_for_status.side_effect = req.HTTPError("401")
 
         from shared.auth import get_graph_token
+
         with pytest.raises(req.HTTPError):
             get_graph_token(sample_tenant)
 
@@ -39,5 +42,6 @@ def test_get_graph_token_raises_on_http_error(monkeypatch, sample_tenant):
 def test_get_graph_token_missing_env_raises(sample_tenant):
     """Missing AZURE_TENANT_ID should raise KeyError."""
     from shared.auth import get_graph_token
+
     with pytest.raises(KeyError):
         get_graph_token(sample_tenant)

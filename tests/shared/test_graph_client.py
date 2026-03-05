@@ -1,4 +1,5 @@
 """Tests for shared.graph_client — pagination, HTTP fallback."""
+
 from unittest.mock import patch, MagicMock
 import pytest
 import requests
@@ -7,16 +8,19 @@ import requests
 class TestGetSecureScores:
     def test_invalid_days_zero_raises(self):
         from shared.graph_client import get_secure_scores
+
         with pytest.raises(ValueError):
             get_secure_scores(token="tok", days=0)
 
     def test_invalid_days_91_raises(self):
         from shared.graph_client import get_secure_scores
+
         with pytest.raises(ValueError):
             get_secure_scores(token="tok", days=91)
 
     def test_valid_days_returns_items(self):
         from shared.graph_client import get_secure_scores
+
         with patch("shared.graph_client._paginate") as mock_pag:
             mock_pag.return_value = iter([{"id": "1"}, {"id": "2"}])
             result = get_secure_scores(token="tok", days=3)
@@ -26,6 +30,7 @@ class TestGetSecureScores:
 class TestPaginate:
     def test_follows_next_link(self):
         from shared.graph_client import _paginate
+
         page1 = {"value": [{"id": "1"}], "@odata.nextLink": "https://next"}
         page2 = {"value": [{"id": "2"}]}
 

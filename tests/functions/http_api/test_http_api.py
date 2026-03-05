@@ -1,15 +1,15 @@
 """Tests for the FastAPI server — routing, handlers, error handling."""
-import json
-from unittest.mock import patch, MagicMock
+
+from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
 
 @pytest.fixture
 def client(mock_connection):
-    with patch("api.get_connection", return_value=mock_connection), \
-         patch("api.set_admin_context"):
+    with patch("api.get_connection", return_value=mock_connection), patch("api.set_admin_context"):
         from api import app
+
         yield TestClient(app)
 
 
@@ -22,13 +22,11 @@ class TestRouting:
         assert "available_actions" in data
 
     def test_invalid_json_body_handled_gracefully(self, mock_connection):
-        with patch("api.get_connection", return_value=mock_connection), \
-             patch("api.set_admin_context"):
+        with patch("api.get_connection", return_value=mock_connection), patch("api.set_admin_context"):
             mock_connection.cursor.return_value.fetchone.return_value = (3, None, None)
-            mock_connection.cursor.return_value.description = [
-                ("active_tenants",), ("oldest_sync",), ("newest_sync",)
-            ]
+            mock_connection.cursor.return_value.description = [("active_tenants",), ("oldest_sync",), ("newest_sync",)]
             from api import app
+
             tc = TestClient(app)
             resp = tc.post(
                 "/api/advisor/status",
@@ -40,14 +38,12 @@ class TestRouting:
 
 class TestHandleStatus:
     def test_returns_healthy(self, mock_connection):
-        with patch("api.get_connection", return_value=mock_connection), \
-             patch("api.set_admin_context"):
+        with patch("api.get_connection", return_value=mock_connection), patch("api.set_admin_context"):
             cursor = mock_connection.cursor.return_value
             cursor.fetchone.return_value = (3, "2026-02-21", "2026-02-22")
-            cursor.description = [
-                ("active_tenants",), ("oldest_sync",), ("newest_sync",)
-            ]
+            cursor.description = [("active_tenants",), ("oldest_sync",), ("newest_sync",)]
             from api import app
+
             tc = TestClient(app)
             resp = tc.post("/api/advisor/status", json={})
 
@@ -73,9 +69,9 @@ class TestHandleTrends:
         mock_cursor.description = [("snapshot_date",), ("avg_score_pct",)]
         mock_cursor.fetchall.return_value = []
 
-        with patch("api.get_connection", return_value=mock_connection), \
-             patch("api.set_admin_context"):
+        with patch("api.get_connection", return_value=mock_connection), patch("api.set_admin_context"):
             from api import app
+
             tc = TestClient(app)
             resp = tc.post("/api/advisor/trends", json={"days": 999})
 
@@ -86,9 +82,9 @@ class TestHandleTrends:
         mock_cursor.description = [("col1",)]
         mock_cursor.fetchall.return_value = []
 
-        with patch("api.get_connection", return_value=mock_connection), \
-             patch("api.set_admin_context"):
+        with patch("api.get_connection", return_value=mock_connection), patch("api.set_admin_context"):
             from api import app
+
             tc = TestClient(app)
             resp = tc.post("/api/advisor/trends", json={})
 
@@ -104,9 +100,9 @@ class TestHandleActions:
         mock_cursor.fetchall.return_value = []
         mock_cursor.fetchone.return_value = None
 
-        with patch("api.get_connection", return_value=mock_connection), \
-             patch("api.set_admin_context"):
+        with patch("api.get_connection", return_value=mock_connection), patch("api.set_admin_context"):
             from api import app
+
             tc = TestClient(app)
             resp = tc.post("/api/advisor/actions", json={"top_n": 9999})
 
@@ -118,6 +114,7 @@ class TestErrorHandling:
     def test_unhandled_exception_returns_500(self):
         with patch("api.get_connection", side_effect=RuntimeError("db down")):
             from api import app
+
             tc = TestClient(app)
             resp = tc.post("/api/advisor/status", json={})
 

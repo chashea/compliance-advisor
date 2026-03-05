@@ -7,6 +7,7 @@ M365 GCC connection: This is the only path that connects to M365 (GCC or commerc
 Uses Microsoft Graph global endpoints (login.microsoftonline.com, graph.microsoft.com).
 Do not set GRAPH_NATIONAL_CLOUD for M365 GCC — it uses global endpoints.
 """
+
 import logging
 import sys
 import os
@@ -63,9 +64,7 @@ def main(tenant: dict) -> dict:
         # If we didn't get a direct compliance score, derive from assessments
         if not score_data and assessments:
             scores_list = [
-                a.get("complianceScore", 0) or 0
-                for a in assessments
-                if a.get("complianceScore") is not None
+                a.get("complianceScore", 0) or 0 for a in assessments if a.get("complianceScore") is not None
             ]
             if scores_list:
                 current = sum(scores_list) / len(scores_list)
@@ -79,17 +78,17 @@ def main(tenant: dict) -> dict:
 
             # Upsert overall compliance score
             if score_count > 0 or current > 0:
-                upsert_compliance_score(conn, tenant_id, today,
-                                        current, max_sc, "overall")
+                upsert_compliance_score(conn, tenant_id, today, current, max_sc, "overall")
 
             # Upsert category scores
             for cat in categories:
                 upsert_compliance_score(
-                    conn, tenant_id, today,
+                    conn,
+                    tenant_id,
+                    today,
                     cat.get("currentScore", 0),
                     cat.get("maxScore", 0),
-                    cat.get("categoryName",
-                            cat.get("displayName", "unknown")),
+                    cat.get("categoryName", cat.get("displayName", "unknown")),
                 )
 
             # Upsert each assessment and its controls
@@ -106,8 +105,7 @@ def main(tenant: dict) -> dict:
 
                 for ctrl in controls:
                     normalized_ctrl = _normalize_control(ctrl)
-                    upsert_assessment_control(conn, tenant_id,
-                                              assessment_id, normalized_ctrl)
+                    upsert_assessment_control(conn, tenant_id, assessment_id, normalized_ctrl)
                     ctrl_count += 1
 
             mark_tenant_synced(conn, tenant_id)
@@ -131,40 +129,39 @@ def main(tenant: dict) -> dict:
 def _normalize_assessment(a: dict) -> dict:
     """Ensure assessment dict uses the camelCase keys that sql_client expects."""
     return {
-        "id":                    a.get("id"),
-        "displayName":           a.get("displayName", ""),
-        "description":           a.get("description"),
-        "status":                a.get("status"),
-        "regulation":            a.get("regulation"),
-        "regulationName":        a.get("regulationName"),
-        "complianceStandard":    a.get("complianceStandard"),
-        "complianceScore":       a.get("complianceScore"),
-        "passedControls":        a.get("passedControls"),
-        "failedControls":        a.get("failedControls"),
-        "totalControls":         a.get("totalControls"),
-        "createdDateTime":       a.get("createdDateTime"),
-        "lastModifiedDateTime":  a.get("lastModifiedDateTime"),
+        "id": a.get("id"),
+        "displayName": a.get("displayName", ""),
+        "description": a.get("description"),
+        "status": a.get("status"),
+        "regulation": a.get("regulation"),
+        "regulationName": a.get("regulationName"),
+        "complianceStandard": a.get("complianceStandard"),
+        "complianceScore": a.get("complianceScore"),
+        "passedControls": a.get("passedControls"),
+        "failedControls": a.get("failedControls"),
+        "totalControls": a.get("totalControls"),
+        "createdDateTime": a.get("createdDateTime"),
+        "lastModifiedDateTime": a.get("lastModifiedDateTime"),
     }
 
 
 def _normalize_control(c: dict) -> dict:
     """Normalize control dict keys to the camelCase that sql_client expects."""
     return {
-        "id":                    c.get("id"),
-        "displayName":           c.get("displayName",
-                                       c.get("controlName", "")),
-        "controlFamily":         c.get("controlFamily"),
-        "controlCategory":       c.get("controlCategory"),
-        "implementationStatus":  c.get("implementationStatus"),
-        "testStatus":            c.get("testStatus"),
-        "score":                 c.get("score"),
-        "maxScore":              c.get("maxScore"),
-        "scoreImpact":           c.get("scoreImpact"),
-        "owner":                 c.get("owner"),
-        "actionUrl":             c.get("actionUrl"),
+        "id": c.get("id"),
+        "displayName": c.get("displayName", c.get("controlName", "")),
+        "controlFamily": c.get("controlFamily"),
+        "controlCategory": c.get("controlCategory"),
+        "implementationStatus": c.get("implementationStatus"),
+        "testStatus": c.get("testStatus"),
+        "score": c.get("score"),
+        "maxScore": c.get("maxScore"),
+        "scoreImpact": c.get("scoreImpact"),
+        "owner": c.get("owner"),
+        "actionUrl": c.get("actionUrl"),
         "implementationDetails": c.get("implementationDetails"),
-        "testPlan":              c.get("testPlan"),
-        "managementResponse":    c.get("managementResponse"),
-        "evidenceOfCompletion":  c.get("evidenceOfCompletion"),
-        "service":               c.get("service"),
+        "testPlan": c.get("testPlan"),
+        "managementResponse": c.get("managementResponse"),
+        "evidenceOfCompletion": c.get("evidenceOfCompletion"),
+        "service": c.get("service"),
     }

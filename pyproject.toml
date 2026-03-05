@@ -10,3 +10,12 @@ pythonpath = [
     "src/functions",
 ]
 addopts = "-ra -q --tb=short"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+ignore = ["E402"]
+
+[tool.black]
+line-length = 120

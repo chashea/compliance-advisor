@@ -7,8 +7,11 @@ Uses Microsoft Graph global endpoints (login.microsoftonline.com, graph.microsof
 Do not set GRAPH_NATIONAL_CLOUD for M365 GCC — it uses global endpoints. Foundry
 does not connect to M365; it only consumes data already synced via Graph here.
 """
+
 import logging
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../"))
 
 from shared.auth import get_graph_token
@@ -32,7 +35,7 @@ def main(tenant: dict) -> dict:
         token = get_graph_token(tenant)
         log.info("Authenticated against tenant %s", tenant_id)
 
-        scores   = get_secure_scores(token, days=90)
+        scores = get_secure_scores(token, days=90)
         profiles = get_control_profiles(token)
         log.info("Fetched %d snapshots, %d profiles", len(scores), len(profiles))
 
@@ -45,10 +48,8 @@ def main(tenant: dict) -> dict:
             for score in scores:
                 snapshot_date = score["createdDateTime"][:10]
                 upsert_secure_score(conn, tenant_id, score)
-                upsert_control_scores(conn, tenant_id, snapshot_date,
-                                      score.get("controlScores", []))
-                upsert_benchmarks(conn, tenant_id, snapshot_date,
-                                  score.get("averageComparativeScores", []))
+                upsert_control_scores(conn, tenant_id, snapshot_date, score.get("controlScores", []))
+                upsert_benchmarks(conn, tenant_id, snapshot_date, score.get("averageComparativeScores", []))
 
             # Refresh control profile catalog
             upsert_control_profiles(conn, tenant_id, profiles)

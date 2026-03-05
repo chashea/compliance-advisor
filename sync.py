@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -18,26 +19,32 @@ log = logging.getLogger("sync")
 
 def get_local_tenant() -> dict:
     return {
-        "tenant_id":      os.environ["AZURE_TENANT_ID"],
-        "display_name":   os.environ.get("TENANT_DISPLAY_NAME", "My Tenant"),
-        "app_id":         os.environ["AZURE_CLIENT_ID"],
+        "tenant_id": os.environ["AZURE_TENANT_ID"],
+        "display_name": os.environ.get("TENANT_DISPLAY_NAME", "My Tenant"),
+        "app_id": os.environ["AZURE_CLIENT_ID"],
         "kv_secret_name": "",
-        "department":     os.environ.get("TENANT_DEPARTMENT"),
-        "risk_tier":      os.environ.get("TENANT_RISK_TIER", "High"),
+        "department": os.environ.get("TENANT_DEPARTMENT"),
+        "risk_tier": os.environ.get("TENANT_RISK_TIER", "High"),
     }
 
 
 def ensure_tenant_row(tenant: dict) -> None:
     conn = get_connection()
     try:
-        conn.execute("""
+        conn.execute(
+            """
             INSERT OR REPLACE INTO tenants
                 (tenant_id, display_name, department, risk_tier, app_id, is_active)
             VALUES (?, ?, ?, ?, ?, 1)
-        """, (
-            tenant["tenant_id"], tenant["display_name"],
-            tenant.get("department"), tenant.get("risk_tier"), tenant["app_id"],
-        ))
+        """,
+            (
+                tenant["tenant_id"],
+                tenant["display_name"],
+                tenant.get("department"),
+                tenant.get("risk_tier"),
+                tenant["app_id"],
+            ),
+        )
         conn.commit()
     finally:
         conn.close()

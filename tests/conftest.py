@@ -1,11 +1,12 @@
 """Root conftest.py — shared pytest fixtures for the compliance-advisor test suite."""
-import sys
+
 from unittest.mock import MagicMock
 
 import pytest
 
 
 # ── Environment variables ──────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def mock_env(monkeypatch):
@@ -15,6 +16,7 @@ def mock_env(monkeypatch):
 
 
 # ── SQL / SQLite ──────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def mock_cursor():
@@ -34,6 +36,7 @@ def mock_connection(mock_cursor):
 
 # ── AI Search ─────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def mock_search_client():
     client = MagicMock()
@@ -43,6 +46,7 @@ def mock_search_client():
 
 
 # ── Sample data ───────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def sample_tenant():
@@ -75,9 +79,7 @@ def sample_secure_score():
                 "description": "MFA registration completed",
             }
         ],
-        "averageComparativeScores": [
-            {"basis": "Industry", "basisValue": "Technology", "averageScore": 68.0}
-        ],
+        "averageComparativeScores": [{"basis": "Industry", "basisValue": "Technology", "averageScore": 68.0}],
     }
 
 

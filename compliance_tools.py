@@ -4,6 +4,7 @@ Compliance Advisor — function tools for the Azure AI Foundry agent.
 Each function queries the local SQLite database (data/compliance.db) via the
 shared sql_client and returns a JSON string for the agent to interpret.
 """
+
 import json
 import sys
 from pathlib import Path
@@ -34,12 +35,14 @@ def get_secure_score() -> str:
         row = cursor.fetchone()
         latest = dict(zip(cols, row)) if row else {}
 
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT snapshot_date, score_pct, current_score, max_score
             FROM v_score_trend
             WHERE snapshot_date >= date('now', '-30 days')
             ORDER BY snapshot_date
-        """)
+        """
+        )
         trend = _rows_to_dicts(cursor)
 
         return json.dumps({"latest": latest, "trend": trend}, default=str)
@@ -60,13 +63,16 @@ def get_top_gaps(count: int = 10) -> str:
     conn = get_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT control_name, title, control_category,
                    score, max_score, points_gap, rank, action_type, remediation_url
             FROM v_top_gaps
             ORDER BY points_gap DESC
             LIMIT ?
-        """, (int(count),))
+        """,
+            (int(count),),
+        )
         gaps = _rows_to_dicts(cursor)
         return json.dumps(gaps, default=str)
     finally:
@@ -84,18 +90,22 @@ def get_weekly_change() -> str:
     try:
         cursor = conn.cursor()
 
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT tenant_id, display_name, current_pct, prior_pct,
                    wow_change, trend_direction
             FROM v_weekly_change
-        """)
+        """
+        )
         secure_wow = _rows_to_dicts(cursor)
 
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT tenant_id, display_name, current_pct, prior_pct,
                    wow_change, trend_direction
             FROM v_compliance_weekly_change
-        """)
+        """
+        )
         compliance_wow = _rows_to_dicts(cursor)
 
         return json.dumps(
@@ -121,13 +131,15 @@ def get_compliance_score() -> str:
         row = cursor.fetchone()
         latest = dict(zip(cols, row)) if row else {}
 
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT snapshot_date, compliance_pct, current_score, max_score, category
             FROM v_compliance_trend
             WHERE snapshot_date >= date('now', '-30 days')
               AND category = 'overall'
             ORDER BY snapshot_date
-        """)
+        """
+        )
         trend = _rows_to_dicts(cursor)
 
         return json.dumps({"latest": latest, "trend": trend}, default=str)
@@ -148,22 +160,27 @@ def get_assessments(regulation: str = None) -> str:
     try:
         cursor = conn.cursor()
         if regulation:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT assessment_id, assessment_name, regulation, status,
                        compliance_score, passed_controls, failed_controls,
                        total_controls, pass_rate, last_modified
                 FROM v_assessment_summary
                 WHERE regulation LIKE ?
                 ORDER BY pass_rate ASC
-            """, (f"%{regulation}%",))
+            """,
+                (f"%{regulation}%",),
+            )
         else:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT assessment_id, assessment_name, regulation, status,
                        compliance_score, passed_controls, failed_controls,
                        total_controls, pass_rate, last_modified
                 FROM v_assessment_summary
                 ORDER BY pass_rate ASC
-            """)
+            """
+            )
         assessments = _rows_to_dicts(cursor)
         return json.dumps(assessments, default=str)
     finally:
@@ -184,7 +201,8 @@ def get_improvement_actions(count: int = 10, regulation: str = None) -> str:
     try:
         cursor = conn.cursor()
         if regulation:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT control_name, control_family, assessment_name, regulation,
                        implementation_status, test_status, score, max_score,
                        points_gap, score_impact, owner, action_url,
@@ -193,9 +211,12 @@ def get_improvement_actions(count: int = 10, regulation: str = None) -> str:
                 WHERE regulation LIKE ?
                 ORDER BY priority_rank ASC, points_gap DESC
                 LIMIT ?
-            """, (f"%{regulation}%", int(count)))
+            """,
+                (f"%{regulation}%", int(count)),
+            )
         else:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT control_name, control_family, assessment_name, regulation,
                        implementation_status, test_status, score, max_score,
                        points_gap, score_impact, owner, action_url,
@@ -203,7 +224,9 @@ def get_improvement_actions(count: int = 10, regulation: str = None) -> str:
                 FROM v_improvement_actions
                 ORDER BY priority_rank ASC, points_gap DESC
                 LIMIT ?
-            """, (int(count),))
+            """,
+                (int(count),),
+            )
         actions = _rows_to_dicts(cursor)
         return json.dumps(actions, default=str)
     finally:
@@ -219,13 +242,15 @@ def get_regulation_coverage() -> str:
     conn = get_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT regulation, tenant_count, assessment_count,
                    avg_compliance_score, total_passed, total_failed,
                    total_controls, overall_pass_rate
             FROM v_regulation_coverage
             ORDER BY overall_pass_rate ASC
-        """)
+        """
+        )
         coverage = _rows_to_dicts(cursor)
         return json.dumps(coverage, default=str)
     finally:
@@ -243,21 +268,25 @@ def get_category_breakdown() -> str:
     try:
         cursor = conn.cursor()
 
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT control_category, snapshot_date,
                    avg_score, avg_max_score, avg_gap, tenant_count
             FROM v_category_trend
             WHERE snapshot_date >= date('now', '-30 days')
             ORDER BY avg_gap DESC
-        """)
+        """
+        )
         secure_categories = _rows_to_dicts(cursor)
 
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT control_family, regulation,
                    total_controls, implemented, passed, failed, avg_gap
             FROM v_compliance_category_trend
             ORDER BY avg_gap DESC
-        """)
+        """
+        )
         compliance_categories = _rows_to_dicts(cursor)
 
         return json.dumps(

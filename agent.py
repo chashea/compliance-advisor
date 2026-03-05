@@ -75,7 +75,10 @@ TOOLS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "regulation": {"type": "string", "description": "Optional regulation name to filter by (e.g. 'NIST 800-53')."},
+                "regulation": {
+                    "type": "string",
+                    "description": "Optional regulation name to filter by (e.g. 'NIST 800-53').",
+                },
             },
             "required": [],
         },
@@ -118,7 +121,10 @@ TOOLS = [
             "properties": {
                 "query": {"type": "string", "description": "Natural-language knowledge search query."},
                 "top": {"type": "integer", "description": "Maximum number of documents to return (default 5, max 20)."},
-                "category": {"type": "string", "description": "Optional category filter such as NIST, ISO27001, SOC2, or RemediationGuide."},
+                "category": {
+                    "type": "string",
+                    "description": "Optional category filter such as NIST, ISO27001, SOC2, or RemediationGuide.",
+                },
             },
             "required": ["query"],
         },
@@ -153,6 +159,7 @@ def register_foundry_agent_version(agent_name: str = AGENT_NAME):
         description="Compliance Advisor prompt agent with SQL-backed compliance tools.",
     )
 
+
 _TOOL_FUNCTIONS = {
     "get_secure_score": compliance_tools.get_secure_score,
     "get_top_gaps": compliance_tools.get_top_gaps,
@@ -174,15 +181,19 @@ def _execute_tools(response) -> list[dict]:
             func = _TOOL_FUNCTIONS[item.name]
             args = json.loads(item.arguments) if item.arguments else {}
             output = func(**args)
-            results.append({
-                "type": "function_call_output",
-                "call_id": item.call_id,
-                "output": output,
-            })
+            results.append(
+                {
+                    "type": "function_call_output",
+                    "call_id": item.call_id,
+                    "output": output,
+                }
+            )
     return results
 
 
-def _respond(user_message: str, previous_response_id: str | None = None, agent_name: str = AGENT_NAME) -> tuple[str, str]:
+def _respond(
+    user_message: str, previous_response_id: str | None = None, agent_name: str = AGENT_NAME
+) -> tuple[str, str]:
     """Send a message via the registered Foundry agent and process tool calls."""
     agent_reference = {"type": "agent_reference", "name": agent_name}
     resp = oai.responses.create(
@@ -192,9 +203,7 @@ def _respond(user_message: str, previous_response_id: str | None = None, agent_n
     )
 
     # Loop until no more tool calls
-    while resp.status == "requires_action" or any(
-        item.type == "function_call" for item in resp.output
-    ):
+    while resp.status == "requires_action" or any(item.type == "function_call" for item in resp.output):
         tool_results = _execute_tools(resp)
         if not tool_results:
             break
@@ -209,9 +218,7 @@ def _respond(user_message: str, previous_response_id: str | None = None, agent_n
 
 def chat(agent_name: str):
     agent = register_foundry_agent_version(agent_name=agent_name)
-    print(
-        f"Registered Foundry Agent: {agent.name} v{agent.version} (id: {agent.id})"
-    )
+    print(f"Registered Foundry Agent: {agent.name} v{agent.version} (id: {agent.id})")
     print("Compliance Advisor ready. Type 'quit' to exit.\n")
     previous_id = None
     while True:
@@ -226,9 +233,7 @@ def chat(agent_name: str):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Register and run the Compliance Advisor Foundry agent."
-    )
+    parser = argparse.ArgumentParser(description="Register and run the Compliance Advisor Foundry agent.")
     parser.add_argument(
         "--register-only",
         action="store_true",
