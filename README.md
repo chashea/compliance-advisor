@@ -41,81 +41,81 @@ the dashboard falls back to built-in demo data automatically.
 
 ---
 
-## Setup
+## Quick Start
 
-### 1. Create a virtual environment and install dependencies
+### Option A — Dashboard only (no Graph credentials needed)
+
+The dashboard includes built-in demo data. Use this path to explore the UI
+before connecting to a real tenant.
 
 ```bash
 cd compliance-advisor
-python -m venv .venv
-
-# Windows
-.venv\Scripts\activate
-
-# macOS / Linux
-source .venv/bin/activate
-
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+python init_db.py
+uvicorn api:app --reload --port 8000
 ```
 
-### 2. Configure credentials
+Open **http://localhost:8000** — the dashboard loads with demo data automatically.
+
+### Option B — Full deployment with live data
 
 ```bash
-# Windows
-copy .env.example .env
-
-# macOS / Linux
-cp .env.example .env
+cd compliance-advisor
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env       # Windows: copy .env.example .env
 ```
 
-Open `.env` and fill in your tenant details:
+Open `.env` and fill in your tenant credentials:
 
 ```bash
 AZURE_TENANT_ID=your-tenant-guid
 AZURE_CLIENT_ID=your-app-client-id
 AZURE_CLIENT_SECRET=your-client-secret
-TENANT_DISPLAY_NAME=My Organization   # display name shown in the dashboard
+TENANT_DISPLAY_NAME=My Organization
 TENANT_DEPARTMENT=IT
 TENANT_RISK_TIER=High
-SQLITE_DB_PATH=data/compliance.db
-# GRAPH_NATIONAL_CLOUD=usgovernment   # GCC High / DoD only — leave blank for commercial & GCC
 ```
 
-### 3. Initialise the database
-
-Run once to create `data/compliance.db` from the SQLite schema:
+Then initialise the database, sync data, and start the server:
 
 ```bash
-python init_db.py
-```
-
-Expected output:
-```
-Database initialized: data/compliance.db
-```
-
-### 4. Sync data from Microsoft Graph
-
-```bash
-python sync.py
-```
-
-Expected output (counts will vary):
-```
-2024-01-15 10:23:01 INFO Syncing Secure Score...
-2024-01-15 10:23:04 INFO {'tenant_id': '...', 'success': True, 'snapshots': 90}
-2024-01-15 10:23:04 INFO Syncing Compliance Manager...
-2024-01-15 10:23:12 INFO {'tenant_id': '...', 'success': True, 'compliance_score': 67.4, 'assessments': 4, 'controls': 312}
-2024-01-15 10:23:12 INFO Sync complete.
-```
-
-### 5. Start the server
-
-```bash
+python init_db.py          # create data/compliance.db
+python sync.py             # pull Secure Score + Compliance Manager from Graph
 uvicorn api:app --reload --port 8000
 ```
 
-Open **http://localhost:8000** in your browser.
+Open **http://localhost:8000** — the dashboard loads with live data.
+
+### Verify deployment
+
+```bash
+python verify.py
+```
+
+This runs automated checks against the database and API. Expected output
+after a successful full deployment:
+
+```
+1. Database
+  [PASS] Database file exists — data/compliance.db
+
+2. Schema
+  [PASS] Tables created — 8 tables
+  [PASS] Views created — 17 views
+
+3. Data
+  [PASS] secure_scores — 90 rows
+  ...
+
+4. API
+  [PASS] API responding — HTTP 200
+  [PASS] Status healthy — healthy
+  [PASS] Active tenants — 1 tenants
+
+  11 passed, 0 failed
+```
 
 ---
 

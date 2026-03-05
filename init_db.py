@@ -8,9 +8,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-db_path = os.environ.get("SQLITE_DB_PATH", "data/compliance.db")
+project_root = Path(__file__).parent
+schema_path = project_root / "sql" / "schema_sqlite.sql"
+
+db_path = os.environ.get("SQLITE_DB_PATH", str(project_root / "data" / "compliance.db"))
 Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 conn = sqlite3.connect(db_path)
-conn.executescript(Path("sql/schema_sqlite.sql").read_text())
+conn.executescript(schema_path.read_text())
 conn.close()
 print(f"Database initialized: {db_path}")

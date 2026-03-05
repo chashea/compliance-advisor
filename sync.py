@@ -51,6 +51,14 @@ def ensure_tenant_row(tenant: dict) -> None:
 
 
 def main():
+    required = ["AZURE_TENANT_ID", "AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET"]
+    missing = [v for v in required if not os.environ.get(v)]
+    if missing:
+        log.error("Missing required environment variables: %s", ", ".join(missing))
+        log.error("Set them in .env or copy .env.example → .env and fill in your credentials.")
+        log.error("To run the dashboard without syncing, skip sync.py and start the API directly.")
+        sys.exit(1)
+
     from functions.activities.collect_tenant_data import main as sync_ss
     from functions.activities.collect_compliance_data import main as sync_cm
 

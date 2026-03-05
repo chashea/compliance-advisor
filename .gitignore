@@ -29,6 +29,7 @@ build/
 # ── Environment / secrets ─────────────────────────────────────────────────────
 .env
 .env.*
+!.env.example
 local.settings.json   # Azure Functions local settings (contains connection strings)
 *.pem
 *.key
