@@ -43,22 +43,22 @@ the dashboard falls back to built-in demo data automatically.
 
 ## Quick Start
 
-### Option A — Dashboard only (no Graph credentials needed)
+### Option A — Demo mode (no Azure credentials needed)
 
-The dashboard includes built-in demo data. Use this path to explore the UI
-before connecting to a real tenant.
+Explore the UI with an empty database — the dashboard renders chart
+placeholders so you can evaluate the layout before connecting a real tenant.
 
 ```bash
 cd compliance-advisor
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-python init_db.py
+python init_db.py          # create empty data/compliance.db
 uvicorn api:app --reload --port 8000
 ```
 
-Open **http://localhost:8000** — the dashboard loads with demo data automatically.
+Open **http://localhost:8000**.
 
-### Option B — Full deployment with live data
+### Option B — Live data from your M365 tenant
 
 ```bash
 cd compliance-advisor
@@ -78,7 +78,8 @@ TENANT_DEPARTMENT=IT
 TENANT_RISK_TIER=High
 ```
 
-Then initialise the database, sync data, and start the server:
+Then initialise the database, sync live data from Microsoft Graph, and start
+the server:
 
 ```bash
 python init_db.py          # create data/compliance.db
@@ -86,7 +87,8 @@ python sync.py             # pull Secure Score + Compliance Manager from Graph
 uvicorn api:app --reload --port 8000
 ```
 
-Open **http://localhost:8000** — the dashboard loads with live data.
+Open **http://localhost:8000** — the dashboard now shows real tenant data.
+Re-run `sync.py` at any time to refresh.
 
 ### Verify deployment
 
