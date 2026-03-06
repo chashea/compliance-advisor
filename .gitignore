@@ -1,3 +1,35 @@
-.DS_Store
-*.log
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Environment / secrets
 .env
+.env.*
+!.env.example
+local.settings.json
+*.pem
+*.key
+*.pfx
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+.DS_Store
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Azure Functions
+.python_packages/
+bin/
+obj/

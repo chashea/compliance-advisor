@@ -1,0 +1,49 @@
+"""
+Collector configuration using Pydantic Settings.
+
+Uses ROPC (Resource Owner Password Credential) flow with service accounts
+to authenticate to the Compliance Manager portal APIs.
+
+GCC (standard) uses:
+  - login.microsoftonline.com
+  - compliance.microsoft.com
+"""
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class CollectorSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    # Multi-tenant app registration (registered in home tenant)
+    CLIENT_ID: str = Field(..., description="Application (client) ID of the multi-tenant app")
+
+    # Service account credentials (per tenant, stored in Key Vault)
+    SERVICE_ACCOUNT_USERNAME: str = Field(..., description="Service account UPN for the target tenant")
+    SERVICE_ACCOUNT_PASSWORD: str = Field(..., description="Service account password")
+
+    # Key Vault (for retrieving credentials if not set directly)
+    KEY_VAULT_URL: str = Field(default="", description="Key Vault URL, e.g. https://<vault>.vault.azure.net/")
+
+    # Target tenant for this collection run
+    TENANT_ID: str = Field(..., description="Customer tenant GUID to collect from")
+    AGENCY_ID: str = Field(..., description="Logical agency identifier (e.g., dept-of-education)")
+    DEPARTMENT: str = Field(..., description="Department name for dashboard filtering")
+    DISPLAY_NAME: str = Field(default="", description="Human-readable tenant name")
+
+    # Azure Function App ingestion endpoint
+    FUNCTION_APP_URL: str = Field(..., description="e.g., https://cadvisor-func.azurewebsites.net/api/ingest")
+    FUNCTION_APP_KEY: str = Field(default="", description="Function-level API key")
+
+    @property
+    def compliance_base(self) -> str:
+        return "https://compliance.microsoft.com"
+
+    @property
+    def login_authority(self) -> str:
+        return "https://login.microsoftonline.com"
+
+    @property
+    def compliance_scope(self) -> list[str]:
+        return [f"{self.compliance_base}/.default"]
