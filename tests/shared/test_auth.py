@@ -39,8 +39,12 @@ def test_get_graph_token_raises_on_http_error(monkeypatch, sample_tenant):
             get_graph_token(sample_tenant)
 
 
-def test_get_graph_token_missing_env_raises(sample_tenant):
+def test_get_graph_token_missing_env_raises(monkeypatch, sample_tenant):
     """Missing AZURE_TENANT_ID should raise KeyError."""
+    monkeypatch.delenv("AZURE_TENANT_ID", raising=False)
+    monkeypatch.delenv("AZURE_CLIENT_ID", raising=False)
+    monkeypatch.delenv("AZURE_CLIENT_SECRET", raising=False)
+
     from shared.auth import get_graph_token
 
     with pytest.raises(KeyError):

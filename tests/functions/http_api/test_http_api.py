@@ -57,11 +57,11 @@ class TestHandleAsk:
         resp = client.post("/api/advisor/ask", json={})
         assert resp.status_code == 400
 
-    def test_stub_response_without_foundry(self, client):
-        with patch("api._foundry_respond", None):
+    def test_stub_response_without_agent(self, client):
+        with patch("api._agent_respond", None):
             resp = client.post("/api/advisor/ask", json={"question": "What is my score?"})
         data = resp.json()
-        assert data["answer"] == "AI advisor not available in local MVP."
+        assert "not available" in data["answer"]
 
 
 class TestHandleTrends:

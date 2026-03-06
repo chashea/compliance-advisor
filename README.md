@@ -5,7 +5,7 @@ A single-tenant CISO dashboard that pulls real **Microsoft Secure Score** and
 visualises it locally with Chart.js.
 
 - Dashboard/API mode runs locally with no Azure infrastructure required.
-- Conversational agent mode requires Azure AI Foundry (and Azure AI Search for knowledge retrieval).
+- Conversational agent mode requires Azure OpenAI (and optionally Azure AI Search for knowledge retrieval).
 
 ```
 .env (AZURE_TENANT_ID, CLIENT_ID, CLIENT_SECRET)
@@ -123,7 +123,7 @@ after a successful full deployment:
 
 ## Conversational Agent
 
-The Compliance Advisor includes an **Azure AI Foundry** conversational agent that
+The Compliance Advisor includes an **Azure OpenAI** conversational agent that
 answers natural-language questions about your compliance posture in real time.
 The agent calls Python functions that query the local SQLite database on every
 turn — no stale index, no extra Azure service.
@@ -131,22 +131,21 @@ turn — no stale index, no extra Azure service.
 ### How it works
 
 ```
-You (terminal)
+You (terminal or /api/advisor/ask)
     │
     ▼
-agent.py  ──→  Azure AI Foundry (GPT-4o, Responses API)
+agent.py  ──→  Azure OpenAI (GPT-4o, Chat Completions + function calling)
                     │
-                    └─ function tool calls → compliance_tools.py
-                                                  │
-                                                  ▼
-                                          data/compliance.db
-                                          (populated by sync.py)
+                    └─ tool_calls → compliance_tools.py
+                                          │
+                                          ▼
+                                  data/compliance.db
+                                  (populated by sync.py)
 ```
 
 GPT-4o never touches Microsoft Graph or the database directly. It calls one of
 nine Python functions, receives the JSON result, and writes a natural-language
-answer. Conversation context is maintained via `previous_response_id` — no
-persistent assistant or thread objects are created.
+answer. Conversation history is maintained in-memory as a messages list.
 
 Nine function tools are registered:
 
@@ -195,7 +194,7 @@ https://login.microsoftonline.com/<TENANT_ID>/adminconsent?client_id=<AppId>
 > Compliance Manager results are empty, verify API permissions/consent for your
 > tenant and validate with Graph Explorer for the same endpoints.
 
-### 2. Provision Azure AI Foundry infrastructure
+### 2. Provision Azure OpenAI infrastructure
 
 ```bash
 az group create --name rg-compliance-advisor --location eastus
@@ -207,13 +206,13 @@ az deployment group create \
 
 Copy the `endpoint` and `searchEndpoint` values from the output.
 
-Assign the **Azure AI Developer** RBAC role to your app's service principal on
-the AIServices resource so it can call the Foundry API:
+Assign the **Cognitive Services OpenAI User** RBAC role to your user identity
+so `az login` can authenticate to Azure OpenAI:
 
 ```bash
-az rest --method PUT \
-  --url "https://management.azure.com/subscriptions/<SUB_ID>/resourceGroups/rg-compliance-advisor/providers/Microsoft.CognitiveServices/accounts/compliance-advisor/providers/Microsoft.Authorization/roleAssignments/<NEW-GUID>?api-version=2022-04-01" \
-  --body '{"properties":{"roleDefinitionId":"/subscriptions/<SUB_ID>/providers/Microsoft.Authorization/roleDefinitions/64702f94-c441-49e6-a78b-ef80e0188fee","principalId":"<SERVICE_PRINCIPAL_OBJECT_ID>","principalType":"ServicePrincipal"}}'
+USER_OID=$(az ad signed-in-user show --query id -o tsv)
+SCOPE="/subscriptions/<SUB_ID>/resourceGroups/rg-compliance-advisor/providers/Microsoft.CognitiveServices/accounts/<ACCOUNT_NAME>"
+az role assignment create --assignee "$USER_OID" --role "Cognitive Services OpenAI User" --scope "$SCOPE"
 ```
 
 ### 3. Configure .env
@@ -233,12 +232,10 @@ TENANT_DEPARTMENT=IT
 TENANT_RISK_TIER=High
 SQLITE_DB_PATH=data/compliance.db
 
-AIPROJECT_ENDPOINT=<endpoint from deployment output>
+AZURE_OPENAI_ENDPOINT=https://<account>.openai.azure.com/
 AZURE_OPENAI_DEPLOYMENT=gpt-4o
 AZURE_SEARCH_ENDPOINT=https://<search-service>.search.windows.net
-AZURE_SEARCH_INDEX_NAME=<compliance-knowledge-index>
-# Optional when using AzureCliCredential for local dev:
-# AZURE_SEARCH_API_KEY=<query-or-admin-key>
+AZURE_SEARCH_INDEX_NAME=compliance-knowledge
 ```
 
 ### 4. Install dependencies
@@ -269,55 +266,33 @@ pip install -r requirements.txt
 ### 6. Start the agent
 
 ```bash
-.venv\Scripts\python agent.py --register-only
+python agent.py
 ```
 
 Expected output:
 ```
-Registered Foundry Agent: compliance-advisor v1 (id: ...)
-```
-
-Then start interactive chat:
-
-```bash
-.venv\Scripts\python agent.py
-```
-
-Expected output:
-```
-Registered Foundry Agent: compliance-advisor v2 (id: ...)
-Compliance Advisor ready. Type 'quit' to exit.
+Compliance Advisor ready (Azure OpenAI). Type 'quit' to exit.
 
 You:
 ```
 
-Set `FOUNDRY_AGENT_NAME` in `.env` to control the portal-visible agent name.
-Each run registers a new version via `client.agents.create_version(...)` with
-the system prompt and function tool definitions.
-
-The agent uses `AzureCliCredential` (`az login`) for Azure AI Foundry calls.
+The agent uses `AzureCliCredential` (`az login`) for Azure OpenAI calls.
 The `AZURE_CLIENT_ID`/`AZURE_CLIENT_SECRET` in `.env` are used only by `sync.py`
 for Microsoft Graph — they are not used by the agent.
 
 ### 7. Clean release workflow (recommended)
 
-Use this sequence whenever publishing changes to GitHub and deploying:
-
 1. Pull latest `main` and run tests locally.
-2. Deploy/update Foundry + Search infra from `infra/foundry.bicep`.
-3. Run sync to refresh Purview-backed data.
-4. Register a new Foundry agent version from current source.
-5. Run smoke checks (`/api/advisor/status`, one `search_knowledge` prompt).
-6. Commit, push, and tag release.
-
-Example command flow:
+2. Deploy/update infra from `infra/foundry.bicep`.
+3. Run sync to refresh data from Microsoft Graph.
+4. Run smoke checks (`/api/advisor/status`, one `/api/advisor/ask` prompt).
+5. Commit, push, and tag release.
 
 ```bash
 git pull origin main
-.venv/bin/python -m pytest -q tests/test_compliance_tools.py
-az deployment group create --resource-group rg-compliance-advisor --template-file infra/foundry.bicep
-.venv/bin/python sync.py
-.venv/bin/python agent.py --register-only
+python -m pytest -q tests/
+python sync.py
+uvicorn api:app --port 8000 &
 curl -s -X POST http://localhost:8000/api/advisor/status
 git push origin main
 ```
@@ -481,7 +456,7 @@ for the full field mapping.
 ```
 compliance-advisor/
 ├── api.py                  # FastAPI server (API + static dashboard)
-├── agent.py                # Azure AI Foundry conversational agent
+├── agent.py                # Azure OpenAI conversational agent (GPT-4o + function calling)
 ├── compliance_tools.py     # 9 function tools for the Foundry agent
 ├── sync.py                 # One-command data sync from Microsoft Graph
 ├── init_db.py              # One-time database initialiser
