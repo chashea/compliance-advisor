@@ -479,10 +479,17 @@ for the full field mapping.
 ```
 compliance-advisor/
 ├── api.py                  # FastAPI server (API + static dashboard)
+├── agent.py                # Azure AI Foundry conversational agent
+├── compliance_tools.py     # 9 function tools for the Foundry agent
 ├── sync.py                 # One-command data sync from Microsoft Graph
 ├── init_db.py              # One-time database initialiser
+├── verify.py               # Post-deployment verification checks
+├── index_knowledge.py      # Azure AI Search index builder
 ├── requirements.txt        # Python dependencies
+├── pyproject.toml          # Ruff, Black, Mypy, Pytest config
 ├── .env.example            # Credential template
+├── infra/
+│   └── foundry.bicep       # Azure AI Foundry + AI Search Bicep template
 ├── sql/
 │   ├── schema.sql          # Original SQL Server schema (reference)
 │   └── schema_sqlite.sql   # SQLite translation (used by init_db.py)
@@ -492,6 +499,7 @@ compliance-advisor/
 │   │   └── collect_compliance_data.py # Pulls Compliance Manager from Graph
 │   └── shared/
 │       ├── auth.py         # OAuth2 token helper (reads from .env)
+│       ├── ai_search_client.py # Azure AI Search query client
 │       ├── graph_client.py # Microsoft Graph HTTP client
 │       └── sql_client.py   # SQLite connection and upsert helpers
 ├── dashboard/
@@ -502,7 +510,9 @@ compliance-advisor/
 ├── data/
 │   ├── compliance.db       # SQLite database (created by init_db.py, gitignored)
 │   └── frameworks/         # Local JSON files: NIST, ISO 27001, SOC 2, CIS
-├── tests/                  # Unit tests
+├── tests/                  # Unit tests (pytest)
+├── .github/
+│   └── workflows/ci.yml    # CI pipeline (ruff, black, mypy, pytest)
 └── docs/
     ├── DATA-SOURCE-PURVIEW.md
     └── M365-GCC-SETUP.md
