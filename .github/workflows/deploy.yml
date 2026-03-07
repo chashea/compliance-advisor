@@ -30,9 +30,11 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Run schema migration
+        if: ${{ secrets.DATABASE_URL != '' }}
         run: psql "${{ secrets.DATABASE_URL }}" -f sql/schema.sql
 
       - name: Deploy Azure Functions
+        if: ${{ secrets.FUNCTION_APP_NAME != '' }}
         uses: Azure/functions-action@v1
         with:
           app-name: ${{ secrets.FUNCTION_APP_NAME }}
