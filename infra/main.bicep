@@ -35,9 +35,9 @@ param postgresAdminPassword string
 
 var prefix = 'cadvisor'
 var uniqueSuffix = uniqueString(resourceGroup().id)
-var storageName = '${prefix}stor${uniqueSuffix}'
+var storageName = '${prefix}st${take(uniqueSuffix, 11)}'
 var functionAppName = '${prefix}-func-${environmentName}'
-var keyVaultName = '${prefix}-kv-${uniqueSuffix}'
+var keyVaultName = '${prefix}-kv-${take(uniqueSuffix, 10)}'
 var openAiName = '${prefix}-oai-${uniqueSuffix}'
 var appInsightsName = '${prefix}-ai-${environmentName}'
 var logAnalyticsName = '${prefix}-la-${environmentName}'

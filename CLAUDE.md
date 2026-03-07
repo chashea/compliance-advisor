@@ -1,6 +1,12 @@
-# CLAUDE.md
+# CLAUDE.md — compliance-advisor
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Project-specific guidance. Global conventions (communication style, git workflow, always/never, code style) are in `~/.claude/CLAUDE.md`.
+
+## Project Identity
+
+- **Repo:** `github.com/chashea/compliance-advisor`, branch `main`
+- **Resource group:** `rg-compliance-advisor`
+- **Current version:** v0.1.0
 
 ## Build & Run Commands
 
@@ -28,7 +34,14 @@ az bicep build --file infra/main.bicep --outfile azuredeploy.json
 az deployment group create --resource-group rg-compliance-advisor --template-file infra/main.bicep --parameters postgresAdminPassword='<PW>'
 ```
 
+## Tests
+
 No tests exist yet. `pyproject.toml` configures pytest with `testpaths = ["tests"]`.
+
+## Code Style Overrides
+
+- Line length: **120** (overrides global default)
+- Ruff rules: `E, F, I, W`
 
 ## Architecture
 
@@ -46,6 +59,22 @@ Multi-tenant GCC compliance dashboard. Three independent components share a Post
 **Database**: PostgreSQL with 5 tables: `tenants`, `posture_snapshots`, `assessments`, `improvement_actions`, `compliance_trend`. Schema in `sql/schema.sql`. Connection pool via psycopg2 `ThreadedConnectionPool` in `shared/db.py`.
 
 **Infrastructure** (`infra/`): Bicep modules for PostgreSQL Flexible Server, Function App + App Service Plan, Key Vault, Azure OpenAI, Log Analytics + App Insights. Function App uses SystemAssigned managed identity with RBAC for Key Vault and OpenAI. `azuredeploy.json` at repo root is the compiled ARM template for the "Deploy to Azure" button.
+
+## Key File Paths
+
+| Component | File | Purpose |
+|---|---|---|
+| Function App | `functions/function_app.py` | All route definitions |
+| DB layer | `functions/shared/db.py` | PostgreSQL connection pool + queries |
+| Dashboard queries | `functions/shared/dashboard_queries.py` | SQL for all 7 dashboard endpoints |
+| AI agent | `functions/shared/ai_agent.py` | Azure OpenAI GPT-4o integration |
+| Validation | `functions/shared/validation.py` | JSON schema validation for ingest |
+| Function config | `functions/shared/config.py` | `FunctionSettings` (pydantic-settings) |
+| Collector config | `collector/config.py` | `CollectorSettings` (pydantic-settings) |
+| DB schema | `sql/schema.sql` | PostgreSQL table definitions |
+| Infra entry | `infra/main.bicep` | Bicep entry point |
+| CI/CD | `.github/workflows/deploy.yml` | OIDC deploy to Azure Functions |
+| Dashboard config | `dashboard/env.js` | `COMPLIANCE_API_BASE`, `COMPLIANCE_API_KEY` |
 
 ## Key Design Decisions
 

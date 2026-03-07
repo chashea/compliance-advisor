@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "13682031229752159294"
+      "templateHash": "14469883454879679775"
     }
   },
   "parameters": {
@@ -59,9 +59,9 @@
   "variables": {
     "prefix": "cadvisor",
     "uniqueSuffix": "[uniqueString(resourceGroup().id)]",
-    "storageName": "[format('{0}stor{1}', variables('prefix'), variables('uniqueSuffix'))]",
+    "storageName": "[format('{0}st{1}', variables('prefix'), take(variables('uniqueSuffix'), 11))]",
     "functionAppName": "[format('{0}-func-{1}', variables('prefix'), parameters('environmentName'))]",
-    "keyVaultName": "[format('{0}-kv-{1}', variables('prefix'), variables('uniqueSuffix'))]",
+    "keyVaultName": "[format('{0}-kv-{1}', variables('prefix'), take(variables('uniqueSuffix'), 10))]",
     "openAiName": "[format('{0}-oai-{1}', variables('prefix'), variables('uniqueSuffix'))]",
     "appInsightsName": "[format('{0}-ai-{1}', variables('prefix'), parameters('environmentName'))]",
     "logAnalyticsName": "[format('{0}-la-{1}', variables('prefix'), parameters('environmentName'))]",
