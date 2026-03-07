@@ -1,12 +1,11 @@
 """
 ROPC (Resource Owner Password Credential) authentication for
-Compliance Manager portal APIs.
+Microsoft Graph API.
 
 Uses MSAL PublicClientApplication with username/password flow to
-acquire a delegated token scoped to compliance.microsoft.com.
+acquire a delegated token scoped to graph.microsoft.com.
 
-Each GCC tenant has a dedicated service account with Compliance
-Manager Reader role.
+Each GCC tenant has a dedicated service account.
 """
 
 import logging
@@ -20,8 +19,8 @@ log = logging.getLogger(__name__)
 _app_cache: dict[str, msal.PublicClientApplication] = {}
 
 
-def get_compliance_token(settings: CollectorSettings) -> str:
-    """Acquire a delegated token for the Compliance Manager portal.
+def get_graph_token(settings: CollectorSettings) -> str:
+    """Acquire a delegated token for Microsoft Graph.
 
     Uses ROPC flow with the configured service account credentials.
 
@@ -48,7 +47,7 @@ def get_compliance_token(settings: CollectorSettings) -> str:
     accounts = app.get_accounts(username=settings.SERVICE_ACCOUNT_USERNAME)
     if accounts:
         result = app.acquire_token_silent(
-            scopes=settings.compliance_scope,
+            scopes=settings.graph_scope,
             account=accounts[0],
         )
         if result and "access_token" in result:
@@ -59,7 +58,7 @@ def get_compliance_token(settings: CollectorSettings) -> str:
     result = app.acquire_token_by_username_password(
         username=settings.SERVICE_ACCOUNT_USERNAME,
         password=settings.SERVICE_ACCOUNT_PASSWORD,
-        scopes=settings.compliance_scope,
+        scopes=settings.graph_scope,
     )
 
     if "access_token" not in result:

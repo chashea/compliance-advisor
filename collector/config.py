@@ -37,13 +37,9 @@ class CollectorSettings(BaseSettings):
     FUNCTION_APP_KEY: str = Field(default="", description="Function-level API key")
 
     @property
-    def compliance_base(self) -> str:
-        return "https://compliance.microsoft.com"
-
-    @property
     def login_authority(self) -> str:
         return "https://login.microsoftonline.com"
 
     @property
-    def compliance_scope(self) -> list[str]:
-        return [f"{self.compliance_base}/.default"]
+    def graph_scope(self) -> list[str]:
+        return ["https://graph.microsoft.com/.default"]

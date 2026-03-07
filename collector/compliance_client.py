@@ -1,13 +1,14 @@
 """
-Compliance Manager portal API client.
+Microsoft Graph API client for Purview/security data collection.
 
-Calls the Compliance Manager portal APIs directly:
-- GET /api/ComplianceScore       — overall compliance score
-- GET /api/Assessments           — all assessments
-- GET /api/ImprovementActions    — detailed improvement actions
-
-All scores are passed through as-is — no custom formulas.
-Point values (27/9/3/1) are computed per Microsoft's published methodology.
+Pulls data from:
+- GET /v1.0/security/secureScores              — Microsoft Secure Score (daily)
+- GET /v1.0/security/secureScoreControlProfiles — control-level details
+- GET /v1.0/security/alerts_v2                  — security alerts
+- GET /v1.0/security/incidents                  — security incidents
+- GET /v1.0/identityProtection/riskyUsers       — risky users
+- GET /v1.0/identity/conditionalAccess/policies — CA policies
+- GET /v1.0/admin/serviceAnnouncement/healthOverviews — service health
 """
 
 import logging
@@ -19,19 +20,10 @@ from urllib3.util.retry import Retry
 
 log = logging.getLogger(__name__)
 
-# Point values per Microsoft's Compliance Manager scoring methodology
-# https://learn.microsoft.com/en-us/purview/compliance-manager-scoring
-POINT_VALUES = {
-    ("preventative", True): 27,   # Preventative mandatory
-    ("preventative", False): 9,   # Preventative discretionary
-    ("detective", True): 3,       # Detective mandatory
-    ("detective", False): 1,      # Detective discretionary
-    ("corrective", True): 3,      # Corrective mandatory
-    ("corrective", False): 1,     # Corrective discretionary
-}
+GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 
 
-def _session() -> requests.Session:
+def _session(token: str) -> requests.Session:
     s = requests.Session()
     retry = Retry(
         total=4,
@@ -41,199 +33,249 @@ def _session() -> requests.Session:
         respect_retry_after_header=True,
     )
     s.mount("https://", HTTPAdapter(max_retries=retry))
+    s.headers.update({
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    })
     return s
 
 
-def _headers(token: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-
-
-def _compute_point_value(category: str, is_mandatory: bool) -> int:
-    """Compute the point value for an improvement action."""
-    key = (category.lower().strip(), is_mandatory)
-    return POINT_VALUES.get(key, 1)
-
-
-# ── Compliance Score ──────────────────────────────────────────────
-
-
-def get_compliance_score(base_url: str, token: str) -> dict[str, float]:
-    """Return the tenant-level Compliance Manager score.
-
-    Returns:
-        {"current_score": float, "max_score": float}
-
-    Falls back to self-calculation from improvement actions if needed.
-    """
-    sess = _session()
-    url = f"{base_url}/api/ComplianceScore"
-
-    try:
-        resp = sess.get(url, headers=_headers(token), timeout=30)
+def _paginate(sess: requests.Session, url: str, max_pages: int = 10) -> list[dict]:
+    """Follow @odata.nextLink pagination."""
+    items = []
+    page = 0
+    while url and page < max_pages:
+        resp = sess.get(url, timeout=30)
         resp.raise_for_status()
         data = resp.json()
-        return {
-            "current_score": float(data.get("currentScore", data.get("achievedScore", 0))),
-            "max_score": float(data.get("maxScore", data.get("possibleScore", 0))),
-        }
-    except requests.HTTPError as e:
-        log.warning("ComplianceScore endpoint failed (%s), will derive from actions", e)
-        return {"current_score": 0.0, "max_score": 0.0}
+        items.extend(data.get("value", []))
+        url = data.get("@odata.nextLink")
+        page += 1
+    return items
 
 
-# ── Assessments ───────────────────────────────────────────────────
+# ── Secure Score ──────────────────────────────────────────────────
 
 
-def get_assessments(base_url: str, token: str) -> list[dict[str, Any]]:
-    """Return all Compliance Manager assessments.
+def get_secure_scores(token: str, days: int = 7) -> list[dict[str, Any]]:
+    """Return recent Secure Score snapshots (one per day)."""
+    sess = _session(token)
+    url = f"{GRAPH_BASE}/security/secureScores?$top={days}&$orderby=createdDateTime desc"
 
-    Returns list of:
-        {
-            "assessment_id": str,
-            "assessment_name": str,
-            "regulation": str,
-            "compliance_score": float,
-            "passed_controls": int,
-            "failed_controls": int,
-            "total_controls": int,
-        }
-    """
-    sess = _session()
-    url = f"{base_url}/api/Assessments"
-
-    assessments = []
     try:
-        resp = sess.get(url, headers=_headers(token), timeout=30)
+        items = _paginate(sess, url, max_pages=1)
+    except requests.HTTPError as e:
+        log.warning("secureScores failed: %s", e)
+        return []
+
+    scores = []
+    for item in items:
+        control_scores = item.get("controlScores", [])
+        scores.append({
+            "date": item.get("createdDateTime", "")[:10],
+            "current_score": float(item.get("currentScore", 0)),
+            "max_score": float(item.get("maxScore", 0)),
+            "active_user_count": item.get("activeUserCount", 0),
+            "licensed_user_count": item.get("licensedUserCount", 0),
+            "enabled_services": item.get("enabledServices", []),
+            "control_scores_count": len(control_scores),
+            "controls_implemented": sum(
+                1 for c in control_scores
+                if c.get("scoreInPercentage", 0) == 100
+            ),
+        })
+
+    log.info("Retrieved %d secure score snapshots", len(scores))
+    return scores
+
+
+# ── Secure Score Control Profiles ─────────────────────────────────
+
+
+def get_control_profiles(token: str) -> list[dict[str, Any]]:
+    """Return all Secure Score control profiles."""
+    sess = _session(token)
+    url = f"{GRAPH_BASE}/security/secureScoreControlProfiles"
+
+    try:
+        items = _paginate(sess, url)
+    except requests.HTTPError as e:
+        log.warning("secureScoreControlProfiles failed: %s", e)
+        return []
+
+    controls = []
+    for item in items:
+        if item.get("deprecated"):
+            continue
+        controls.append({
+            "control_id": item.get("id", ""),
+            "title": item.get("title", ""),
+            "max_score": float(item.get("maxScore", 0)),
+            "service": item.get("service", ""),
+            "category": item.get("controlCategory", ""),
+            "action_type": item.get("actionType", ""),
+            "tier": item.get("tier", ""),
+            "implementation_cost": item.get("implementationCost", ""),
+            "user_impact": item.get("userImpact", ""),
+        })
+
+    log.info("Retrieved %d control profiles", len(controls))
+    return controls
+
+
+# ── Current Control Scores (from latest Secure Score) ─────────────
+
+
+def get_control_scores(token: str) -> list[dict[str, Any]]:
+    """Return per-control scores from the latest Secure Score snapshot."""
+    sess = _session(token)
+    url = f"{GRAPH_BASE}/security/secureScores?$top=1"
+
+    try:
+        resp = sess.get(url, timeout=30)
         resp.raise_for_status()
         data = resp.json()
-
-        items = data if isinstance(data, list) else data.get("value", data.get("assessments", []))
-
-        for item in items:
-            passed = int(item.get("passedControls", item.get("passedControlCount", 0)))
-            failed = int(item.get("failedControls", item.get("failedControlCount", 0)))
-            total = int(item.get("totalControls", item.get("totalControlCount", 0)))
-
-            assessments.append({
-                "assessment_id": str(item.get("id", "")),
-                "assessment_name": item.get("displayName", item.get("name", "")),
-                "regulation": item.get(
-                    "complianceStandard",
-                    item.get("regulationName", item.get("regulation", "")),
-                ),
-                "compliance_score": float(item.get("complianceScore", item.get("score", 0))),
-                "passed_controls": passed,
-                "failed_controls": failed,
-                "total_controls": total,
-            })
+        items = data.get("value", [])
     except requests.HTTPError as e:
-        log.warning("Assessments query failed: %s", e)
+        log.warning("secureScores (for controls) failed: %s", e)
+        return []
 
-    log.info("Retrieved %d assessments", len(assessments))
-    return assessments
+    if not items:
+        return []
+
+    control_scores = items[0].get("controlScores", [])
+    results = []
+    for cs in control_scores:
+        results.append({
+            "control_name": cs.get("controlName", ""),
+            "category": cs.get("controlCategory", ""),
+            "score": float(cs.get("score", 0)),
+            "score_pct": float(cs.get("scoreInPercentage", 0)),
+            "implementation_status": cs.get("implementationStatus", ""),
+            "last_synced": cs.get("lastSynced", ""),
+            "on": cs.get("on", ""),
+            "description": cs.get("description", ""),
+        })
+
+    log.info("Retrieved %d control scores", len(results))
+    return results
 
 
-# ── Improvement Actions (detailed) ───────────────────────────────
+# ── Security Alerts ───────────────────────────────────────────────
 
 
-def get_improvement_actions_detail(base_url: str, token: str) -> list[dict[str, Any]]:
-    """Return detailed improvement actions with scoring data.
+def get_security_alerts(token: str) -> list[dict[str, Any]]:
+    """Return active security alerts."""
+    sess = _session(token)
+    url = f"{GRAPH_BASE}/security/alerts_v2?$top=100&$orderby=createdDateTime desc"
 
-    Returns list of:
-        {
-            "action_id": str,
-            "control_name": str,
-            "control_family": str,
-            "regulation": str,
-            "implementation_status": str,
-            "test_status": str,
-            "action_category": str,
-            "is_mandatory": bool,
-            "point_value": int,
-            "owner": str,
-            "service": str,
-            "description": str,
-            "remediation_steps": str,
-        }
-    """
-    sess = _session()
-    url = f"{base_url}/api/ImprovementActions"
-
-    actions = []
     try:
-        resp = sess.get(url, headers=_headers(token), timeout=60)
+        items = _paginate(sess, url, max_pages=5)
+    except requests.HTTPError as e:
+        log.warning("security alerts failed: %s", e)
+        return []
+
+    alerts = []
+    for item in items:
+        alerts.append({
+            "alert_id": item.get("id", ""),
+            "title": item.get("title", ""),
+            "severity": item.get("severity", ""),
+            "status": item.get("status", ""),
+            "category": item.get("category", ""),
+            "service_source": item.get("serviceSource", ""),
+            "created": item.get("createdDateTime", ""),
+            "resolved": item.get("resolvedDateTime", ""),
+        })
+
+    log.info("Retrieved %d security alerts", len(alerts))
+    return alerts
+
+
+# ── Security Incidents ────────────────────────────────────────────
+
+
+def get_security_incidents(token: str) -> list[dict[str, Any]]:
+    """Return security incidents."""
+    sess = _session(token)
+    url = f"{GRAPH_BASE}/security/incidents?$top=100"
+
+    try:
+        items = _paginate(sess, url, max_pages=5)
+    except requests.HTTPError as e:
+        log.warning("security incidents failed: %s", e)
+        return []
+
+    incidents = []
+    for item in items:
+        incidents.append({
+            "incident_id": item.get("id", ""),
+            "display_name": item.get("displayName", ""),
+            "severity": item.get("severity", ""),
+            "status": item.get("status", ""),
+            "classification": item.get("classification", ""),
+            "created": item.get("createdDateTime", ""),
+            "last_update": item.get("lastUpdateDateTime", ""),
+            "assigned_to": item.get("assignedTo", ""),
+        })
+
+    log.info("Retrieved %d security incidents", len(incidents))
+    return incidents
+
+
+# ── Risky Users ───────────────────────────────────────────────────
+
+
+def get_risky_users(token: str) -> list[dict[str, Any]]:
+    """Return users flagged as risky by Identity Protection."""
+    sess = _session(token)
+    url = f"{GRAPH_BASE}/identityProtection/riskyUsers?$top=100"
+
+    try:
+        items = _paginate(sess, url, max_pages=3)
+    except requests.HTTPError as e:
+        log.warning("risky users failed: %s", e)
+        return []
+
+    users = []
+    for item in items:
+        users.append({
+            "user_id": item.get("id", ""),
+            "user_display_name": item.get("userDisplayName", ""),
+            "user_principal_name": item.get("userPrincipalName", ""),
+            "risk_level": item.get("riskLevel", ""),
+            "risk_state": item.get("riskState", ""),
+            "risk_detail": item.get("riskDetail", ""),
+            "risk_last_updated": item.get("riskLastUpdatedDateTime", ""),
+        })
+
+    log.info("Retrieved %d risky users", len(users))
+    return users
+
+
+# ── Service Health ────────────────────────────────────────────────
+
+
+def get_service_health(token: str) -> list[dict[str, Any]]:
+    """Return M365 service health overview."""
+    sess = _session(token)
+    url = f"{GRAPH_BASE}/admin/serviceAnnouncement/healthOverviews"
+
+    try:
+        resp = sess.get(url, timeout=30)
         resp.raise_for_status()
         data = resp.json()
-
-        items = data if isinstance(data, list) else data.get("value", data.get("improvementActions", []))
-
-        for item in items:
-            category = (
-                item.get("actionCategory", item.get("category", ""))
-                .lower()
-                .replace(" ", "")
-            )
-            is_mandatory = item.get("isMandatory", not item.get("isDiscretionary", False))
-            point_value = _compute_point_value(category, is_mandatory)
-
-            # Use the API's score if available, otherwise computed
-            api_points = item.get("maxScore", item.get("pointsPossible", 0))
-            if api_points and api_points > 0:
-                point_value = int(api_points)
-
-            impl_status = (
-                item.get("implementationStatus", item.get("status", ""))
-                .replace(" ", "")
-            )
-            # Normalize common status values
-            status_map = {
-                "notstarted": "notImplemented",
-                "inprogress": "planned",
-                "completed": "implemented",
-                "notimplemented": "notImplemented",
-            }
-            impl_status = status_map.get(impl_status.lower(), impl_status)
-
-            actions.append({
-                "action_id": str(item.get("id", "")),
-                "control_name": item.get("title", item.get("displayName", "")),
-                "control_family": item.get(
-                    "controlFamily",
-                    item.get("complianceCategory", item.get("category", "")),
-                ),
-                "regulation": item.get("regulation", item.get("regulationName", "")),
-                "implementation_status": impl_status,
-                "test_status": item.get("testStatus", item.get("verificationStatus", "")),
-                "action_category": category,
-                "is_mandatory": is_mandatory,
-                "point_value": point_value,
-                "owner": item.get("assignedTo", item.get("owner", "")),
-                "service": item.get("service", item.get("productService", "")),
-                "description": item.get("description", ""),
-                "remediation_steps": item.get(
-                    "implementationInstructions",
-                    item.get("remediationSteps", item.get("howToImplement", "")),
-                ),
-            })
+        items = data.get("value", [])
     except requests.HTTPError as e:
-        log.warning("ImprovementActions query failed: %s", e)
+        log.warning("service health failed: %s", e)
+        return []
 
-    log.info("Retrieved %d improvement actions", len(actions))
-    return actions
+    services = []
+    for item in items:
+        services.append({
+            "service_name": item.get("service", ""),
+            "status": item.get("status", ""),
+        })
 
-
-def compute_score_from_actions(actions: list[dict]) -> dict[str, float]:
-    """Self-calculate compliance score from improvement actions.
-
-    Used as a fallback when the ComplianceScore endpoint is unavailable.
-
-    Returns:
-        {"current_score": float, "max_score": float}
-    """
-    max_score = sum(a.get("point_value", 0) for a in actions)
-    current_score = sum(
-        a.get("point_value", 0)
-        for a in actions
-        if a.get("implementation_status") == "implemented"
-    )
-    return {"current_score": float(current_score), "max_score": float(max_score)}
+    log.info("Retrieved health for %d services", len(services))
+    return services

@@ -1,8 +1,11 @@
 """
-Compliance-only payload schema for the collector.
+Purview posture payload schema for the collector.
 
-Simplified from the full Purview posture payload — only includes
-Compliance Manager fields (scores, assessments, improvement actions).
+Includes data from Microsoft Graph security/compliance APIs:
+- Secure Score (daily snapshots + per-control scores)
+- Security alerts and incidents
+- Risky users (Identity Protection)
+- Service health
 """
 
 from dataclasses import dataclass, field, asdict
@@ -11,17 +14,22 @@ from typing import Any
 
 
 @dataclass
-class CompliancePayload:
+class PurviewPayload:
     tenant_id: str
     agency_id: str
     department: str
     display_name: str
     timestamp: str
-    compliance_score_current: float
-    compliance_score_max: float
-    assessments: list[dict[str, Any]]
-    improvement_actions: list[dict[str, Any]]
-    collector_version: str = "1.0.0"
+    secure_score_current: float
+    secure_score_max: float
+    secure_scores: list[dict[str, Any]]
+    control_scores: list[dict[str, Any]]
+    control_profiles: list[dict[str, Any]]
+    security_alerts: list[dict[str, Any]]
+    security_incidents: list[dict[str, Any]]
+    risky_users: list[dict[str, Any]]
+    service_health: list[dict[str, Any]]
+    collector_version: str = "2.0.0"
 
     @staticmethod
     def now_iso() -> str:
