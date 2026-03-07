@@ -55,6 +55,9 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         { name: 'AzureWebJobsStorage', value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=core.windows.net;AccountKey=${listKeys(storageAccountId, '2023-01-01').keys[0].value}' }
         { name: 'FUNCTIONS_EXTENSION_VERSION', value: '~4' }
         { name: 'FUNCTIONS_WORKER_RUNTIME', value: 'python' }
+        { name: 'AzureWebJobsFeatureFlags', value: 'EnableWorkerIndexing' }
+        { name: 'ENABLE_ORYX_BUILD', value: 'true' }
+        { name: 'SCM_DO_BUILD_DURING_DEPLOYMENT', value: 'true' }
         { name: 'APPINSIGHTS_INSTRUMENTATIONKEY', value: appInsightsInstrumentationKey }
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsightsConnectionString }
         { name: 'DATABASE_URL', value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/database-url/)' }
