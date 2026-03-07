@@ -74,8 +74,6 @@ GitHub Actions (`.github/workflows/deploy.yml`): push to `main` → deploy Funct
 - No emojis in prose. `✅`/`❌` in tables/checklists only.
 - No unsolicited opinions or suggestions — just do what was asked.
 - When presenting multiple options or tasks, number them so I can select by number.
-- Don't ask clarifying questions when the instruction is clear — just do it.
-- Don't narrate what you're about to do — just do it.
 
 ## Git / GitHub Workflow
 
@@ -108,6 +106,7 @@ After every meaningful change:
 - Automate everything — no manual data ingestion steps.
 - When reviewing the repo and asked "what's next," produce a numbered priority list.
 - Remove things completely when told to — don't leave dead code behind.
+- Keep readme up to date when changes are made.
 
 **Never:**
 - Invent or fabricate scores/metrics — only surface real data from APIs.
