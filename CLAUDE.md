@@ -63,3 +63,54 @@ GitHub Actions (`.github/workflows/deploy.yml`): push to `main` → deploy Funct
 - Python 3.11+, line length 120
 - Ruff rules: E, F, I, W
 - Black formatting
+- Use `ruff` (lint), `black` (format), `mypy` (types), `pytest` (tests)
+- Fix all lint/type errors before committing
+- Don't add docstrings, comments, or type annotations to code not being changed
+- Don't add features, error handling, or abstractions beyond what was asked
+
+## Communication Style
+
+- Be concise. Short bullet summaries after completing work.
+- No emojis in prose. `✅`/`❌` in tables/checklists only.
+- No unsolicited opinions or suggestions — just do what was asked.
+- When presenting multiple options or tasks, number them so I can select by number.
+- Don't ask clarifying questions when the instruction is clear — just do it.
+- Don't narrate what you're about to do — just do it.
+
+## Git / GitHub Workflow
+
+After every meaningful change:
+
+1. Stage specific files (never `git add -A` or `git add .` indiscriminately).
+2. Commit using HEREDOC format with a conventional prefix (`fix:`, `feat:`, `docs:`, `chore:`, `style:`):
+   ```
+   git commit -m "$(cat <<'EOF'
+   feat: describe the change
+
+   Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+   EOF
+   )"
+   ```
+3. Push to `main`.
+4. Bump the version (semantic versioning: patch for fixes, minor for features).
+5. Create a GitHub release:
+   ```
+   gh release create vX.Y.Z --repo chashea/compliance-advisor --title "vX.Y.Z" --notes "..."
+   ```
+   Release notes should be a markdown bullet list of what changed.
+6. Confirm with: `**vX.Y.Z** is live — <release URL>`.
+
+**GitHub account:** `chashea` — repo at `github.com/chashea/compliance-advisor`, branch `main`.
+
+## Always / Never
+
+**Always:**
+- Automate everything — no manual data ingestion steps.
+- When reviewing the repo and asked "what's next," produce a numbered priority list.
+- Remove things completely when told to — don't leave dead code behind.
+
+**Never:**
+- Invent or fabricate scores/metrics — only surface real data from APIs.
+- Add unsolicited features or "improvements."
+- Over-engineer demos — pull back security for demo/dev environments when asked.
+- Use `--no-verify` or skip hooks unless explicitly asked.
