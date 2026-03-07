@@ -122,7 +122,7 @@ module functionApp 'modules/function-app.bicep' = {
 
 // Key Vault Secrets User
 resource kvRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(keyVault.outputs.keyVaultId, functionApp.outputs.functionAppPrincipalId, '4633458b-17de-408a-b874-0445c86b69e6')
+  name: guid(resourceGroup().id, keyVaultName, functionAppName, '4633458b-17de-408a-b874-0445c86b69e6')
   scope: resourceGroup()
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
@@ -133,7 +133,7 @@ resource kvRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' =
 
 // Cognitive Services OpenAI User
 resource oaiRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(openai.outputs.openAiId, functionApp.outputs.functionAppPrincipalId, '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
+  name: guid(resourceGroup().id, openAiName, functionAppName, '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
   scope: resourceGroup()
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')

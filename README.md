@@ -132,6 +132,8 @@ See: https://learn.microsoft.com/en-us/purview/compliance-manager-scoring
 
 ## Infrastructure Deployment
 
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fchashea%2Fcompliance-advisor%2Fmain%2Fazuredeploy.json)
+
 ```bash
 # Create resource group
 az group create --name rg-compliance-advisor --location eastus
