@@ -6,7 +6,7 @@ Project-specific guidance. Global conventions (communication style, git workflow
 
 - **Repo:** `github.com/chashea/compliance-advisor`, branch `main`
 - **Resource group:** `rg-compliance-advisor`
-- **Current version:** v0.1.0
+- **Current version:** v0.2.0
 
 ## Build & Run Commands
 
