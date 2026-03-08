@@ -26,6 +26,9 @@
         <option value="60">60 days</option>
         <option value="90">90 days</option>
       </select>
+      <button id="clear-filters-btn" class="btn btn--ghost" title="Reset all filters" disabled>
+        Clear filters
+      </button>
       <button id="refresh-btn" class="btn btn--primary" title="Refresh data">
         ↻ Refresh
       </button>
@@ -35,6 +38,11 @@
       </label>
     </div>
   </header>
+
+  <section class="filter-state" aria-live="polite">
+    <span class="filter-state__label">Active filters:</span>
+    <span id="filter-state-summary" class="filter-state__summary">All Departments • 30 days</span>
+  </section>
 
   <main class="dashboard">
     <div class="main-content">

@@ -68,6 +68,11 @@ body {
   gap: 0.5rem;
 }
 
+.top-bar__controls select.filter-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
 /* ── Buttons & Inputs ────────────────────────────────────────────────────── */
 .btn {
   padding: 0.45rem 1rem;
@@ -111,6 +116,26 @@ select {
   cursor: pointer;
 }
 select:focus { outline: none; border-color: var(--accent); }
+
+.filter-state {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 1.5rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.filter-state__label {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.filter-state__summary {
+  color: var(--text);
+  font-weight: 500;
+}
 
 /* ── Status Bar ──────────────────────────────────────────────────────────── */
 .status-bar {
@@ -502,6 +527,7 @@ select:focus { outline: none; border-color: var(--accent); }
   .card--wide { grid-column: span 1; }
   .top-bar    { flex-direction: column; gap: 0.5rem; }
   .top-bar__controls { flex-wrap: wrap; justify-content: center; }
+  .filter-state { justify-content: center; text-align: center; }
 }
 
 @media (max-width: 600px) {

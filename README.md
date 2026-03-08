@@ -38,6 +38,7 @@ GCC Tenant C ──┘  (ROPC, service account)  ──▶  POST /api/ingest
 
 - Cross-tenant compliance workload dashboard with KPI cards and charts
 - Agency/department dropdown filter for single-pane view
+- Active filter state summary with clear reset action
 - eDiscovery case tracking with custodian counts
 - Sensitivity and retention label inventory
 - DLP alert monitoring with severity breakdown
@@ -109,7 +110,8 @@ func start
 python3 -m http.server 8080 --directory dashboard/
 ```
 
-Open http://localhost:8080. Toggle "Demo data" checkbox for sample data, or point `env.js` at the local Function App.
+Open http://localhost:8080. Toggle "Demo data" checkbox for sample data, or point `env.js` at the local Function App.  
+Use the **Clear filters** button to reset Department and Trend period back to the default dashboard view.
 
 ## Collector Usage
 

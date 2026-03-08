@@ -32,6 +32,7 @@ let charts = {};
 let currentData = {};
 let demoMode = false;
 let sortState = {};
+const DEFAULT_DAYS = 30;
 
 // ── DOM References ──────────────────────────────────────────────────────────
 const $ = (sel) => document.querySelector(sel);
@@ -150,8 +151,8 @@ function generateDemoData() {
 
 async function loadData() {
   setLoadingSkeleton(true);
-  const dept = $("#department-filter")?.value || "";
-  const days = parseInt($("#days-filter")?.value || "30");
+  const { dept, days } = getCurrentFilters();
+  updateFilterStateUI();
   const body = {};
   if (dept) body.department = dept;
   body.days = days;
@@ -407,6 +408,7 @@ function populateDepartments() {
   const tenants = currentData.overview?.tenants || [];
   const depts = [...new Set(tenants.map(t => t.department).filter(Boolean))];
   const sel = $("#department-filter");
+  if (!sel) return;
   const current = sel.value;
   while (sel.options.length > 1) sel.remove(1);
   depts.sort().forEach(d => {
@@ -416,6 +418,45 @@ function populateDepartments() {
     sel.add(opt);
   });
   sel.value = current;
+  updateFilterStateUI();
+}
+
+function getCurrentFilters() {
+  const dept = $("#department-filter")?.value || "";
+  const days = parseInt($("#days-filter")?.value || String(DEFAULT_DAYS), 10);
+  return { dept, days: Number.isNaN(days) ? DEFAULT_DAYS : days };
+}
+
+function hasActiveFilters() {
+  const { dept, days } = getCurrentFilters();
+  return Boolean(dept) || days !== DEFAULT_DAYS;
+}
+
+function updateFilterStateUI() {
+  const deptSelect = $("#department-filter");
+  const daysSelect = $("#days-filter");
+  const clearBtn = $("#clear-filters-btn");
+  const summary = $("#filter-state-summary");
+  if (!deptSelect || !daysSelect || !clearBtn || !summary) return;
+
+  const { dept, days } = getCurrentFilters();
+  const departmentLabel = dept || "All Departments";
+  summary.textContent = `${departmentLabel} • ${days} days`;
+
+  const active = hasActiveFilters();
+  clearBtn.disabled = !active;
+  deptSelect.classList.toggle("filter-active", Boolean(dept));
+  daysSelect.classList.toggle("filter-active", days !== DEFAULT_DAYS);
+}
+
+function clearFilters() {
+  const deptSelect = $("#department-filter");
+  const daysSelect = $("#days-filter");
+  if (!deptSelect || !daysSelect) return;
+  deptSelect.value = "";
+  daysSelect.value = String(DEFAULT_DAYS);
+  updateFilterStateUI();
+  loadData();
 }
 
 // ── Sortable Tables ─────────────────────────────────────────────────────────
@@ -541,11 +582,19 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   $("#refresh-btn")?.addEventListener("click", loadData);
-  $("#department-filter")?.addEventListener("change", loadData);
-  $("#days-filter")?.addEventListener("change", loadData);
+  $("#department-filter")?.addEventListener("change", () => {
+    updateFilterStateUI();
+    loadData();
+  });
+  $("#days-filter")?.addEventListener("change", () => {
+    updateFilterStateUI();
+    loadData();
+  });
+  $("#clear-filters-btn")?.addEventListener("click", clearFilters);
 
   initSortableTables();
   initBriefing();
   initAdvisor();
+  updateFilterStateUI();
   loadData();
 });
