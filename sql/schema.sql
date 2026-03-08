@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════════════════════════════════
--- Compliance Advisor — PostgreSQL Schema (v2: Graph API data model)
+-- Compliance Advisor — PostgreSQL Schema (v3: Compliance Workload APIs)
 -- ══════════════════════════════════════════════════════════════════
 
 -- Tenant registry (one row per GCC tenant)
@@ -11,62 +11,81 @@ CREATE TABLE IF NOT EXISTS tenants (
     created_at      TIMESTAMPTZ DEFAULT now()
 );
 
--- Daily posture snapshots (one row per tenant per collection run)
-CREATE TABLE IF NOT EXISTS posture_snapshots (
-    id                  SERIAL PRIMARY KEY,
-    tenant_id           TEXT NOT NULL REFERENCES tenants(tenant_id),
-    snapshot_date       DATE NOT NULL DEFAULT CURRENT_DATE,
-    secure_score        REAL NOT NULL,
-    max_score           REAL NOT NULL DEFAULT 0,
-    score_pct           REAL GENERATED ALWAYS AS (
-        CASE WHEN max_score > 0
-             THEN ROUND((secure_score / max_score * 100)::numeric, 2)
-             ELSE 0
-        END
-    ) STORED,
-    active_user_count   INT DEFAULT 0,
-    licensed_user_count INT DEFAULT 0,
-    controls_total      INT DEFAULT 0,
-    controls_implemented INT DEFAULT 0,
-    collector_version   TEXT,
-    created_at          TIMESTAMPTZ DEFAULT now(),
-    UNIQUE (tenant_id, snapshot_date)
+-- eDiscovery cases
+CREATE TABLE IF NOT EXISTS ediscovery_cases (
+    id              SERIAL PRIMARY KEY,
+    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
+    case_id         TEXT NOT NULL,
+    display_name    TEXT,
+    status          TEXT,
+    created         TEXT,
+    closed          TEXT,
+    external_id     TEXT,
+    custodian_count INT DEFAULT 0,
+    snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+    UNIQUE (tenant_id, case_id, snapshot_date)
 );
 
--- Per-control scores from latest Secure Score snapshot
-CREATE TABLE IF NOT EXISTS control_scores (
+-- Sensitivity labels (Information Protection)
+CREATE TABLE IF NOT EXISTS sensitivity_labels (
+    id              SERIAL PRIMARY KEY,
+    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
+    label_id        TEXT NOT NULL,
+    name            TEXT,
+    description     TEXT,
+    color           TEXT,
+    is_active       BOOLEAN DEFAULT TRUE,
+    parent_id       TEXT,
+    priority        INT DEFAULT 0,
+    tooltip         TEXT,
+    snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+    UNIQUE (tenant_id, label_id, snapshot_date)
+);
+
+-- Retention labels (Records Management)
+CREATE TABLE IF NOT EXISTS retention_labels (
     id                      SERIAL PRIMARY KEY,
     tenant_id               TEXT NOT NULL REFERENCES tenants(tenant_id),
-    control_name            TEXT NOT NULL,
-    category                TEXT,
-    score                   REAL DEFAULT 0,
-    score_pct               REAL DEFAULT 0,
-    implementation_status   TEXT,
-    last_synced             TEXT,
-    description             TEXT,
+    label_id                TEXT NOT NULL,
+    display_name            TEXT,
+    retention_duration      TEXT,
+    retention_trigger       TEXT,
+    action_after_retention  TEXT,
+    is_in_use               BOOLEAN DEFAULT FALSE,
+    status                  TEXT,
     snapshot_date           DATE NOT NULL DEFAULT CURRENT_DATE,
-    UNIQUE (tenant_id, control_name, snapshot_date)
+    UNIQUE (tenant_id, label_id, snapshot_date)
 );
 
--- Secure Score control profiles (definitions, not per-tenant scores)
-CREATE TABLE IF NOT EXISTS control_profiles (
-    id                  SERIAL PRIMARY KEY,
-    tenant_id           TEXT NOT NULL REFERENCES tenants(tenant_id),
-    control_id          TEXT NOT NULL,
-    title               TEXT,
-    max_score           REAL DEFAULT 0,
-    service             TEXT,
-    category            TEXT,
-    action_type         TEXT,
-    tier                TEXT,
-    implementation_cost TEXT,
-    user_impact         TEXT,
-    snapshot_date       DATE NOT NULL DEFAULT CURRENT_DATE,
-    UNIQUE (tenant_id, control_id, snapshot_date)
+-- Retention events (Records Management)
+CREATE TABLE IF NOT EXISTS retention_events (
+    id              SERIAL PRIMARY KEY,
+    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
+    event_id        TEXT NOT NULL,
+    display_name    TEXT,
+    event_type      TEXT,
+    created         TEXT,
+    event_status    TEXT,
+    snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+    UNIQUE (tenant_id, event_id, snapshot_date)
 );
 
--- Security alerts from Microsoft 365 Defender
-CREATE TABLE IF NOT EXISTS security_alerts (
+-- Audit log records
+CREATE TABLE IF NOT EXISTS audit_records (
+    id              SERIAL PRIMARY KEY,
+    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
+    record_id       TEXT NOT NULL,
+    record_type     TEXT,
+    operation       TEXT,
+    service         TEXT,
+    user_id         TEXT,
+    created         TEXT,
+    snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+    UNIQUE (tenant_id, record_id, snapshot_date)
+);
+
+-- DLP alerts (Data Security)
+CREATE TABLE IF NOT EXISTS dlp_alerts (
     id              SERIAL PRIMARY KEY,
     tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
     alert_id        TEXT NOT NULL,
@@ -74,52 +93,23 @@ CREATE TABLE IF NOT EXISTS security_alerts (
     severity        TEXT,
     status          TEXT,
     category        TEXT,
-    service_source  TEXT,
+    policy_name     TEXT,
     created         TEXT,
     resolved        TEXT,
     snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
     UNIQUE (tenant_id, alert_id, snapshot_date)
 );
 
--- Security incidents
-CREATE TABLE IF NOT EXISTS security_incidents (
+-- Data Security & Governance protection scopes
+CREATE TABLE IF NOT EXISTS protection_scopes (
     id              SERIAL PRIMARY KEY,
     tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
-    incident_id     TEXT NOT NULL,
-    display_name    TEXT,
-    severity        TEXT,
-    status          TEXT,
-    classification  TEXT,
-    created         TEXT,
-    last_update     TEXT,
-    assigned_to     TEXT,
+    scope_type      TEXT NOT NULL,
+    execution_mode  TEXT,
+    locations       TEXT,
+    activity_types  TEXT,
     snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
-    UNIQUE (tenant_id, incident_id, snapshot_date)
-);
-
--- Risky users from Identity Protection
-CREATE TABLE IF NOT EXISTS risky_users (
-    id                  SERIAL PRIMARY KEY,
-    tenant_id           TEXT NOT NULL REFERENCES tenants(tenant_id),
-    user_id             TEXT NOT NULL,
-    user_display_name   TEXT,
-    user_principal_name TEXT,
-    risk_level          TEXT,
-    risk_state          TEXT,
-    risk_detail         TEXT,
-    risk_last_updated   TEXT,
-    snapshot_date       DATE NOT NULL DEFAULT CURRENT_DATE,
-    UNIQUE (tenant_id, user_id, snapshot_date)
-);
-
--- M365 service health
-CREATE TABLE IF NOT EXISTS service_health (
-    id              SERIAL PRIMARY KEY,
-    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
-    service_name    TEXT NOT NULL,
-    status          TEXT,
-    snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
-    UNIQUE (tenant_id, service_name, snapshot_date)
+    UNIQUE (tenant_id, scope_type, snapshot_date)
 );
 
 -- Daily compliance trend (computed by timer trigger)
@@ -127,40 +117,39 @@ CREATE TABLE IF NOT EXISTS compliance_trend (
     id                  SERIAL PRIMARY KEY,
     snapshot_date       DATE NOT NULL,
     department          TEXT,
-    avg_score_pct       REAL,
-    min_score_pct       REAL,
-    max_score_pct       REAL,
-    tenant_count        INT,
+    ediscovery_cases    INT DEFAULT 0,
+    sensitivity_labels  INT DEFAULT 0,
+    retention_labels    INT DEFAULT 0,
+    dlp_alerts          INT DEFAULT 0,
+    audit_records       INT DEFAULT 0,
+    tenant_count        INT DEFAULT 0,
     UNIQUE (snapshot_date, department)
 );
 
 -- ── Indexes ──────────────────────────────────────────────────────
-CREATE INDEX IF NOT EXISTS idx_snapshots_tenant_date
-    ON posture_snapshots(tenant_id, snapshot_date DESC);
+CREATE INDEX IF NOT EXISTS idx_ediscovery_tenant
+    ON ediscovery_cases(tenant_id, snapshot_date DESC);
 
-CREATE INDEX IF NOT EXISTS idx_snapshots_date
-    ON posture_snapshots(snapshot_date DESC);
+CREATE INDEX IF NOT EXISTS idx_sensitivity_labels_tenant
+    ON sensitivity_labels(tenant_id, snapshot_date DESC);
 
-CREATE INDEX IF NOT EXISTS idx_control_scores_tenant
-    ON control_scores(tenant_id, snapshot_date DESC);
+CREATE INDEX IF NOT EXISTS idx_retention_labels_tenant
+    ON retention_labels(tenant_id, snapshot_date DESC);
 
-CREATE INDEX IF NOT EXISTS idx_control_profiles_tenant
-    ON control_profiles(tenant_id, snapshot_date DESC);
+CREATE INDEX IF NOT EXISTS idx_retention_events_tenant
+    ON retention_events(tenant_id, snapshot_date DESC);
 
-CREATE INDEX IF NOT EXISTS idx_alerts_tenant
-    ON security_alerts(tenant_id, snapshot_date DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_records_tenant
+    ON audit_records(tenant_id, snapshot_date DESC);
 
-CREATE INDEX IF NOT EXISTS idx_alerts_severity
-    ON security_alerts(severity);
+CREATE INDEX IF NOT EXISTS idx_dlp_alerts_tenant
+    ON dlp_alerts(tenant_id, snapshot_date DESC);
 
-CREATE INDEX IF NOT EXISTS idx_incidents_tenant
-    ON security_incidents(tenant_id, snapshot_date DESC);
+CREATE INDEX IF NOT EXISTS idx_dlp_alerts_severity
+    ON dlp_alerts(severity);
 
-CREATE INDEX IF NOT EXISTS idx_risky_users_tenant
-    ON risky_users(tenant_id, snapshot_date DESC);
-
-CREATE INDEX IF NOT EXISTS idx_service_health_tenant
-    ON service_health(tenant_id, snapshot_date DESC);
+CREATE INDEX IF NOT EXISTS idx_protection_scopes_tenant
+    ON protection_scopes(tenant_id, snapshot_date DESC);
 
 CREATE INDEX IF NOT EXISTS idx_trend_date
     ON compliance_trend(snapshot_date DESC);

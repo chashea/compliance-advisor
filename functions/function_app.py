@@ -2,8 +2,8 @@
 Compliance Advisor — Azure Function App
 
 Functions:
-- 7x advisor/* routes:  Dashboard API endpoints
-- ingest:               HTTP POST — receive posture payloads from collector
+- 8x advisor/* routes:  Dashboard API endpoints
+- ingest:               HTTP POST — receive compliance payloads from collector
 - compute_aggregates:   Timer     — daily compliance trend computation
 """
 
@@ -13,23 +13,24 @@ import logging
 import azure.functions as func
 from shared.ai_agent import ask_advisor
 from shared.dashboard_queries import (
-    get_alerts,
-    get_controls,
+    get_audit,
+    get_dlp,
+    get_ediscovery,
+    get_governance,
+    get_labels,
     get_overview,
-    get_score_trend,
-    get_security,
-    get_service_health,
     get_status,
+    get_trend,
 )
 from shared.db import (
     query,
-    upsert_control_profile,
-    upsert_control_score,
-    upsert_risky_user,
-    upsert_security_alert,
-    upsert_security_incident,
-    upsert_service_health,
-    upsert_snapshot,
+    upsert_audit_record,
+    upsert_dlp_alert,
+    upsert_ediscovery_case,
+    upsert_protection_scope,
+    upsert_retention_event,
+    upsert_retention_label,
+    upsert_sensitivity_label,
     upsert_tenant,
     upsert_trend,
 )
@@ -78,63 +79,74 @@ def advisor_overview(req: func.HttpRequest) -> func.HttpResponse:
         return _json_response({"error": str(e)}, 500)
 
 
-@app.function_name("advisor_score_trend")
-@app.route(route="advisor/score-trend", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
-def advisor_score_trend(req: func.HttpRequest) -> func.HttpResponse:
+@app.function_name("advisor_ediscovery")
+@app.route(route="advisor/ediscovery", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_ediscovery(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        body = _get_body(req)
+        return _json_response(get_ediscovery(department=body.get("department")))
+    except Exception as e:
+        log.exception("advisor/ediscovery error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+@app.function_name("advisor_labels")
+@app.route(route="advisor/labels", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_labels(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        body = _get_body(req)
+        return _json_response(get_labels(department=body.get("department")))
+    except Exception as e:
+        log.exception("advisor/labels error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+@app.function_name("advisor_audit")
+@app.route(route="advisor/audit", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_audit(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        body = _get_body(req)
+        return _json_response(get_audit(department=body.get("department")))
+    except Exception as e:
+        log.exception("advisor/audit error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+@app.function_name("advisor_dlp")
+@app.route(route="advisor/dlp", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_dlp(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        body = _get_body(req)
+        return _json_response(get_dlp(department=body.get("department")))
+    except Exception as e:
+        log.exception("advisor/dlp error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+@app.function_name("advisor_governance")
+@app.route(route="advisor/governance", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_governance(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        body = _get_body(req)
+        return _json_response(get_governance(department=body.get("department")))
+    except Exception as e:
+        log.exception("advisor/governance error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+@app.function_name("advisor_trend")
+@app.route(route="advisor/trend", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_trend(req: func.HttpRequest) -> func.HttpResponse:
     try:
         body = _get_body(req)
         return _json_response(
-            get_score_trend(
+            get_trend(
                 department=body.get("department"),
                 days=int(body.get("days", 30)),
             )
         )
     except Exception as e:
-        log.exception("advisor/score-trend error: %s", e)
-        return _json_response({"error": str(e)}, 500)
-
-
-@app.function_name("advisor_controls")
-@app.route(route="advisor/controls", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
-def advisor_controls(req: func.HttpRequest) -> func.HttpResponse:
-    try:
-        body = _get_body(req)
-        return _json_response(get_controls(department=body.get("department")))
-    except Exception as e:
-        log.exception("advisor/controls error: %s", e)
-        return _json_response({"error": str(e)}, 500)
-
-
-@app.function_name("advisor_alerts")
-@app.route(route="advisor/alerts", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
-def advisor_alerts(req: func.HttpRequest) -> func.HttpResponse:
-    try:
-        body = _get_body(req)
-        return _json_response(get_alerts(department=body.get("department")))
-    except Exception as e:
-        log.exception("advisor/alerts error: %s", e)
-        return _json_response({"error": str(e)}, 500)
-
-
-@app.function_name("advisor_security")
-@app.route(route="advisor/security", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
-def advisor_security(req: func.HttpRequest) -> func.HttpResponse:
-    try:
-        body = _get_body(req)
-        return _json_response(get_security(department=body.get("department")))
-    except Exception as e:
-        log.exception("advisor/security error: %s", e)
-        return _json_response({"error": str(e)}, 500)
-
-
-@app.function_name("advisor_service_health")
-@app.route(route="advisor/service-health", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
-def advisor_service_health_route(req: func.HttpRequest) -> func.HttpResponse:
-    try:
-        body = _get_body(req)
-        return _json_response(get_service_health(department=body.get("department")))
-    except Exception as e:
-        log.exception("advisor/service-health error: %s", e)
+        log.exception("advisor/trend error: %s", e)
         return _json_response({"error": str(e)}, 500)
 
 
@@ -146,7 +158,9 @@ def advisor_briefing(req: func.HttpRequest) -> func.HttpResponse:
         department = body.get("department")
         result = ask_advisor(
             question="Generate a concise executive briefing summarizing the current "
-            "security posture, Secure Score trends, top risks, and recommended actions.",
+            "compliance posture across all workloads: eDiscovery cases, information "
+            "protection labels, records management, audit activity, DLP alerts, and "
+            "data governance scopes. Highlight key risks and recommended actions.",
             department=department,
         )
         return _json_response({"briefing": result["answer"]})
@@ -173,9 +187,9 @@ def advisor_ask(req: func.HttpRequest) -> func.HttpResponse:
 # ── Ingestion ─────────────────────────────────────────────────────
 
 
-@app.function_name("ingest_posture")
+@app.function_name("ingest_compliance")
 @app.route(route="ingest", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
-def ingest_posture(req: func.HttpRequest) -> func.HttpResponse:
+def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
     """Receive JSON payload from per-tenant collector."""
     try:
         payload = validate_ingestion_request(req)
@@ -189,120 +203,123 @@ def ingest_posture(req: func.HttpRequest) -> func.HttpResponse:
             department=payload["department"],
         )
 
-        # Upsert posture snapshot from latest secure score
-        scores = payload.get("secure_scores", [])
-        latest = scores[0] if scores else {}
-        upsert_snapshot(
-            tenant_id=tenant_id,
-            snapshot_date=snapshot_date,
-            secure_score=payload["secure_score_current"],
-            max_score=payload["secure_score_max"],
-            active_user_count=latest.get("active_user_count", 0),
-            licensed_user_count=latest.get("licensed_user_count", 0),
-            controls_total=latest.get("control_scores_count", 0),
-            controls_implemented=latest.get("controls_implemented", 0),
-            collector_version=payload.get("collector_version", ""),
-        )
-
-        # Upsert control scores
-        for cs in payload.get("control_scores", []):
-            upsert_control_score(
+        # Upsert eDiscovery cases
+        for ec in payload.get("ediscovery_cases", []):
+            upsert_ediscovery_case(
                 tenant_id=tenant_id,
-                control_name=cs.get("control_name", ""),
-                category=cs.get("category", ""),
-                score=cs.get("score", 0),
-                score_pct=cs.get("score_pct", 0),
-                implementation_status=cs.get("implementation_status", ""),
-                last_synced=cs.get("last_synced", ""),
-                description=cs.get("description", ""),
+                case_id=ec.get("case_id", ""),
+                display_name=ec.get("display_name", ""),
+                status=ec.get("status", ""),
+                created=ec.get("created", ""),
+                closed=ec.get("closed", ""),
+                external_id=ec.get("external_id", ""),
+                custodian_count=ec.get("custodian_count", 0),
                 snapshot_date=snapshot_date,
             )
 
-        # Upsert control profiles
-        for cp in payload.get("control_profiles", []):
-            upsert_control_profile(
+        # Upsert sensitivity labels
+        for sl in payload.get("sensitivity_labels", []):
+            upsert_sensitivity_label(
                 tenant_id=tenant_id,
-                control_id=cp.get("control_id", ""),
-                title=cp.get("title", ""),
-                max_score=cp.get("max_score", 0),
-                service=cp.get("service", ""),
-                category=cp.get("category", ""),
-                action_type=cp.get("action_type", ""),
-                tier=cp.get("tier", ""),
-                implementation_cost=cp.get("implementation_cost", ""),
-                user_impact=cp.get("user_impact", ""),
+                label_id=sl.get("label_id", ""),
+                name=sl.get("name", ""),
+                description=sl.get("description", ""),
+                color=sl.get("color", ""),
+                is_active=sl.get("is_active", True),
+                parent_id=sl.get("parent_id", ""),
+                priority=sl.get("priority", 0),
+                tooltip=sl.get("tooltip", ""),
                 snapshot_date=snapshot_date,
             )
 
-        # Upsert security alerts
-        for a in payload.get("security_alerts", []):
-            upsert_security_alert(
+        # Upsert retention labels
+        for rl in payload.get("retention_labels", []):
+            upsert_retention_label(
                 tenant_id=tenant_id,
-                alert_id=a.get("alert_id", ""),
-                title=a.get("title", ""),
-                severity=a.get("severity", ""),
-                status=a.get("status", ""),
-                category=a.get("category", ""),
-                service_source=a.get("service_source", ""),
-                created=a.get("created", ""),
-                resolved=a.get("resolved", ""),
+                label_id=rl.get("label_id", ""),
+                display_name=rl.get("display_name", ""),
+                retention_duration=rl.get("retention_duration", ""),
+                retention_trigger=rl.get("retention_trigger", ""),
+                action_after_retention=rl.get("action_after_retention", ""),
+                is_in_use=rl.get("is_in_use", False),
+                status=rl.get("status", ""),
                 snapshot_date=snapshot_date,
             )
 
-        # Upsert security incidents
-        for inc in payload.get("security_incidents", []):
-            upsert_security_incident(
+        # Upsert retention events
+        for re_ in payload.get("retention_events", []):
+            upsert_retention_event(
                 tenant_id=tenant_id,
-                incident_id=inc.get("incident_id", ""),
-                display_name=inc.get("display_name", ""),
-                severity=inc.get("severity", ""),
-                status=inc.get("status", ""),
-                classification=inc.get("classification", ""),
-                created=inc.get("created", ""),
-                last_update=inc.get("last_update", ""),
-                assigned_to=inc.get("assigned_to", ""),
+                event_id=re_.get("event_id", ""),
+                display_name=re_.get("display_name", ""),
+                event_type=re_.get("event_type", ""),
+                created=re_.get("created", ""),
+                event_status=re_.get("event_status", ""),
                 snapshot_date=snapshot_date,
             )
 
-        # Upsert risky users
-        for ru in payload.get("risky_users", []):
-            upsert_risky_user(
+        # Upsert audit records
+        for ar in payload.get("audit_records", []):
+            upsert_audit_record(
                 tenant_id=tenant_id,
-                user_id=ru.get("user_id", ""),
-                user_display_name=ru.get("user_display_name", ""),
-                user_principal_name=ru.get("user_principal_name", ""),
-                risk_level=ru.get("risk_level", ""),
-                risk_state=ru.get("risk_state", ""),
-                risk_detail=ru.get("risk_detail", ""),
-                risk_last_updated=ru.get("risk_last_updated", ""),
+                record_id=ar.get("record_id", ""),
+                record_type=ar.get("record_type", ""),
+                operation=ar.get("operation", ""),
+                service=ar.get("service", ""),
+                user_id=ar.get("user_id", ""),
+                created=ar.get("created", ""),
                 snapshot_date=snapshot_date,
             )
 
-        # Upsert service health
-        for sh in payload.get("service_health", []):
-            upsert_service_health(
+        # Upsert DLP alerts
+        for da in payload.get("dlp_alerts", []):
+            upsert_dlp_alert(
                 tenant_id=tenant_id,
-                service_name=sh.get("service_name", ""),
-                status=sh.get("status", ""),
+                alert_id=da.get("alert_id", ""),
+                title=da.get("title", ""),
+                severity=da.get("severity", ""),
+                status=da.get("status", ""),
+                category=da.get("category", ""),
+                policy_name=da.get("policy_name", ""),
+                created=da.get("created", ""),
+                resolved=da.get("resolved", ""),
+                snapshot_date=snapshot_date,
+            )
+
+        # Upsert protection scopes
+        for ps in payload.get("protection_scopes", []):
+            upsert_protection_scope(
+                tenant_id=tenant_id,
+                scope_type=ps.get("scope_type", ""),
+                execution_mode=ps.get("execution_mode", ""),
+                locations=ps.get("locations", ""),
+                activity_types=ps.get("activity_types", ""),
                 snapshot_date=snapshot_date,
             )
 
         log.info(
-            "Ingested: tenant=%s dept=%s score=%.1f/%.1f controls=%d alerts=%d incidents=%d",
+            "Ingested: tenant=%s dept=%s ediscovery=%d labels=%d retention=%d audit=%d dlp=%d scopes=%d",
             tenant_id,
             payload["department"],
-            payload["secure_score_current"],
-            payload["secure_score_max"],
-            len(payload.get("control_scores", [])),
-            len(payload.get("security_alerts", [])),
-            len(payload.get("security_incidents", [])),
+            len(payload.get("ediscovery_cases", [])),
+            len(payload.get("sensitivity_labels", [])),
+            len(payload.get("retention_labels", [])),
+            len(payload.get("audit_records", [])),
+            len(payload.get("dlp_alerts", [])),
+            len(payload.get("protection_scopes", [])),
         )
-        return _json_response({
-            "status": "ok",
-            "tenant_id": tenant_id,
-            "secure_score": payload["secure_score_current"],
-            "max_score": payload["secure_score_max"],
-        })
+        return _json_response(
+            {
+                "status": "ok",
+                "tenant_id": tenant_id,
+                "ediscovery_cases": len(payload.get("ediscovery_cases", [])),
+                "sensitivity_labels": len(payload.get("sensitivity_labels", [])),
+                "retention_labels": len(payload.get("retention_labels", [])),
+                "audit_records": len(payload.get("audit_records", [])),
+                "dlp_alerts": len(payload.get("dlp_alerts", [])),
+                "protection_scopes": len(payload.get("protection_scopes", [])),
+            }
+        )
 
     except ValueError as e:
         log.warning("Validation failed: %s", e)
@@ -318,55 +335,84 @@ def ingest_posture(req: func.HttpRequest) -> func.HttpResponse:
 @app.function_name("compute_aggregates")
 @app.timer_trigger(schedule="0 0 6 * * *", arg_name="timer", run_on_startup=False)
 def compute_aggregates(timer: func.TimerRequest) -> None:
-    """Daily at 6:00 AM UTC: compute score trend rows."""
+    """Daily at 6:00 AM UTC: compute compliance workload trend rows."""
     try:
-        rows = query(
-            """
-            SELECT DISTINCT ON (ps.tenant_id)
-                t.department, ps.score_pct
-            FROM posture_snapshots ps
-            JOIN tenants t ON t.tenant_id = ps.tenant_id
-            ORDER BY ps.tenant_id, ps.snapshot_date DESC
-            """
-        )
-        if not rows:
-            log.info("No snapshots found, skipping aggregate computation")
-            return
-
         from datetime import date
+
         today = date.today().isoformat()
 
+        # Get per-tenant counts for each workload
+        tenant_counts = query("""
+            SELECT t.tenant_id, t.department,
+                (SELECT COUNT(*) FROM ediscovery_cases ec
+                 WHERE ec.tenant_id = t.tenant_id
+                   AND ec.snapshot_date = (
+                     SELECT MAX(snapshot_date) FROM ediscovery_cases
+                     WHERE tenant_id = t.tenant_id)
+                )::int AS ediscovery,
+                (SELECT COUNT(*) FROM sensitivity_labels sl
+                 WHERE sl.tenant_id = t.tenant_id
+                   AND sl.snapshot_date = (
+                     SELECT MAX(snapshot_date) FROM sensitivity_labels
+                     WHERE tenant_id = t.tenant_id)
+                )::int AS sensitivity,
+                (SELECT COUNT(*) FROM retention_labels rl
+                 WHERE rl.tenant_id = t.tenant_id
+                   AND rl.snapshot_date = (
+                     SELECT MAX(snapshot_date) FROM retention_labels
+                     WHERE tenant_id = t.tenant_id)
+                )::int AS retention,
+                (SELECT COUNT(*) FROM dlp_alerts da
+                 WHERE da.tenant_id = t.tenant_id
+                   AND da.snapshot_date = (
+                     SELECT MAX(snapshot_date) FROM dlp_alerts
+                     WHERE tenant_id = t.tenant_id)
+                )::int AS dlp,
+                (SELECT COUNT(*) FROM audit_records ar
+                 WHERE ar.tenant_id = t.tenant_id
+                   AND ar.snapshot_date = (
+                     SELECT MAX(snapshot_date) FROM audit_records
+                     WHERE tenant_id = t.tenant_id)
+                )::int AS audit
+            FROM tenants t
+            """)
+
+        if not tenant_counts:
+            log.info("No tenants found, skipping aggregate computation")
+            return
+
         # Statewide aggregate
-        pcts = [r["score_pct"] for r in rows if r["score_pct"] is not None]
-        if pcts:
-            upsert_trend(
-                snapshot_date=today,
-                department=None,
-                avg_pct=round(sum(pcts) / len(pcts), 2),
-                min_pct=min(pcts),
-                max_pct=max(pcts),
-                tenant_count=len(pcts),
-            )
+        upsert_trend(
+            snapshot_date=today,
+            department=None,
+            ediscovery_cases=sum(r["ediscovery"] for r in tenant_counts),
+            sensitivity_labels=sum(r["sensitivity"] for r in tenant_counts),
+            retention_labels=sum(r["retention"] for r in tenant_counts),
+            dlp_alerts=sum(r["dlp"] for r in tenant_counts),
+            audit_records=sum(r["audit"] for r in tenant_counts),
+            tenant_count=len(tenant_counts),
+        )
 
         # Per-department aggregates
-        depts: dict[str, list[float]] = {}
-        for r in rows:
+        depts: dict[str, list] = {}
+        for r in tenant_counts:
             dept = r.get("department")
-            pct = r.get("score_pct")
-            if dept and pct is not None:
-                depts.setdefault(dept, []).append(pct)
+            if dept:
+                depts.setdefault(dept, []).append(r)
 
-        for dept, dept_pcts in depts.items():
+        for dept, rows in depts.items():
             upsert_trend(
                 snapshot_date=today,
                 department=dept,
-                avg_pct=round(sum(dept_pcts) / len(dept_pcts), 2),
-                min_pct=min(dept_pcts),
-                max_pct=max(dept_pcts),
-                tenant_count=len(dept_pcts),
+                ediscovery_cases=sum(r["ediscovery"] for r in rows),
+                sensitivity_labels=sum(r["sensitivity"] for r in rows),
+                retention_labels=sum(r["retention"] for r in rows),
+                dlp_alerts=sum(r["dlp"] for r in rows),
+                audit_records=sum(r["audit"] for r in rows),
+                tenant_count=len(rows),
             )
 
-        log.info("Computed trend aggregates: %d agencies, %d departments", len(pcts), len(depts))
+        log.info("Computed trend aggregates: %d tenants, %d departments", len(tenant_counts), len(depts))
 
     except Exception as e:
         log.exception("Aggregate computation failed: %s", e)

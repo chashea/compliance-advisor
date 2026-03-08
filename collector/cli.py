@@ -1,5 +1,5 @@
 """
-CLI entrypoint for the per-tenant Purview data collector.
+CLI entrypoint for the per-tenant compliance data collector.
 
 Usage:
     compliance-collect --tenant-id <GUID> --agency-id <NAME> --department <DEPT>
@@ -14,16 +14,16 @@ import click
 
 from collector.auth import get_graph_token
 from collector.compliance_client import (
-    get_control_profiles,
-    get_control_scores,
-    get_risky_users,
-    get_secure_scores,
-    get_security_alerts,
-    get_security_incidents,
-    get_service_health,
+    get_audit_log_records,
+    get_dlp_alerts,
+    get_ediscovery_cases,
+    get_protection_scopes,
+    get_retention_events,
+    get_retention_labels,
+    get_sensitivity_labels,
 )
 from collector.config import CollectorSettings
-from collector.payload import PurviewPayload
+from collector.payload import CompliancePayload
 from collector.submit import submit_payload
 
 log = logging.getLogger("collector")
@@ -44,7 +44,7 @@ def main(
     dry_run: bool,
     verbose: bool,
 ):
-    """Collect Purview security and compliance data from a tenant via Microsoft Graph."""
+    """Collect compliance workload data from a tenant via Microsoft Graph."""
     logging.basicConfig(
         level=logging.DEBUG if verbose else logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
@@ -67,8 +67,7 @@ def main(
         sys.exit(1)
 
     click.echo(
-        f"Collecting from tenant {settings.TENANT_ID} "
-        f"(agency: {settings.AGENCY_ID}, dept: {settings.DEPARTMENT})"
+        f"Collecting from tenant {settings.TENANT_ID} " f"(agency: {settings.AGENCY_ID}, dept: {settings.DEPARTMENT})"
     )
 
     # Authenticate via ROPC
@@ -78,57 +77,51 @@ def main(
         click.echo(f"Authentication failed: {e}", err=True)
         sys.exit(1)
 
-    click.echo("Authenticated. Collecting data from Microsoft Graph...")
+    click.echo("Authenticated. Collecting compliance data from Microsoft Graph...")
 
     # Collect data
-    click.echo("  Secure Scores...")
-    secure_scores = get_secure_scores(token)
+    click.echo("  eDiscovery Cases...")
+    ediscovery_cases = get_ediscovery_cases(token)
 
-    click.echo("  Control Scores...")
-    control_scores = get_control_scores(token)
+    click.echo("  Sensitivity Labels...")
+    sensitivity_labels = get_sensitivity_labels(token)
 
-    click.echo("  Control Profiles...")
-    control_profiles = get_control_profiles(token)
+    click.echo("  Retention Labels...")
+    retention_labels = get_retention_labels(token)
 
-    click.echo("  Security Alerts...")
-    alerts = get_security_alerts(token)
+    click.echo("  Retention Events...")
+    retention_events = get_retention_events(token)
 
-    click.echo("  Security Incidents...")
-    incidents = get_security_incidents(token)
+    click.echo("  Audit Log Records...")
+    audit_records = get_audit_log_records(token, days=settings.AUDIT_LOG_DAYS)
 
-    click.echo("  Risky Users...")
-    risky_users = get_risky_users(token)
+    click.echo("  DLP Alerts...")
+    dlp_alerts = get_dlp_alerts(token)
 
-    click.echo("  Service Health...")
-    service_health = get_service_health(token)
-
-    # Current score from latest snapshot
-    current_score = secure_scores[0]["current_score"] if secure_scores else 0.0
-    max_score = secure_scores[0]["max_score"] if secure_scores else 0.0
+    click.echo("  Protection Scopes...")
+    protection_scopes = get_protection_scopes(token)
 
     click.echo(
-        f"\nScore: {current_score:.1f}/{max_score:.1f} "
-        f"| Controls: {len(control_scores)} | Alerts: {len(alerts)} "
-        f"| Incidents: {len(incidents)} | Risky Users: {len(risky_users)} "
-        f"| Services: {len(service_health)}"
+        f"\neDiscovery: {len(ediscovery_cases)} | Labels: {len(sensitivity_labels)} "
+        f"| Retention: {len(retention_labels)} labels, {len(retention_events)} events "
+        f"| Audit: {len(audit_records)} | DLP: {len(dlp_alerts)} "
+        f"| Scopes: {len(protection_scopes)}"
     )
 
     # Build payload
-    payload = PurviewPayload(
+    payload = CompliancePayload(
         tenant_id=settings.TENANT_ID,
         agency_id=settings.AGENCY_ID,
         department=settings.DEPARTMENT,
         display_name=settings.DISPLAY_NAME or settings.AGENCY_ID,
-        timestamp=PurviewPayload.now_iso(),
-        secure_score_current=current_score,
-        secure_score_max=max_score,
-        secure_scores=secure_scores,
-        control_scores=control_scores,
-        control_profiles=control_profiles,
-        security_alerts=alerts,
-        security_incidents=incidents,
-        risky_users=risky_users,
-        service_health=service_health,
+        timestamp=CompliancePayload.now_iso(),
+        ediscovery_cases=ediscovery_cases,
+        sensitivity_labels=sensitivity_labels,
+        retention_labels=retention_labels,
+        retention_events=retention_events,
+        audit_records=audit_records,
+        dlp_alerts=dlp_alerts,
+        protection_scopes=protection_scopes,
     )
 
     payload_dict = payload.to_dict()

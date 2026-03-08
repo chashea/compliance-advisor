@@ -6,7 +6,7 @@ Project-specific guidance. Global conventions (communication style, git workflow
 
 - **Repo:** `github.com/chashea/compliance-advisor`, branch `main`
 - **Resource group:** `rg-compliance-advisor`
-- **Current version:** v0.5.0
+- **Current version:** v1.0.0
 
 ## Build & Run Commands
 
@@ -45,18 +45,18 @@ No tests exist yet. `pyproject.toml` configures pytest with `testpaths = ["tests
 
 ## Architecture
 
-Multi-tenant GCC compliance dashboard. Three independent components share a PostgreSQL database:
+Multi-tenant GCC compliance workload dashboard. Three independent components share a PostgreSQL database:
 
-1. **Collector** (`collector/`) — Python CLI (`compliance-collect`) that authenticates to GCC tenants via MSAL ROPC, scrapes Compliance Manager portal API (`/api/ComplianceScore`, `/api/Assessments`, `/api/ImprovementActions`), and POSTs a payload to the Function App's `/api/ingest` endpoint.
+1. **Collector** (`collector/`) — Python CLI (`compliance-collect`) that authenticates to GCC tenants via MSAL ROPC, pulls compliance workload data from Microsoft Graph API (eDiscovery, sensitivity labels, retention labels/events, audit log, DLP alerts, protection scopes), and POSTs a payload to the Function App's `/api/ingest` endpoint.
 
 2. **Function App** (`functions/`) — Azure Functions v2 Python (decorator-based, no `function.json` files). All routes defined in `function_app.py`. Two categories:
    - **Ingest** (`/api/ingest`) — FUNCTION-level auth, validates payload via JSON schema (`shared/validation.py`), upserts to PostgreSQL (`shared/db.py`).
-   - **Dashboard APIs** (`/api/advisor/*`, 7 endpoints) — ANONYMOUS auth, all POST with optional `{department}` filter. SQL queries in `shared/dashboard_queries.py`. Two AI endpoints (`briefing`, `ask`) use `shared/ai_agent.py` → Azure OpenAI GPT-4o.
-   - **Timer** (`compute_aggregates`) — daily 6am UTC, rolls up `posture_snapshots` → `compliance_trend`.
+   - **Dashboard APIs** (`/api/advisor/*`, 10 endpoints) — ANONYMOUS auth, all POST with optional `{department}` filter. SQL queries in `shared/dashboard_queries.py`. Two AI endpoints (`briefing`, `ask`) use `shared/ai_agent.py` → Azure OpenAI GPT-4o.
+   - **Timer** (`compute_aggregates`) — daily 6am UTC, rolls up workload counts → `compliance_trend`.
 
 3. **Dashboard** (`dashboard/`) — Static HTML/CSS/JS SPA. Config in `env.js` (`window.COMPLIANCE_API_BASE`, `window.COMPLIANCE_API_KEY`). No build step. Has built-in demo data mode toggled by checkbox.
 
-**Database**: PostgreSQL with 5 tables: `tenants`, `posture_snapshots`, `assessments`, `improvement_actions`, `compliance_trend`. Schema in `sql/schema.sql`. Connection pool via psycopg2 `ThreadedConnectionPool` in `shared/db.py`.
+**Database**: PostgreSQL with 9 tables: `tenants`, `ediscovery_cases`, `sensitivity_labels`, `retention_labels`, `retention_events`, `audit_records`, `dlp_alerts`, `protection_scopes`, `compliance_trend`. Schema in `sql/schema.sql`. Connection pool via psycopg2 `ThreadedConnectionPool` in `shared/db.py`.
 
 **Infrastructure** (`infra/`): Bicep modules for PostgreSQL Flexible Server, Function App + App Service Plan, Key Vault, Azure OpenAI, Log Analytics + App Insights. Function App uses SystemAssigned managed identity with RBAC for Key Vault and OpenAI. `azuredeploy.json` at repo root is the compiled ARM template for the "Deploy to Azure" button.
 
@@ -65,12 +65,14 @@ Multi-tenant GCC compliance dashboard. Three independent components share a Post
 | Component | File | Purpose |
 |---|---|---|
 | Function App | `functions/function_app.py` | All route definitions |
-| DB layer | `functions/shared/db.py` | PostgreSQL connection pool + queries |
-| Dashboard queries | `functions/shared/dashboard_queries.py` | SQL for all 7 dashboard endpoints |
+| DB layer | `functions/shared/db.py` | PostgreSQL connection pool + upserts |
+| Dashboard queries | `functions/shared/dashboard_queries.py` | SQL for all dashboard endpoints |
 | AI agent | `functions/shared/ai_agent.py` | Azure OpenAI GPT-4o integration |
 | Validation | `functions/shared/validation.py` | JSON schema validation for ingest |
 | Function config | `functions/shared/config.py` | `FunctionSettings` (pydantic-settings) |
+| Collector client | `collector/compliance_client.py` | Graph API calls for 7 compliance workloads |
 | Collector config | `collector/config.py` | `CollectorSettings` (pydantic-settings) |
+| Payload | `collector/payload.py` | `CompliancePayload` dataclass |
 | DB schema | `sql/schema.sql` | PostgreSQL table definitions |
 | Infra entry | `infra/main.bicep` | Bicep entry point |
 | CI/CD | `.github/workflows/deploy.yml` | OIDC deploy to Azure Functions |
@@ -82,6 +84,8 @@ Multi-tenant GCC compliance dashboard. Three independent components share a Post
 - DATABASE_URL is stored in Key Vault; Function App references it via `@Microsoft.KeyVault(...)` app setting — never in plain text.
 - Collector uses ROPC (service account) auth — non-interactive, per-tenant credentials stored in Key Vault.
 - Config uses pydantic-settings: `functions/shared/config.py` (`FunctionSettings`) and `collector/config.py` (`CollectorSettings`).
+- Audit log API is async: POST query → poll status → GET records.
+- Sensitivity labels use beta API with v1.0 fallback.
 
 ## CI/CD
 

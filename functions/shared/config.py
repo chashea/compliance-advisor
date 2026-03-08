@@ -17,9 +17,7 @@ class FunctionSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # PostgreSQL (Azure Database for PostgreSQL Flexible Server)
-    DATABASE_URL: str = Field(
-        ..., description="PostgreSQL connection string, e.g. postgresql://user:pass@host:5432/db"
-    )
+    DATABASE_URL: str = Field(..., description="PostgreSQL connection string, e.g. postgresql://user:pass@host:5432/db")
 
     # Key Vault (Azure Commercial)
     KEY_VAULT_URL: str = Field(..., description="https://<vault>.vault.azure.net/")

@@ -1,6 +1,6 @@
 # Compliance Advisor
 
-Multi-tenant GCC compliance dashboard that aggregates Microsoft Compliance Manager data across agencies into a single executive view.
+Multi-tenant GCC compliance workload dashboard that aggregates Microsoft 365 compliance data across agencies into a single executive view.
 
 ## Architecture
 
@@ -8,27 +8,42 @@ Multi-tenant GCC compliance dashboard that aggregates Microsoft Compliance Manag
 GCC Tenant A ──┐
 GCC Tenant B ──┤  collector/cli.py              Azure Function App
 GCC Tenant C ──┘  (ROPC, service account)  ──▶  POST /api/ingest
-                  compliance.microsoft.com         │
+                  Microsoft Graph API              │
                                                    ▼
                                              PostgreSQL
-                                             (posture_snapshots,
-                                              assessments,
-                                              improvement_actions)
+                                             (ediscovery_cases,
+                                              sensitivity_labels,
+                                              retention_labels,
+                                              dlp_alerts, ...)
                                                    │
-                  Dashboard (browser)  ◀──── /api/advisor/* (7 endpoints)
+                  Dashboard (browser)  ◀──── /api/advisor/* (10 endpoints)
                   Entra ID SSO                     │
                                                    ▼
                                              Azure OpenAI (GPT-4o)
                                              (briefing + Q&A)
 ```
 
+## Compliance Workloads
+
+| Workload | Data Source | API |
+|---|---|---|
+| eDiscovery | Cases, custodians, holds | `/security/cases/ediscoveryCases` |
+| Information Protection | Sensitivity labels | `/security/informationProtection/sensitivityLabels` |
+| Records Management | Retention labels & events | `/security/labels/retentionLabels`, `/security/triggers/retentionEvents` |
+| Audit Log | Compliance activity records | `/security/auditLog/queries` (async) |
+| DLP (Data Security) | DLP alerts | `/security/alerts_v2` (filtered to DLP) |
+| Data Security & Governance | Protection scopes | `/dataSecurityAndGovernance/protectionScopes/compute` |
+
 ## Features
 
-- Cross-tenant compliance score dashboard with KPI cards and charts
+- Cross-tenant compliance workload dashboard with KPI cards and charts
 - Agency/department dropdown filter for single-pane view
-- Compliance Manager assessment summary with pass/fail rates
-- Improvement actions table with point-value scoring (27/9/3/1)
-- Week-over-week trend tracking
+- eDiscovery case tracking with custodian counts
+- Sensitivity and retention label inventory
+- DLP alert monitoring with severity breakdown
+- Audit log activity summaries by service and operation
+- Data governance protection scope visibility
+- Compliance trend tracking over time
 - AI-powered "Ask the Advisor" Q&A sidebar
 - Executive briefing generator for leadership consumption
 - Built-in demo data mode for demos without live data
@@ -37,16 +52,26 @@ GCC Tenant C ──┘  (ROPC, service account)  ──▶  POST /api/ingest
 
 - Python 3.11+
 - Azure subscription (Commercial)
-- Access to GCC tenant(s) with Compliance Manager
-- Service account per tenant with Compliance Manager Reader role
+- Access to GCC tenant(s) with Microsoft 365 compliance workloads
+- Service account per tenant with appropriate Graph API permissions
 - Azure CLI (`az`)
+
+### Required Graph API Permissions
+
+| Permission | Workload |
+|---|---|
+| `eDiscovery.Read.All` | eDiscovery cases |
+| `InformationProtectionPolicy.Read.All` | Sensitivity labels |
+| `RecordsManagement.Read.All` | Retention labels & events |
+| `AuditLogsQuery.Read.All` | Audit log queries |
+| `SecurityAlert.Read.All` | DLP alerts |
+| `Content.Process.All` | Data security & governance |
 
 ## Local Development
 
 ### 1. Set up PostgreSQL
 
 ```bash
-# Start local Postgres (or use Azure)
 createdb compliance_advisor
 psql compliance_advisor -f sql/schema.sql
 ```
@@ -107,28 +132,16 @@ All endpoints are `POST` to `/api/advisor/*`.
 | Endpoint | Body | Description |
 |---|---|---|
 | `/api/advisor/status` | `{}` | Active tenants count, last sync date |
-| `/api/advisor/compliance` | `{department?, days?}` | Scores, trends, week-over-week, department rollup |
-| `/api/advisor/assessments` | `{department?}` | Assessments, top gaps, control families |
-| `/api/advisor/regulations` | `{}` | Regulation coverage summary |
-| `/api/advisor/actions` | `{department?}` | Improvement actions, summary, owner breakdown |
+| `/api/advisor/overview` | `{department?}` | KPI summary (cases, labels, alerts, audit) |
+| `/api/advisor/ediscovery` | `{department?}` | eDiscovery cases and status breakdown |
+| `/api/advisor/labels` | `{department?}` | Sensitivity labels, retention labels, events |
+| `/api/advisor/audit` | `{department?}` | Audit log records, service/operation breakdown |
+| `/api/advisor/dlp` | `{department?}` | DLP alerts, severity/policy breakdown |
+| `/api/advisor/governance` | `{department?}` | Protection scopes |
+| `/api/advisor/trend` | `{department?, days?}` | Compliance workload counts over time |
 | `/api/advisor/briefing` | `{department?}` | AI-generated executive briefing |
 | `/api/advisor/ask` | `{question}` | AI Q&A about compliance data |
 | `/api/ingest` | Collector payload | Ingestion (function key auth) |
-
-## Scoring Methodology
-
-Compliance scores are pulled from the Compliance Manager portal API (`/api/ComplianceScore`). If unavailable, scores are self-calculated from improvement actions using Microsoft's published point values:
-
-| Action Type | Points |
-|---|---|
-| Preventative mandatory | 27 |
-| Preventative discretionary | 9 |
-| Detective mandatory | 3 |
-| Detective discretionary | 1 |
-| Corrective mandatory | 3 |
-| Corrective discretionary | 1 |
-
-See: https://learn.microsoft.com/en-us/purview/compliance-manager-scoring
 
 ## Infrastructure Deployment
 
@@ -154,7 +167,7 @@ psql "$(az deployment group show -g rg-compliance-advisor -n main --query proper
 
 ## Onboarding a New GCC Tenant
 
-1. Create a service account in the GCC tenant with Compliance Manager Reader role
+1. Create a service account in the GCC tenant with the required Graph API permissions
 2. Store credentials in Key Vault:
    ```bash
    az keyvault secret set --vault-name <KV_NAME> --name "svc-<agency-id>-username" --value "<UPN>"

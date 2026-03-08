@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   Compliance Advisor Dashboard — Microsoft Graph Security Data
-   Fetches Secure Score, Controls, Alerts, Incidents, Risky Users, Service Health.
+   Compliance Advisor Dashboard — Microsoft Graph Compliance Workload Data
+   Fetches eDiscovery, Labels, Audit, DLP, Governance data.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 // ── Configuration ───────────────────────────────────────────────────────────
@@ -84,113 +84,63 @@ function setLoadingSkeleton(show) {
 // ═════════════════════════════════════════════════════════════════════════════
 
 function generateDemoData() {
-  const categories = ["Identity", "Data", "Device", "Apps", "Infrastructure"];
-  const services = ["Exchange Online", "SharePoint Online", "Teams", "OneDrive",
-    "Azure Active Directory", "Microsoft Defender", "Intune", "Power Platform",
-    "Dynamics 365", "Microsoft 365 Apps"];
-
-  const controlScores = [];
-  for (let i = 0; i < 40; i++) {
-    const pct = Math.random() * 100;
-    controlScores.push({
-      control_name: `Control-${i + 1}`,
-      category: categories[i % categories.length],
-      score: +(pct * 0.1).toFixed(1),
-      score_pct: +pct.toFixed(1),
-      implementation_status: pct === 100 ? "Implemented" : pct > 50 ? "Partial" : "NotImplemented",
-      display_name: "Demo Tenant",
-    });
-  }
-
-  const categoryRollup = categories.map(c => {
-    const inCat = controlScores.filter(cs => cs.category === c);
-    return {
-      category: c,
-      total_controls: inCat.length,
-      fully_implemented: inCat.filter(x => x.score_pct === 100).length,
-      not_implemented: inCat.filter(x => x.score_pct === 0).length,
-      avg_score_pct: +(inCat.reduce((s, x) => s + x.score_pct, 0) / inCat.length).toFixed(1),
-      total_score: +(inCat.reduce((s, x) => s + x.score, 0)).toFixed(1),
-    };
-  });
-
-  const opportunities = [];
-  for (let i = 0; i < 10; i++) {
-    opportunities.push({
-      title: `Enable MFA for ${categories[i % 5]} accounts`,
-      control_id: `ctrl-${i}`,
-      service: services[i % services.length],
-      category: categories[i % categories.length],
-      max_score: +(10 - i * 0.5).toFixed(1),
-      tier: i < 3 ? "Tier1" : "Tier2",
-      implementation_cost: i < 3 ? "Low" : "Medium",
-      user_impact: i < 5 ? "Low" : "Medium",
-    });
-  }
-
-  const alerts = [
-    { title: "Suspicious sign-in activity", severity: "high", status: "new", category: "Identity", service_source: "Azure AD", created: "2026-03-07" },
-    { title: "Impossible travel detected", severity: "medium", status: "inProgress", category: "Identity", service_source: "Azure AD", created: "2026-03-06" },
-    { title: "Malware detected on endpoint", severity: "high", status: "new", category: "Endpoint", service_source: "Defender", created: "2026-03-05" },
+  const ediscoveryCases = [
+    { display_name: "Investigation Alpha", status: "active", custodian_count: 5, created: "2026-02-01", tenant_name: "Demo Tenant" },
+    { display_name: "HR Review 2026", status: "closed", custodian_count: 3, created: "2025-11-15", tenant_name: "Demo Tenant" },
+    { display_name: "Litigation Hold - Project X", status: "active", custodian_count: 12, created: "2026-01-10", tenant_name: "Demo Tenant" },
   ];
 
-  const severityBreakdown = [
-    { severity: "high", total: 2, active: 2 },
+  const sensitivityLabels = [
+    { name: "Public", priority: 0, is_active: true, color: "#00cc00", tenant_name: "Demo Tenant" },
+    { name: "Internal", priority: 1, is_active: true, color: "#ffcc00", tenant_name: "Demo Tenant" },
+    { name: "Confidential", priority: 2, is_active: true, color: "#ff6600", tenant_name: "Demo Tenant" },
+    { name: "Highly Confidential", priority: 3, is_active: true, color: "#cc0000", tenant_name: "Demo Tenant" },
+    { name: "Restricted (Legacy)", priority: 4, is_active: false, color: "#990000", tenant_name: "Demo Tenant" },
+  ];
+
+  const retentionLabels = [
+    { display_name: "7-Year Retention", retention_duration: "P2555D", is_in_use: true, status: "active" },
+    { display_name: "3-Year Retention", retention_duration: "P1095D", is_in_use: true, status: "active" },
+    { display_name: "Permanent Hold", retention_duration: "unlimited", is_in_use: false, status: "active" },
+  ];
+
+  const dlpAlerts = [
+    { title: "SSN detected in email", severity: "high", status: "new", policy_name: "PII Protection", created: "2026-03-07", tenant_name: "Demo Tenant" },
+    { title: "Credit card in Teams message", severity: "medium", status: "inProgress", policy_name: "Financial Data", created: "2026-03-06", tenant_name: "Demo Tenant" },
+    { title: "Driver license in SharePoint", severity: "low", status: "resolved", policy_name: "PII Protection", created: "2026-03-05", tenant_name: "Demo Tenant" },
+  ];
+
+  const dlpSeverityBreakdown = [
+    { severity: "high", total: 1, active: 1 },
     { severity: "medium", total: 1, active: 1 },
-    { severity: "low", total: 0, active: 0 },
+    { severity: "low", total: 1, active: 0 },
   ];
 
-  const riskyUsers = [
-    { user_display_name: "John Doe", risk_level: "high", risk_state: "atRisk" },
-    { user_display_name: "Jane Smith", risk_level: "medium", risk_state: "confirmedCompromised" },
+  const auditRecords = [
+    { operation: "SensitivityLabelApplied", service: "SharePoint", user_id: "admin@demo.onmicrosoft.com", created: "2026-03-07T14:22:00Z" },
+    { operation: "DLPRuleMatch", service: "Exchange", user_id: "user1@demo.onmicrosoft.com", created: "2026-03-07T12:05:00Z" },
+    { operation: "RetentionLabelApplied", service: "OneDrive", user_id: "admin@demo.onmicrosoft.com", created: "2026-03-07T09:30:00Z" },
   ];
 
-  const serviceHealth = services.map(s => ({
-    service_name: s,
-    status: Math.random() > 0.15 ? "serviceOperational" : "serviceDegradation",
-    display_name: "Demo Tenant",
-  }));
+  const governanceScopes = [
+    { scope_type: "dlpPolicy", execution_mode: "enforce", locations: "Exchange, SharePoint, OneDrive" },
+    { scope_type: "retentionPolicy", execution_mode: "enforce", locations: "Exchange, SharePoint" },
+  ];
 
   return {
     overview: {
-      tenants: [{
-        tenant_id: "demo-tenant-1",
-        display_name: "Demo Tenant",
-        department: "IT",
-        secure_score: 413.9,
-        max_score: 893.0,
-        score_pct: 46.35,
-        active_user_count: 150,
-        licensed_user_count: 200,
-        controls_total: 121,
-        controls_implemented: 58,
-        snapshot_date: new Date().toISOString().slice(0, 10),
-      }],
-      alert_summary: { high_alerts: 2, medium_alerts: 1, low_alerts: 0, active_alerts: 3, total_alerts: 3 },
-      incident_summary: { total_incidents: 1, active_incidents: 1, high_incidents: 0 },
-      risky_user_summary: { total_risky_users: 2, high_risk_users: 1 },
-      service_health_summary: { total_services: 10, healthy_services: 8 },
+      tenants: [{ tenant_id: "demo-tenant-1", display_name: "Demo Tenant", department: "IT" }],
+      ediscovery_summary: { total_cases: 3, active_cases: 2 },
+      labels_summary: { sensitivity_labels: 5, retention_labels: 3 },
+      dlp_summary: { total_dlp_alerts: 3, high_alerts: 1, medium_alerts: 1, active_alerts: 2 },
+      audit_summary: { total_records: 3 },
     },
-    scoreTrend: {
-      daily_scores: [],
-      trend: [],
-    },
-    controls: {
-      control_scores: controlScores,
-      categories: categoryRollup,
-      opportunities: opportunities,
-    },
-    alerts: {
-      alerts: alerts,
-      severity_breakdown: severityBreakdown,
-    },
-    security: {
-      incidents: [{ display_name: "Multi-stage incident", severity: "medium", status: "active", classification: "truePositive", created: "2026-03-06" }],
-      risky_users: riskyUsers,
-    },
-    serviceHealth: {
-      services: serviceHealth,
-    },
+    ediscovery: { cases: ediscoveryCases, status_breakdown: [{ status: "active", total: 2 }, { status: "closed", total: 1 }] },
+    labels: { sensitivity_labels: sensitivityLabels, retention_labels: retentionLabels, retention_events: [] },
+    dlp: { alerts: dlpAlerts, severity_breakdown: dlpSeverityBreakdown, policy_breakdown: [{ policy_name: "PII Protection", total: 2 }, { policy_name: "Financial Data", total: 1 }] },
+    audit: { records: auditRecords, service_breakdown: [{ service: "SharePoint", total: 1 }, { service: "Exchange", total: 1 }, { service: "OneDrive", total: 1 }], operation_breakdown: [] },
+    governance: { scopes: governanceScopes },
+    trend: { trend: [] },
   };
 }
 
@@ -210,15 +160,16 @@ async function loadData() {
     if (demoMode) {
       currentData = generateDemoData();
     } else {
-      const [overview, scoreTrend, controls, alerts, security, serviceHealth] = await Promise.all([
+      const [overview, ediscovery, labels, dlp, audit, governance, trend] = await Promise.all([
         api("overview", body),
-        api("score-trend", body),
-        api("controls", body),
-        api("alerts", body),
-        api("security", body),
-        api("service-health", body),
+        api("ediscovery", body),
+        api("labels", body),
+        api("dlp", body),
+        api("audit", body),
+        api("governance", body),
+        api("trend", body),
       ]);
-      currentData = { overview, scoreTrend, controls, alerts, security, serviceHealth };
+      currentData = { overview, ediscovery, labels, dlp, audit, governance, trend };
     }
 
     renderAll();
@@ -239,94 +190,64 @@ async function loadData() {
 function renderAll() {
   renderKPIs();
   renderTrendChart();
-  renderCategoryChart();
-  renderAlertChart();
-  renderOpportunities();
-  renderControlScores();
-  renderAlerts();
-  renderRiskyUsers();
-  renderServiceHealth();
+  renderDLPChart();
+  renderEdiscovery();
+  renderSensitivityLabels();
+  renderRetentionLabels();
+  renderDLPAlerts();
+  renderAuditRecords();
+  renderGovernance();
   populateDepartments();
 }
 
 function renderKPIs() {
   const ov = currentData.overview || {};
   const tenants = ov.tenants || [];
-  const alertSummary = ov.alert_summary || {};
-  const healthSummary = ov.service_health_summary || {};
-
-  if (tenants.length > 0) {
-    const t = tenants[0];
-    $("#kpi-score").textContent = `${t.secure_score?.toFixed(1) || 0}/${t.max_score?.toFixed(0) || 0}`;
-    $("#kpi-pct").textContent = `${t.score_pct?.toFixed(1) || 0}%`;
-    $("#kpi-controls").textContent = `${t.controls_implemented || 0}/${t.controls_total || 0}`;
-  }
+  const edSummary = ov.ediscovery_summary || {};
+  const labelsSummary = ov.labels_summary || {};
+  const dlpSummary = ov.dlp_summary || {};
+  const auditSummary = ov.audit_summary || {};
 
   $("#kpi-tenants").textContent = tenants.length;
-  $("#kpi-alerts").textContent = alertSummary.active_alerts || 0;
-  const healthy = healthSummary.healthy_services || 0;
-  const total = healthSummary.total_services || 0;
-  $("#kpi-health").textContent = `${healthy}/${total}`;
+  $("#kpi-ediscovery").textContent = `${edSummary.active_cases || 0} active`;
+  $("#kpi-sensitivity").textContent = labelsSummary.sensitivity_labels || 0;
+  $("#kpi-retention").textContent = labelsSummary.retention_labels || 0;
+  $("#kpi-dlp").textContent = `${dlpSummary.active_alerts || 0} active`;
+  $("#kpi-audit").textContent = auditSummary.total_records || 0;
 }
 
 function renderTrendChart() {
-  const data = currentData.scoreTrend || {};
-  const daily = data.daily_scores || [];
+  const data = currentData.trend || {};
+  const trend = data.trend || [];
 
   if (charts.trend) charts.trend.destroy();
 
-  const labels = daily.map(d => d.snapshot_date);
-  const scores = daily.map(d => d.score_pct);
+  const labels = trend.map(d => d.snapshot_date);
 
   charts.trend = new Chart($("#trend-chart"), {
     type: "line",
     data: {
       labels,
-      datasets: [{
-        label: "Secure Score %",
-        data: scores,
-        borderColor: CHART_COLORS.blue,
-        backgroundColor: "rgba(79,143,247,0.1)",
-        fill: true,
-        tension: 0.3,
-      }],
+      datasets: [
+        { label: "eDiscovery", data: trend.map(d => d.ediscovery_cases), borderColor: CHART_COLORS.blue, tension: 0.3 },
+        { label: "DLP Alerts", data: trend.map(d => d.dlp_alerts), borderColor: CHART_COLORS.red, tension: 0.3 },
+        { label: "Audit Records", data: trend.map(d => d.audit_records), borderColor: CHART_COLORS.green, tension: 0.3 },
+        { label: "Sensitivity Labels", data: trend.map(d => d.sensitivity_labels), borderColor: CHART_COLORS.purple, tension: 0.3 },
+        { label: "Retention Labels", data: trend.map(d => d.retention_labels), borderColor: CHART_COLORS.orange, tension: 0.3 },
+      ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      scales: { y: { min: 0, max: 100, ticks: { callback: v => v + "%" } } },
-      plugins: { legend: { display: false } },
+      scales: { y: { min: 0 } },
+      plugins: { legend: { position: "bottom" } },
     },
   });
 }
 
-function renderCategoryChart() {
-  const cats = currentData.controls?.categories || [];
-  if (charts.category) charts.category.destroy();
-
-  charts.category = new Chart($("#category-chart"), {
-    type: "bar",
-    data: {
-      labels: cats.map(c => c.category),
-      datasets: [{
-        label: "Avg Score %",
-        data: cats.map(c => c.avg_score_pct),
-        backgroundColor: PALETTE,
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      indexAxis: "y",
-      scales: { x: { min: 0, max: 100, ticks: { callback: v => v + "%" } } },
-      plugins: { legend: { display: false } },
-    },
-  });
-}
-
-function renderAlertChart() {
-  const breakdown = currentData.alerts?.severity_breakdown || [];
-  if (charts.alert) charts.alert.destroy();
+function renderDLPChart() {
+  const breakdown = currentData.dlp?.severity_breakdown || [];
+  if (charts.dlp) charts.dlp.destroy();
 
   const labels = breakdown.map(b => b.severity);
   const totals = breakdown.map(b => b.total);
@@ -337,7 +258,7 @@ function renderAlertChart() {
     return CHART_COLORS.purple;
   });
 
-  charts.alert = new Chart($("#alert-chart"), {
+  charts.dlp = new Chart($("#dlp-chart"), {
     type: "doughnut",
     data: {
       labels,
@@ -346,48 +267,68 @@ function renderAlertChart() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        legend: { position: "bottom" },
-      },
+      plugins: { legend: { position: "bottom" } },
     },
   });
 }
 
-function renderOpportunities() {
-  const opps = currentData.controls?.opportunities || [];
-  const tbody = $("#opportunities-table tbody");
-  tbody.innerHTML = opps.slice(0, 15).map(o => `
+function renderEdiscovery() {
+  const cases = currentData.ediscovery?.cases || [];
+  const tbody = $("#ediscovery-table tbody");
+  if (cases.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="placeholder-text">No eDiscovery cases</td></tr>';
+    return;
+  }
+  tbody.innerHTML = cases.map(c => `
     <tr>
-      <td>${esc(o.title)}</td>
-      <td>${esc(o.service)}</td>
-      <td>${esc(o.category)}</td>
-      <td><strong>${o.max_score}</strong></td>
-      <td>${esc(o.tier)}</td>
-      <td>${esc(o.implementation_cost)}</td>
-      <td>${esc(o.user_impact)}</td>
+      <td>${esc(c.display_name)}</td>
+      <td>${statusBadge(c.status)}</td>
+      <td>${c.custodian_count || 0}</td>
+      <td>${esc(c.created?.slice(0, 10) || "")}</td>
+      <td>${esc(c.tenant_name)}</td>
     </tr>
   `).join("");
 }
 
-function renderControlScores() {
-  const scores = currentData.controls?.control_scores || [];
-  const tbody = $("#controls-table tbody");
-  tbody.innerHTML = scores.map(s => `
+function renderSensitivityLabels() {
+  const labels = currentData.labels?.sensitivity_labels || [];
+  const tbody = $("#sensitivity-table tbody");
+  if (labels.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="placeholder-text">No sensitivity labels</td></tr>';
+    return;
+  }
+  tbody.innerHTML = labels.map(l => `
     <tr>
-      <td>${esc(s.control_name)}</td>
-      <td>${esc(s.category)}</td>
-      <td>${s.score}</td>
-      <td>${scoreBadge(s.score_pct)}</td>
-      <td>${statusBadge(s.implementation_status)}</td>
+      <td>${l.color ? `<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:${esc(l.color)};margin-right:6px;vertical-align:middle"></span>` : ""}${esc(l.name)}</td>
+      <td>${l.priority}</td>
+      <td>${l.is_active ? '<span class="badge badge--green">Active</span>' : '<span class="badge badge--red">Inactive</span>'}</td>
+      <td>${esc(l.tenant_name)}</td>
     </tr>
   `).join("");
 }
 
-function renderAlerts() {
-  const alerts = currentData.alerts?.alerts || [];
-  const tbody = $("#alerts-table tbody");
+function renderRetentionLabels() {
+  const labels = currentData.labels?.retention_labels || [];
+  const tbody = $("#retention-table tbody");
+  if (labels.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="placeholder-text">No retention labels</td></tr>';
+    return;
+  }
+  tbody.innerHTML = labels.map(l => `
+    <tr>
+      <td>${esc(l.display_name)}</td>
+      <td>${esc(l.retention_duration)}</td>
+      <td>${l.is_in_use ? '<span class="badge badge--green">Yes</span>' : '<span class="badge badge--yellow">No</span>'}</td>
+      <td>${statusBadge(l.status)}</td>
+    </tr>
+  `).join("");
+}
+
+function renderDLPAlerts() {
+  const alerts = currentData.dlp?.alerts || [];
+  const tbody = $("#dlp-table tbody");
   if (alerts.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="placeholder-text">No security alerts</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="placeholder-text">No DLP alerts</td></tr>';
     return;
   }
   tbody.innerHTML = alerts.map(a => `
@@ -395,48 +336,44 @@ function renderAlerts() {
       <td>${esc(a.title)}</td>
       <td>${severityBadge(a.severity)}</td>
       <td>${statusBadge(a.status)}</td>
-      <td>${esc(a.category)}</td>
-      <td>${esc(a.service_source)}</td>
+      <td>${esc(a.policy_name)}</td>
       <td>${esc(a.created?.slice(0, 10) || "")}</td>
+      <td>${esc(a.tenant_name)}</td>
     </tr>
   `).join("");
 }
 
-function renderRiskyUsers() {
-  const users = currentData.security?.risky_users || [];
-  const tbody = $("#risky-users-table tbody");
-  if (users.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3" class="placeholder-text">No risky users detected</td></tr>';
+function renderAuditRecords() {
+  const records = currentData.audit?.records || [];
+  const tbody = $("#audit-table tbody");
+  if (records.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="placeholder-text">No audit records</td></tr>';
     return;
   }
-  tbody.innerHTML = users.map(u => `
+  tbody.innerHTML = records.slice(0, 100).map(r => `
     <tr>
-      <td>${esc(u.user_display_name)}</td>
-      <td>${severityBadge(u.risk_level)}</td>
-      <td>${esc(u.risk_state)}</td>
+      <td>${esc(r.operation)}</td>
+      <td>${esc(r.service)}</td>
+      <td>${esc(r.user_id)}</td>
+      <td>${esc(r.created?.slice(0, 16)?.replace("T", " ") || "")}</td>
     </tr>
   `).join("");
 }
 
-function renderServiceHealth() {
-  const services = currentData.serviceHealth?.services || [];
-  const grid = $("#service-health-grid");
-  if (services.length === 0) {
-    grid.innerHTML = '<p class="placeholder-text">No service health data</p>';
+function renderGovernance() {
+  const scopes = currentData.governance?.scopes || [];
+  const tbody = $("#governance-table tbody");
+  if (scopes.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" class="placeholder-text">No protection scopes</td></tr>';
     return;
   }
-  grid.innerHTML = services.map(s => {
-    const isHealthy = s.status === "serviceOperational";
-    const dot = isHealthy ? "status-bar__dot--ok" : "status-bar__dot--err";
-    const label = isHealthy ? "Operational" : s.status.replace(/([A-Z])/g, " $1").trim();
-    return `
-      <div class="service-tile ${isHealthy ? "" : "service-tile--degraded"}">
-        <span class="status-bar__dot ${dot}"></span>
-        <span class="service-tile__name">${esc(s.service_name)}</span>
-        <span class="service-tile__status">${label}</span>
-      </div>
-    `;
-  }).join("");
+  tbody.innerHTML = scopes.map(s => `
+    <tr>
+      <td>${esc(s.scope_type)}</td>
+      <td>${esc(s.execution_mode)}</td>
+      <td>${esc(s.locations)}</td>
+    </tr>
+  `).join("");
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -446,13 +383,6 @@ function esc(s) {
   const d = document.createElement("div");
   d.textContent = String(s);
   return d.innerHTML;
-}
-
-function scoreBadge(pct) {
-  let cls = "badge--red";
-  if (pct >= 80) cls = "badge--green";
-  else if (pct >= 50) cls = "badge--yellow";
-  return `<span class="badge ${cls}">${pct?.toFixed(1) || 0}%</span>`;
 }
 
 function severityBadge(sev) {
@@ -467,9 +397,9 @@ function severityBadge(sev) {
 function statusBadge(status) {
   const s = (status || "").toLowerCase();
   let cls = "badge--blue";
-  if (s === "resolved" || s === "implemented" || s === "passed") cls = "badge--green";
-  else if (s === "new" || s === "notimplemented" || s === "failed") cls = "badge--red";
-  else if (s === "inprogress" || s === "partial" || s === "planned") cls = "badge--yellow";
+  if (s === "resolved" || s === "closed" || s === "active") cls = s === "active" ? "badge--green" : "badge--blue";
+  if (s === "new" || s === "failed") cls = "badge--red";
+  if (s === "inprogress" || s === "pending") cls = "badge--yellow";
   return `<span class="badge ${cls}">${esc(status)}</span>`;
 }
 
@@ -478,7 +408,6 @@ function populateDepartments() {
   const depts = [...new Set(tenants.map(t => t.department).filter(Boolean))];
   const sel = $("#department-filter");
   const current = sel.value;
-  // Keep "All Departments" option
   while (sel.options.length > 1) sel.remove(1);
   depts.sort().forEach(d => {
     const opt = document.createElement("option");

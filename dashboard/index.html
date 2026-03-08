@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Compliance Advisor — Security Posture Dashboard</title>
+  <title>Compliance Advisor — Compliance Workload Dashboard</title>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
@@ -51,89 +51,60 @@
     <!-- ── KPI Cards ───────────────────────────────────────────────────── -->
     <section class="kpi-row">
       <div class="kpi-card">
-        <span class="kpi-card__label">Secure Score</span>
-        <span class="kpi-card__value" id="kpi-score">–</span>
-      </div>
-      <div class="kpi-card">
-        <span class="kpi-card__label">Score %</span>
-        <span class="kpi-card__value" id="kpi-pct">–</span>
-      </div>
-      <div class="kpi-card">
         <span class="kpi-card__label">Tenants</span>
         <span class="kpi-card__value" id="kpi-tenants">–</span>
       </div>
       <div class="kpi-card">
-        <span class="kpi-card__label">Controls</span>
-        <span class="kpi-card__value" id="kpi-controls">–</span>
+        <span class="kpi-card__label">eDiscovery Cases</span>
+        <span class="kpi-card__value" id="kpi-ediscovery">–</span>
       </div>
       <div class="kpi-card">
-        <span class="kpi-card__label">Active Alerts</span>
-        <span class="kpi-card__value kpi-card__value--bad" id="kpi-alerts">–</span>
+        <span class="kpi-card__label">Sensitivity Labels</span>
+        <span class="kpi-card__value" id="kpi-sensitivity">–</span>
       </div>
       <div class="kpi-card">
-        <span class="kpi-card__label">Services Healthy</span>
-        <span class="kpi-card__value kpi-card__value--good" id="kpi-health">–</span>
+        <span class="kpi-card__label">Retention Labels</span>
+        <span class="kpi-card__value" id="kpi-retention">–</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">DLP Alerts</span>
+        <span class="kpi-card__value kpi-card__value--bad" id="kpi-dlp">–</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Audit Records</span>
+        <span class="kpi-card__value" id="kpi-audit">–</span>
       </div>
     </section>
 
     <!-- ── Charts Row 1 ────────────────────────────────────────────────── -->
     <section class="chart-row">
       <div class="card card--wide">
-        <h2 class="card__title">Secure Score Trend</h2>
+        <h2 class="card__title">Compliance Trend</h2>
         <div class="card__body chart-container">
           <canvas id="trend-chart"></canvas>
         </div>
       </div>
       <div class="card">
-        <h2 class="card__title">Control Categories</h2>
+        <h2 class="card__title">DLP Alert Severity</h2>
         <div class="card__body chart-container">
-          <canvas id="category-chart"></canvas>
+          <canvas id="dlp-chart"></canvas>
         </div>
       </div>
     </section>
 
-    <!-- ── Charts Row 2 ────────────────────────────────────────────────── -->
-    <section class="chart-row">
-      <div class="card">
-        <h2 class="card__title">Alert Severity</h2>
-        <div class="card__body chart-container">
-          <canvas id="alert-chart"></canvas>
-        </div>
-      </div>
-      <div class="card card--wide">
-        <h2 class="card__title">Top Improvement Opportunities</h2>
-        <div class="card__body">
-          <table class="data-table" id="opportunities-table">
-            <thead>
-              <tr>
-                <th>Control</th>
-                <th>Service</th>
-                <th>Category</th>
-                <th>Max Points</th>
-                <th>Tier</th>
-                <th>Cost</th>
-                <th>User Impact</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── Control Scores Table ─────────────────────────────────────────── -->
+    <!-- ── eDiscovery Cases Table ─────────────────────────────────────── -->
     <section class="chart-row">
       <div class="card card--full">
-        <h2 class="card__title">Control Scores</h2>
+        <h2 class="card__title">eDiscovery Cases</h2>
         <div class="card__body">
-          <table class="data-table data-table--sortable" id="controls-table">
+          <table class="data-table data-table--sortable" id="ediscovery-table">
             <thead>
               <tr>
-                <th data-sort="control_name">Control <span class="sort-icon"></span></th>
-                <th data-sort="category">Category <span class="sort-icon"></span></th>
-                <th data-sort="score" data-sort-num>Score <span class="sort-icon"></span></th>
-                <th data-sort="score_pct" data-sort-num>Score % <span class="sort-icon"></span></th>
-                <th data-sort="implementation_status">Status <span class="sort-icon"></span></th>
+                <th data-sort="display_name">Case <span class="sort-icon"></span></th>
+                <th data-sort="status">Status <span class="sort-icon"></span></th>
+                <th data-sort="custodian_count" data-sort-num>Custodians <span class="sort-icon"></span></th>
+                <th data-sort="created">Created <span class="sort-icon"></span></th>
+                <th data-sort="tenant_name">Tenant <span class="sort-icon"></span></th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -142,19 +113,75 @@
       </div>
     </section>
 
-    <!-- ── Security: Alerts, Incidents, Risky Users ────────────────────── -->
+    <!-- ── Sensitivity Labels Table ──────────────────────────────────── -->
     <section class="chart-row">
       <div class="card card--wide">
-        <h2 class="card__title">Security Alerts</h2>
+        <h2 class="card__title">Sensitivity Labels</h2>
         <div class="card__body">
-          <table class="data-table data-table--sortable" id="alerts-table">
+          <table class="data-table data-table--sortable" id="sensitivity-table">
+            <thead>
+              <tr>
+                <th data-sort="name">Label <span class="sort-icon"></span></th>
+                <th data-sort="priority" data-sort-num>Priority <span class="sort-icon"></span></th>
+                <th data-sort="is_active">Active <span class="sort-icon"></span></th>
+                <th data-sort="tenant_name">Tenant <span class="sort-icon"></span></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h2 class="card__title">Retention Labels</h2>
+        <div class="card__body">
+          <table class="data-table" id="retention-table">
+            <thead>
+              <tr>
+                <th>Label</th>
+                <th>Duration</th>
+                <th>In Use</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── DLP Alerts Table ──────────────────────────────────────────── -->
+    <section class="chart-row">
+      <div class="card card--full">
+        <h2 class="card__title">DLP Alerts</h2>
+        <div class="card__body">
+          <table class="data-table data-table--sortable" id="dlp-table">
             <thead>
               <tr>
                 <th data-sort="title">Alert <span class="sort-icon"></span></th>
                 <th data-sort="severity">Severity <span class="sort-icon"></span></th>
                 <th data-sort="status">Status <span class="sort-icon"></span></th>
-                <th data-sort="category">Category <span class="sort-icon"></span></th>
-                <th data-sort="service_source">Source <span class="sort-icon"></span></th>
+                <th data-sort="policy_name">Policy <span class="sort-icon"></span></th>
+                <th data-sort="created">Created <span class="sort-icon"></span></th>
+                <th data-sort="tenant_name">Tenant <span class="sort-icon"></span></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Audit Log Table ───────────────────────────────────────────── -->
+    <section class="chart-row">
+      <div class="card card--wide">
+        <h2 class="card__title">Recent Audit Activity</h2>
+        <div class="card__body">
+          <table class="data-table data-table--sortable" id="audit-table">
+            <thead>
+              <tr>
+                <th data-sort="operation">Operation <span class="sort-icon"></span></th>
+                <th data-sort="service">Service <span class="sort-icon"></span></th>
+                <th data-sort="user_id">User <span class="sort-icon"></span></th>
                 <th data-sort="created">Created <span class="sort-icon"></span></th>
               </tr>
             </thead>
@@ -163,28 +190,18 @@
         </div>
       </div>
       <div class="card">
-        <h2 class="card__title">Risky Users</h2>
+        <h2 class="card__title">Protection Scopes</h2>
         <div class="card__body">
-          <table class="data-table" id="risky-users-table">
+          <table class="data-table" id="governance-table">
             <thead>
               <tr>
-                <th>User</th>
-                <th>Risk Level</th>
-                <th>Risk State</th>
+                <th>Scope Type</th>
+                <th>Mode</th>
+                <th>Locations</th>
               </tr>
             </thead>
             <tbody></tbody>
           </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── Service Health ──────────────────────────────────────────────── -->
-    <section class="chart-row">
-      <div class="card card--full">
-        <h2 class="card__title">M365 Service Health</h2>
-        <div class="card__body">
-          <div id="service-health-grid" class="service-health-grid"></div>
         </div>
       </div>
     </section>
@@ -206,7 +223,7 @@
         <div class="card__body" id="briefing-content">
           <p class="placeholder-text">
             Click "Generate Briefing" to produce an AI-generated executive summary
-            of your security posture for leadership.
+            of your compliance posture for leadership.
           </p>
         </div>
       </div>
@@ -221,15 +238,15 @@
         <div class="card__body advisor-body">
           <div class="ask-row">
             <input type="text" id="ask-input" class="ask-input"
-                   placeholder="e.g. What controls have the biggest score impact?">
+                   placeholder="e.g. Which tenants have no sensitivity labels?">
             <button id="ask-btn" class="btn btn--primary">Ask</button>
           </div>
           <p class="ask-suggestions-label">Try asking:</p>
           <div id="ask-suggestions" class="ask-suggestions">
-            <button type="button" class="chip" data-question="What are the top 5 controls we should implement?">Top controls</button>
-            <button type="button" class="chip" data-question="Summarize our security posture">Security summary</button>
-            <button type="button" class="chip" data-question="Which services are experiencing issues?">Service issues</button>
-            <button type="button" class="chip" data-question="What controls would gain us the most points?">Best actions</button>
+            <button type="button" class="chip" data-question="Summarize the overall compliance posture">Compliance summary</button>
+            <button type="button" class="chip" data-question="Which tenants have the most DLP alerts?">Top DLP alerts</button>
+            <button type="button" class="chip" data-question="Which tenants are missing sensitivity labels?">Label gaps</button>
+            <button type="button" class="chip" data-question="What are the most common audit operations?">Audit trends</button>
           </div>
           <div id="ask-response" class="ask-response"></div>
         </div>

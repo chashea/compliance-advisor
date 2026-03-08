@@ -63,9 +63,7 @@ def get_graph_token(settings: CollectorSettings) -> str:
 
     if "access_token" not in result:
         error_desc = result.get("error_description", result.get("error", "Unknown error"))
-        raise RuntimeError(
-            f"MSAL ROPC authentication failed for tenant {settings.TENANT_ID}: {error_desc}"
-        )
+        raise RuntimeError(f"MSAL ROPC authentication failed for tenant {settings.TENANT_ID}: {error_desc}")
 
     log.debug(
         "Token acquired via ROPC for tenant=%s (expires_in=%s)",

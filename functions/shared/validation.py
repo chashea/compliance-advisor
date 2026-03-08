@@ -3,7 +3,7 @@ Request validation for the ingestion endpoint.
 
 Validates:
 1. Tenant ID against allow-list
-2. JSON body against the PurviewPayload schema (Graph API data)
+2. JSON body against the CompliancePayload schema
 """
 
 import logging
@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 
 PAYLOAD_SCHEMA: dict = {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "title": "PurviewPayload",
+    "title": "CompliancePayload",
     "type": "object",
     "required": [
         "tenant_id",
@@ -25,15 +25,13 @@ PAYLOAD_SCHEMA: dict = {
         "department",
         "display_name",
         "timestamp",
-        "secure_score_current",
-        "secure_score_max",
-        "secure_scores",
-        "control_scores",
-        "control_profiles",
-        "security_alerts",
-        "security_incidents",
-        "risky_users",
-        "service_health",
+        "ediscovery_cases",
+        "sensitivity_labels",
+        "retention_labels",
+        "retention_events",
+        "audit_records",
+        "dlp_alerts",
+        "protection_scopes",
         "collector_version",
     ],
     "properties": {
@@ -42,15 +40,13 @@ PAYLOAD_SCHEMA: dict = {
         "department": {"type": "string", "minLength": 1},
         "display_name": {"type": "string", "minLength": 1},
         "timestamp": {"type": "string"},
-        "secure_score_current": {"type": "number", "minimum": 0},
-        "secure_score_max": {"type": "number", "minimum": 0},
-        "secure_scores": {"type": "array"},
-        "control_scores": {"type": "array"},
-        "control_profiles": {"type": "array"},
-        "security_alerts": {"type": "array"},
-        "security_incidents": {"type": "array"},
-        "risky_users": {"type": "array"},
-        "service_health": {"type": "array"},
+        "ediscovery_cases": {"type": "array"},
+        "sensitivity_labels": {"type": "array"},
+        "retention_labels": {"type": "array"},
+        "retention_events": {"type": "array"},
+        "audit_records": {"type": "array"},
+        "dlp_alerts": {"type": "array"},
+        "protection_scopes": {"type": "array"},
         "collector_version": {"type": "string"},
     },
     "additionalProperties": False,

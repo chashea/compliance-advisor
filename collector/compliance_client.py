@@ -1,17 +1,19 @@
 """
-Microsoft Graph API client for Purview/security data collection.
+Microsoft Graph API client for compliance workload data collection.
 
 Pulls data from:
-- GET /v1.0/security/secureScores              — Microsoft Secure Score (daily)
-- GET /v1.0/security/secureScoreControlProfiles — control-level details
-- GET /v1.0/security/alerts_v2                  — security alerts
-- GET /v1.0/security/incidents                  — security incidents
-- GET /v1.0/identityProtection/riskyUsers       — risky users
-- GET /v1.0/identity/conditionalAccess/policies — CA policies
-- GET /v1.0/admin/serviceAnnouncement/healthOverviews — service health
+- GET  /v1.0/security/cases/ediscoveryCases                     — eDiscovery cases
+- GET  /beta/security/informationProtection/sensitivityLabels    — sensitivity labels
+- GET  /v1.0/security/labels/retentionLabels                     — retention labels
+- GET  /v1.0/security/triggers/retentionEvents                   — retention events
+- POST /v1.0/security/auditLog/queries + GET records             — audit log (async)
+- GET  /v1.0/security/alerts_v2?$filter=...DLP                  — DLP alerts
+- POST /v1.0/dataSecurityAndGovernance/protectionScopes/compute  — protection scopes
 """
 
 import logging
+import time
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import requests
@@ -21,6 +23,7 @@ from urllib3.util.retry import Retry
 log = logging.getLogger(__name__)
 
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
+GRAPH_BETA = "https://graph.microsoft.com/beta"
 
 
 def _session(token: str) -> requests.Session:
@@ -29,14 +32,16 @@ def _session(token: str) -> requests.Session:
         total=4,
         backoff_factor=1,
         status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["GET"],
+        allowed_methods=["GET", "POST"],
         respect_retry_after_header=True,
     )
     s.mount("https://", HTTPAdapter(max_retries=retry))
-    s.headers.update({
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-    })
+    s.headers.update(
+        {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+    )
     return s
 
 
@@ -54,228 +59,333 @@ def _paginate(sess: requests.Session, url: str, max_pages: int = 10) -> list[dic
     return items
 
 
-# ── Secure Score ──────────────────────────────────────────────────
+# ── eDiscovery ────────────────────────────────────────────────────
 
 
-def get_secure_scores(token: str, days: int = 7) -> list[dict[str, Any]]:
-    """Return recent Secure Score snapshots (one per day)."""
+def get_ediscovery_cases(token: str) -> list[dict[str, Any]]:
+    """Return eDiscovery cases."""
     sess = _session(token)
-    url = f"{GRAPH_BASE}/security/secureScores?$top={days}&$orderby=createdDateTime desc"
-
-    try:
-        items = _paginate(sess, url, max_pages=1)
-    except requests.HTTPError as e:
-        log.warning("secureScores failed: %s", e)
-        return []
-
-    scores = []
-    for item in items:
-        control_scores = item.get("controlScores", [])
-        scores.append({
-            "date": item.get("createdDateTime", "")[:10],
-            "current_score": float(item.get("currentScore", 0)),
-            "max_score": float(item.get("maxScore", 0)),
-            "active_user_count": item.get("activeUserCount", 0),
-            "licensed_user_count": item.get("licensedUserCount", 0),
-            "enabled_services": item.get("enabledServices", []),
-            "control_scores_count": len(control_scores),
-            "controls_implemented": sum(
-                1 for c in control_scores
-                if c.get("scoreInPercentage", 0) == 100
-            ),
-        })
-
-    log.info("Retrieved %d secure score snapshots", len(scores))
-    return scores
-
-
-# ── Secure Score Control Profiles ─────────────────────────────────
-
-
-def get_control_profiles(token: str) -> list[dict[str, Any]]:
-    """Return all Secure Score control profiles."""
-    sess = _session(token)
-    url = f"{GRAPH_BASE}/security/secureScoreControlProfiles"
+    url = f"{GRAPH_BASE}/security/cases/ediscoveryCases"
 
     try:
         items = _paginate(sess, url)
     except requests.HTTPError as e:
-        log.warning("secureScoreControlProfiles failed: %s", e)
+        log.warning("ediscoveryCases failed: %s", e)
         return []
 
-    controls = []
+    cases = []
     for item in items:
-        if item.get("deprecated"):
-            continue
-        controls.append({
-            "control_id": item.get("id", ""),
-            "title": item.get("title", ""),
-            "max_score": float(item.get("maxScore", 0)),
-            "service": item.get("service", ""),
-            "category": item.get("controlCategory", ""),
-            "action_type": item.get("actionType", ""),
-            "tier": item.get("tier", ""),
-            "implementation_cost": item.get("implementationCost", ""),
-            "user_impact": item.get("userImpact", ""),
-        })
+        custodians = item.get("custodians", [])
+        cases.append(
+            {
+                "case_id": item.get("id", ""),
+                "display_name": item.get("displayName", ""),
+                "status": item.get("status", ""),
+                "created": item.get("createdDateTime", ""),
+                "closed": item.get("closedDateTime", ""),
+                "external_id": item.get("externalId", ""),
+                "custodian_count": len(custodians) if isinstance(custodians, list) else 0,
+            }
+        )
 
-    log.info("Retrieved %d control profiles", len(controls))
-    return controls
-
-
-# ── Current Control Scores (from latest Secure Score) ─────────────
+    log.info("Retrieved %d eDiscovery cases", len(cases))
+    return cases
 
 
-def get_control_scores(token: str) -> list[dict[str, Any]]:
-    """Return per-control scores from the latest Secure Score snapshot."""
+# ── Information Protection (sensitivity labels) ───────────────────
+
+
+def get_sensitivity_labels(token: str) -> list[dict[str, Any]]:
+    """Return sensitivity labels (beta API with v1.0 fallback)."""
     sess = _session(token)
-    url = f"{GRAPH_BASE}/security/secureScores?$top=1"
+    url = f"{GRAPH_BETA}/security/informationProtection/sensitivityLabels"
 
     try:
-        resp = sess.get(url, timeout=30)
-        resp.raise_for_status()
-        data = resp.json()
-        items = data.get("value", [])
+        items = _paginate(sess, url)
     except requests.HTTPError as e:
-        log.warning("secureScores (for controls) failed: %s", e)
-        return []
+        log.warning("sensitivityLabels (beta) failed: %s — trying v1.0", e)
+        try:
+            url = f"{GRAPH_BASE}/security/informationProtection/sensitivityLabels"
+            items = _paginate(sess, url)
+        except requests.HTTPError as e2:
+            log.warning("sensitivityLabels (v1.0) failed: %s", e2)
+            return []
 
-    if not items:
-        return []
+    labels = []
+    for item in items:
+        labels.append(
+            {
+                "label_id": item.get("id", ""),
+                "name": item.get("name", ""),
+                "description": item.get("description", ""),
+                "color": item.get("color", ""),
+                "is_active": item.get("isActive", True),
+                "parent_id": item.get("parent", {}).get("id", "") if isinstance(item.get("parent"), dict) else "",
+                "priority": item.get("priority", 0),
+                "tooltip": item.get("toolTip", ""),
+            }
+        )
 
-    control_scores = items[0].get("controlScores", [])
-    results = []
-    for cs in control_scores:
-        results.append({
-            "control_name": cs.get("controlName", ""),
-            "category": cs.get("controlCategory", ""),
-            "score": float(cs.get("score", 0)),
-            "score_pct": float(cs.get("scoreInPercentage", 0)),
-            "implementation_status": cs.get("implementationStatus", ""),
-            "last_synced": cs.get("lastSynced", ""),
-            "on": cs.get("on", ""),
-            "description": cs.get("description", ""),
-        })
-
-    log.info("Retrieved %d control scores", len(results))
-    return results
+    log.info("Retrieved %d sensitivity labels", len(labels))
+    return labels
 
 
-# ── Security Alerts ───────────────────────────────────────────────
+# ── Records Management (retention labels) ─────────────────────────
 
 
-def get_security_alerts(token: str) -> list[dict[str, Any]]:
-    """Return active security alerts."""
+def get_retention_labels(token: str) -> list[dict[str, Any]]:
+    """Return retention labels."""
     sess = _session(token)
-    url = f"{GRAPH_BASE}/security/alerts_v2?$top=100&$orderby=createdDateTime desc"
+    url = f"{GRAPH_BASE}/security/labels/retentionLabels"
+
+    try:
+        items = _paginate(sess, url)
+    except requests.HTTPError as e:
+        log.warning("retentionLabels failed: %s", e)
+        return []
+
+    labels = []
+    for item in items:
+        duration = item.get("retentionDuration", {})
+        duration_str = ""
+        if isinstance(duration, dict):
+            duration_str = duration.get("period", "") or str(duration.get("days", ""))
+        elif duration:
+            duration_str = str(duration)
+
+        labels.append(
+            {
+                "label_id": item.get("id", ""),
+                "display_name": item.get("displayName", ""),
+                "retention_duration": duration_str,
+                "retention_trigger": item.get("retentionTrigger", ""),
+                "action_after_retention": item.get("actionAfterRetentionPeriod", ""),
+                "is_in_use": item.get("isInUse", False),
+                "status": item.get("status", ""),
+            }
+        )
+
+    log.info("Retrieved %d retention labels", len(labels))
+    return labels
+
+
+# ── Records Management (retention events) ─────────────────────────
+
+
+def get_retention_events(token: str) -> list[dict[str, Any]]:
+    """Return retention events."""
+    sess = _session(token)
+    url = f"{GRAPH_BASE}/security/triggers/retentionEvents"
+
+    try:
+        items = _paginate(sess, url)
+    except requests.HTTPError as e:
+        log.warning("retentionEvents failed: %s", e)
+        return []
+
+    events = []
+    for item in items:
+        event_type = item.get("eventType", {})
+        event_type_name = ""
+        if isinstance(event_type, dict):
+            event_type_name = event_type.get("displayName", "")
+        elif event_type:
+            event_type_name = str(event_type)
+
+        events.append(
+            {
+                "event_id": item.get("id", ""),
+                "display_name": item.get("displayName", ""),
+                "event_type": event_type_name,
+                "created": item.get("createdDateTime", ""),
+                "event_status": (
+                    item.get("eventStatus", {}).get("status", "")
+                    if isinstance(item.get("eventStatus"), dict)
+                    else str(item.get("eventStatus", ""))
+                ),
+            }
+        )
+
+    log.info("Retrieved %d retention events", len(events))
+    return events
+
+
+# ── Audit Log (async query API) ───────────────────────────────────
+
+
+def get_audit_log_records(token: str, days: int = 1) -> list[dict[str, Any]]:
+    """Create an audit log query, poll until complete, then fetch records."""
+    sess = _session(token)
+    now = datetime.now(timezone.utc)
+    start = (now - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    end = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    query_body = {
+        "displayName": f"compliance-advisor-{now.strftime('%Y%m%d%H%M%S')}",
+        "filterStartDateTime": start,
+        "filterEndDateTime": end,
+        "recordTypeFilters": [
+            "dlpRule",
+            "retentionPolicy",
+            "sensitivityLabelAction",
+            "sensitivityLabeledFileAction",
+            "eDDiscovery",
+            "complianceDLPExchange",
+            "complianceDLPSharePoint",
+            "complianceDLPSharePointClassification",
+        ],
+    }
+
+    # Create query
+    try:
+        resp = sess.post(f"{GRAPH_BASE}/security/auditLog/queries", json=query_body, timeout=30)
+        resp.raise_for_status()
+        query_data = resp.json()
+        query_id = query_data.get("id", "")
+    except requests.HTTPError as e:
+        log.warning("auditLog query creation failed: %s", e)
+        return []
+
+    if not query_id:
+        log.warning("auditLog query returned no id")
+        return []
+
+    # Poll for completion with exponential backoff
+    poll_url = f"{GRAPH_BASE}/security/auditLog/queries/{query_id}"
+    wait = 2
+    max_wait = 60
+    total_waited = 0
+    max_total = 300  # 5 minutes max
+
+    while total_waited < max_total:
+        time.sleep(wait)
+        total_waited += wait
+
+        try:
+            resp = sess.get(poll_url, timeout=30)
+            resp.raise_for_status()
+            status_data = resp.json()
+        except requests.HTTPError as e:
+            log.warning("auditLog query poll failed: %s", e)
+            return []
+
+        status = status_data.get("status", "")
+        if status == "succeeded":
+            break
+        if status in ("failed", "cancelled"):
+            log.warning("auditLog query %s: %s", status, query_id)
+            return []
+
+        wait = min(wait * 2, max_wait)
+
+    else:
+        log.warning("auditLog query timed out after %ds: %s", max_total, query_id)
+        return []
+
+    # Fetch records
+    records_url = f"{poll_url}/records"
+    try:
+        items = _paginate(sess, records_url)
+    except requests.HTTPError as e:
+        log.warning("auditLog records fetch failed: %s", e)
+        return []
+
+    records = []
+    for item in items:
+        records.append(
+            {
+                "record_id": item.get("id", ""),
+                "record_type": item.get("auditLogRecordType", ""),
+                "operation": item.get("operation", ""),
+                "service": item.get("service", ""),
+                "user_id": item.get("userPrincipalName", "") or item.get("userId", ""),
+                "created": item.get("createdDateTime", ""),
+            }
+        )
+
+    log.info("Retrieved %d audit log records", len(records))
+    return records
+
+
+# ── DLP Alerts ────────────────────────────────────────────────────
+
+
+def get_dlp_alerts(token: str) -> list[dict[str, Any]]:
+    """Return DLP alerts from alerts_v2 filtered to DLP source."""
+    sess = _session(token)
+    url = (
+        f"{GRAPH_BASE}/security/alerts_v2"
+        "?$filter=serviceSource eq 'microsoftDataLossPrevention'"
+        "&$top=100&$orderby=createdDateTime desc"
+    )
 
     try:
         items = _paginate(sess, url, max_pages=5)
     except requests.HTTPError as e:
-        log.warning("security alerts failed: %s", e)
+        log.warning("DLP alerts failed: %s", e)
         return []
 
     alerts = []
     for item in items:
-        alerts.append({
-            "alert_id": item.get("id", ""),
-            "title": item.get("title", ""),
-            "severity": item.get("severity", ""),
-            "status": item.get("status", ""),
-            "category": item.get("category", ""),
-            "service_source": item.get("serviceSource", ""),
-            "created": item.get("createdDateTime", ""),
-            "resolved": item.get("resolvedDateTime", ""),
-        })
+        policy_name = ""
+        evidence = item.get("evidence", [])
+        if isinstance(evidence, list):
+            for ev in evidence:
+                if isinstance(ev, dict) and ev.get("@odata.type", "").endswith("dlpPolicyEvidence"):
+                    policy_name = ev.get("policyName", "")
+                    break
 
-    log.info("Retrieved %d security alerts", len(alerts))
+        alerts.append(
+            {
+                "alert_id": item.get("id", ""),
+                "title": item.get("title", ""),
+                "severity": item.get("severity", ""),
+                "status": item.get("status", ""),
+                "category": item.get("category", ""),
+                "created": item.get("createdDateTime", ""),
+                "resolved": item.get("resolvedDateTime", ""),
+                "policy_name": policy_name,
+            }
+        )
+
+    log.info("Retrieved %d DLP alerts", len(alerts))
     return alerts
 
 
-# ── Security Incidents ────────────────────────────────────────────
+# ── Data Security & Governance (protection scopes) ────────────────
 
 
-def get_security_incidents(token: str) -> list[dict[str, Any]]:
-    """Return security incidents."""
+def get_protection_scopes(token: str) -> list[dict[str, Any]]:
+    """Return tenant-level protection scopes."""
     sess = _session(token)
-    url = f"{GRAPH_BASE}/security/incidents?$top=100"
+    url = f"{GRAPH_BASE}/dataSecurityAndGovernance/protectionScopes/compute"
 
     try:
-        items = _paginate(sess, url, max_pages=5)
-    except requests.HTTPError as e:
-        log.warning("security incidents failed: %s", e)
-        return []
-
-    incidents = []
-    for item in items:
-        incidents.append({
-            "incident_id": item.get("id", ""),
-            "display_name": item.get("displayName", ""),
-            "severity": item.get("severity", ""),
-            "status": item.get("status", ""),
-            "classification": item.get("classification", ""),
-            "created": item.get("createdDateTime", ""),
-            "last_update": item.get("lastUpdateDateTime", ""),
-            "assigned_to": item.get("assignedTo", ""),
-        })
-
-    log.info("Retrieved %d security incidents", len(incidents))
-    return incidents
-
-
-# ── Risky Users ───────────────────────────────────────────────────
-
-
-def get_risky_users(token: str) -> list[dict[str, Any]]:
-    """Return users flagged as risky by Identity Protection."""
-    sess = _session(token)
-    url = f"{GRAPH_BASE}/identityProtection/riskyUsers?$top=100"
-
-    try:
-        items = _paginate(sess, url, max_pages=3)
-    except requests.HTTPError as e:
-        log.warning("risky users failed: %s", e)
-        return []
-
-    users = []
-    for item in items:
-        users.append({
-            "user_id": item.get("id", ""),
-            "user_display_name": item.get("userDisplayName", ""),
-            "user_principal_name": item.get("userPrincipalName", ""),
-            "risk_level": item.get("riskLevel", ""),
-            "risk_state": item.get("riskState", ""),
-            "risk_detail": item.get("riskDetail", ""),
-            "risk_last_updated": item.get("riskLastUpdatedDateTime", ""),
-        })
-
-    log.info("Retrieved %d risky users", len(users))
-    return users
-
-
-# ── Service Health ────────────────────────────────────────────────
-
-
-def get_service_health(token: str) -> list[dict[str, Any]]:
-    """Return M365 service health overview."""
-    sess = _session(token)
-    url = f"{GRAPH_BASE}/admin/serviceAnnouncement/healthOverviews"
-
-    try:
-        resp = sess.get(url, timeout=30)
+        resp = sess.post(url, json={}, timeout=30)
         resp.raise_for_status()
         data = resp.json()
-        items = data.get("value", [])
     except requests.HTTPError as e:
-        log.warning("service health failed: %s", e)
+        log.warning("protectionScopes failed: %s", e)
         return []
 
-    services = []
-    for item in items:
-        services.append({
-            "service_name": item.get("service", ""),
-            "status": item.get("status", ""),
-        })
+    items = data.get("value", []) if isinstance(data.get("value"), list) else [data] if data else []
 
-    log.info("Retrieved health for %d services", len(services))
-    return services
+    scopes = []
+    for item in items:
+        locations = item.get("monitoredLocations", [])
+        location_str = ", ".join(locations) if isinstance(locations, list) else str(locations or "")
+
+        activity_types = item.get("activityTypes", [])
+        activity_str = ", ".join(activity_types) if isinstance(activity_types, list) else str(activity_types or "")
+
+        scopes.append(
+            {
+                "scope_type": item.get("policyType", "") or item.get("@odata.type", ""),
+                "execution_mode": item.get("executionMode", ""),
+                "locations": location_str,
+                "activity_types": activity_str,
+            }
+        )
+
+    log.info("Retrieved %d protection scopes", len(scopes))
+    return scopes

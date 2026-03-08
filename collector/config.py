@@ -2,11 +2,11 @@
 Collector configuration using Pydantic Settings.
 
 Uses ROPC (Resource Owner Password Credential) flow with service accounts
-to authenticate to the Compliance Manager portal APIs.
+to authenticate to the Microsoft Graph compliance APIs.
 
 GCC (standard) uses:
   - login.microsoftonline.com
-  - compliance.microsoft.com
+  - graph.microsoft.com
 """
 
 from pydantic import Field
@@ -35,6 +35,9 @@ class CollectorSettings(BaseSettings):
     # Azure Function App ingestion endpoint
     FUNCTION_APP_URL: str = Field(..., description="e.g., https://cadvisor-func.azurewebsites.net/api/ingest")
     FUNCTION_APP_KEY: str = Field(default="", description="Function-level API key")
+
+    # Audit log query lookback window
+    AUDIT_LOG_DAYS: int = Field(default=1, description="Days of audit log history to query")
 
     @property
     def login_authority(self) -> str:
