@@ -9,14 +9,24 @@ Reads only metadata (counts, statuses, labels) — never PII or content.
 
 import json
 import logging
+from typing import Any
 
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
-from openai import AzureOpenAI
 
 from shared.config import get_settings
 from shared.db import query
 
 log = logging.getLogger(__name__)
+
+
+class AdvisorAIError(RuntimeError):
+    """Raised when advisor generation fails with a user-safe error."""
+
+    def __init__(self, code: str, message: str, status_code: int = 502):
+        super().__init__(message)
+        self.code = code
+        self.status_code = status_code
+
 
 SYSTEM_PROMPT = """\
 You are an AI compliance advisor for a government CISO overseeing Microsoft 365
@@ -49,7 +59,16 @@ Guidelines:
 """
 
 
-def _get_openai_client() -> AzureOpenAI:
+def _get_openai_client() -> Any:
+    try:
+        from openai import AzureOpenAI
+    except ImportError as e:
+        raise AdvisorAIError(
+            "ai_configuration_error",
+            "OpenAI SDK dependency is missing in the Function App environment.",
+            status_code=500,
+        ) from e
+
     settings = get_settings()
     token_provider = get_bearer_token_provider(
         DefaultAzureCredential(),
@@ -174,6 +193,29 @@ def _build_context(department: str | None = None) -> str:
     return "\n\n".join(parts)
 
 
+def _extract_text_content(response) -> str:
+    choices = getattr(response, "choices", None) or []
+    if not choices:
+        raise AdvisorAIError("ai_invalid_response", "AI service returned no choices.", status_code=502)
+
+    message = getattr(choices[0], "message", None)
+    content = getattr(message, "content", None) if message else None
+
+    if isinstance(content, str) and content.strip():
+        return content.strip()
+
+    if isinstance(content, list):
+        text_parts: list[str] = []
+        for part in content:
+            if isinstance(part, dict) and part.get("type") == "text" and part.get("text"):
+                text_parts.append(str(part["text"]))
+        merged = "\n".join(text_parts).strip()
+        if merged:
+            return merged
+
+    raise AdvisorAIError("ai_invalid_response", "AI service returned an empty answer.", status_code=502)
+
+
 def ask_advisor(question: str, department: str | None = None) -> dict:
     """Query the AI compliance advisor.
 
@@ -184,27 +226,63 @@ def ask_advisor(question: str, department: str | None = None) -> dict:
     Returns:
         {"answer": str, "model": str, "usage": {"prompt_tokens": int, "completion_tokens": int}}
     """
-    client = _get_openai_client()
-    settings = get_settings()
-    context = _build_context(department)
+    try:
+        context = _build_context(department)
+    except Exception as e:
+        log.exception("Failed to build advisor context: %s", e)
+        raise AdvisorAIError("ai_context_error", "Failed to build advisor data context.", status_code=500) from e
+
+    if not context.strip():
+        raise AdvisorAIError(
+            "ai_no_data",
+            "No compliance data is available yet. Run data collection and try again.",
+            status_code=503,
+        )
+
+    try:
+        client = _get_openai_client()
+        settings = get_settings()
+    except Exception as e:
+        log.exception("Failed to initialize AI advisor client: %s", e)
+        raise AdvisorAIError(
+            "ai_configuration_error",
+            "AI advisor is not configured correctly. Check Azure OpenAI settings.",
+            status_code=500,
+        ) from e
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": f"DATA CONTEXT:\n{context}\n\nQUESTION: {question}"},
     ]
 
-    response = client.chat.completions.create(
-        model=settings.AZURE_OPENAI_DEPLOYMENT,
-        messages=messages,
-        temperature=0.2,
-        max_tokens=2048,
-    )
+    try:
+        response = client.chat.completions.create(
+            model=settings.AZURE_OPENAI_DEPLOYMENT,
+            messages=messages,
+            temperature=0.2,
+            max_tokens=2048,
+        )
+        answer = _extract_text_content(response)
+    except AdvisorAIError:
+        raise
+    except Exception as e:
+        log.exception("AI advisor request failed: %s", e)
+        raise AdvisorAIError(
+            "ai_service_error",
+            "AI service is unavailable right now. Please try again shortly.",
+            status_code=502,
+        ) from e
+
+    usage = getattr(response, "usage", None)
+    prompt_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
+    completion_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
+    model = getattr(response, "model", settings.AZURE_OPENAI_DEPLOYMENT)
 
     return {
-        "answer": response.choices[0].message.content,
-        "model": response.model,
+        "answer": answer,
+        "model": model,
         "usage": {
-            "prompt_tokens": response.usage.prompt_tokens,
-            "completion_tokens": response.usage.completion_tokens,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
         },
     }

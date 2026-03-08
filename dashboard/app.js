@@ -50,7 +50,8 @@ async function api(action, body = {}) {
   });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ error: resp.statusText }));
-    throw new Error(err.error || `API error: ${resp.status}`);
+    const message = err?.error || `API error: ${resp.status}`;
+    throw new Error(err?.code ? `[${err.code}] ${message}` : message);
   }
   return resp.json();
 }
@@ -515,7 +516,7 @@ function initBriefing() {
       content.innerHTML = `<div class="briefing-text">${formatBriefing(data.briefing)}</div>`;
       copyBtn.disabled = false;
     } catch (err) {
-      content.innerHTML = `<p class="placeholder-text" style="color:var(--red)">Error: ${esc(err.message)}</p>`;
+      content.innerHTML = `<p class="placeholder-text" style="color:var(--bad)">Error: ${esc(err.message)}</p>`;
     } finally {
       btn.disabled = false;
       btn.textContent = "Generate Briefing";
@@ -547,6 +548,7 @@ function initAdvisor() {
 
   async function askQuestion(question) {
     if (!question.trim()) return;
+    resp.classList.add("visible");
     resp.innerHTML = '<p class="placeholder-text">Thinking...</p>';
     try {
       const dept = $("#department-filter")?.value || "";
@@ -555,7 +557,7 @@ function initAdvisor() {
       const data = await api("ask", body);
       resp.innerHTML = `<div class="briefing-text">${formatBriefing(data.answer)}</div>`;
     } catch (err) {
-      resp.innerHTML = `<p style="color:var(--red)">${esc(err.message)}</p>`;
+      resp.innerHTML = `<p style="color:var(--bad)">${esc(err.message)}</p>`;
     }
   }
 

@@ -11,7 +11,7 @@ import json
 import logging
 
 import azure.functions as func
-from shared.ai_agent import ask_advisor
+from shared.ai_agent import AdvisorAIError, ask_advisor
 from shared.dashboard_queries import (
     get_audit,
     get_dlp,
@@ -171,6 +171,9 @@ def advisor_briefing(req: func.HttpRequest) -> func.HttpResponse:
             department=department,
         )
         return _json_response({"briefing": result["answer"]})
+    except AdvisorAIError as e:
+        log.warning("advisor/briefing AI error [%s]: %s", e.code, e)
+        return _json_response({"error": str(e), "code": e.code}, e.status_code)
     except Exception as e:
         log.exception("advisor/briefing error: %s", e)
         return _json_response({"error": str(e)}, 500)
@@ -186,6 +189,9 @@ def advisor_ask(req: func.HttpRequest) -> func.HttpResponse:
             return _json_response({"error": "Missing 'question' field"}, 400)
         result = ask_advisor(question=question, department=body.get("department"))
         return _json_response({"answer": result["answer"]})
+    except AdvisorAIError as e:
+        log.warning("advisor/ask AI error [%s]: %s", e.code, e)
+        return _json_response({"error": str(e), "code": e.code}, e.status_code)
     except Exception as e:
         log.exception("advisor/ask error: %s", e)
         return _json_response({"error": str(e)}, 500)
