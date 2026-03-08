@@ -11,33 +11,48 @@ import json
 import logging
 
 import azure.functions as func
-from shared.ai_agent import AdvisorAIError, ask_advisor
-from shared.dashboard_queries import (
-    get_audit,
-    get_dlp,
-    get_ediscovery,
-    get_governance,
-    get_labels,
-    get_overview,
-    get_status,
-    get_trend,
-)
-from shared.db import (
-    query,
-    upsert_audit_record,
-    upsert_dlp_alert,
-    upsert_ediscovery_case,
-    upsert_protection_scope,
-    upsert_retention_event,
-    upsert_retention_label,
-    upsert_sensitivity_label,
-    upsert_tenant,
-    upsert_trend,
-)
-from shared.validation import validate_ingestion_request
 
 app = func.FunctionApp()
 log = logging.getLogger(__name__)
+_DEPENDENCY_IMPORT_ERROR: Exception | None = None
+
+try:
+    from shared.ai_agent import AdvisorAIError, ask_advisor
+    from shared.dashboard_queries import (
+        get_audit,
+        get_dlp,
+        get_ediscovery,
+        get_governance,
+        get_labels,
+        get_overview,
+        get_status,
+        get_trend,
+    )
+    from shared.db import (
+        query,
+        upsert_audit_record,
+        upsert_dlp_alert,
+        upsert_ediscovery_case,
+        upsert_protection_scope,
+        upsert_retention_event,
+        upsert_retention_label,
+        upsert_sensitivity_label,
+        upsert_tenant,
+        upsert_trend,
+    )
+    from shared.validation import validate_ingestion_request
+except Exception as e:
+    _DEPENDENCY_IMPORT_ERROR = e
+    log.exception("Function dependency import failed at startup: %s", e)
+
+    class AdvisorAIError(RuntimeError):
+        code = "ai_service_error"
+        status_code = 500
+
+
+def _ensure_dependencies_loaded() -> None:
+    if _DEPENDENCY_IMPORT_ERROR is not None:
+        raise RuntimeError("Function dependencies failed to load. Check deployment package and app settings.")
 
 
 def _json_response(data: dict, status_code: int = 200) -> func.HttpResponse:
@@ -63,6 +78,7 @@ def _get_body(req: func.HttpRequest) -> dict:
 @app.route(route="advisor/status", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
 def advisor_status(req: func.HttpRequest) -> func.HttpResponse:
     try:
+        _ensure_dependencies_loaded()
         return _json_response(get_status())
     except Exception as e:
         log.exception("advisor/status error: %s", e)
@@ -73,6 +89,7 @@ def advisor_status(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="advisor/overview", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
 def advisor_overview(req: func.HttpRequest) -> func.HttpResponse:
     try:
+        _ensure_dependencies_loaded()
         body = _get_body(req)
         return _json_response(get_overview(department=body.get("department")))
     except Exception as e:
@@ -84,6 +101,7 @@ def advisor_overview(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="advisor/ediscovery", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
 def advisor_ediscovery(req: func.HttpRequest) -> func.HttpResponse:
     try:
+        _ensure_dependencies_loaded()
         body = _get_body(req)
         return _json_response(get_ediscovery(department=body.get("department")))
     except Exception as e:
@@ -95,6 +113,7 @@ def advisor_ediscovery(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="advisor/labels", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
 def advisor_labels(req: func.HttpRequest) -> func.HttpResponse:
     try:
+        _ensure_dependencies_loaded()
         body = _get_body(req)
         return _json_response(get_labels(department=body.get("department")))
     except Exception as e:
@@ -106,6 +125,7 @@ def advisor_labels(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="advisor/audit", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
 def advisor_audit(req: func.HttpRequest) -> func.HttpResponse:
     try:
+        _ensure_dependencies_loaded()
         body = _get_body(req)
         return _json_response(get_audit(department=body.get("department")))
     except Exception as e:
@@ -117,6 +137,7 @@ def advisor_audit(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="advisor/dlp", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
 def advisor_dlp(req: func.HttpRequest) -> func.HttpResponse:
     try:
+        _ensure_dependencies_loaded()
         body = _get_body(req)
         return _json_response(get_dlp(department=body.get("department")))
     except Exception as e:
@@ -128,6 +149,7 @@ def advisor_dlp(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="advisor/governance", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
 def advisor_governance(req: func.HttpRequest) -> func.HttpResponse:
     try:
+        _ensure_dependencies_loaded()
         body = _get_body(req)
         return _json_response(get_governance(department=body.get("department")))
     except Exception as e:
@@ -139,6 +161,7 @@ def advisor_governance(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="advisor/trend", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
 def advisor_trend(req: func.HttpRequest) -> func.HttpResponse:
     try:
+        _ensure_dependencies_loaded()
         body = _get_body(req)
         try:
             days = int(body.get("days", 30))
@@ -161,6 +184,7 @@ def advisor_trend(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="advisor/briefing", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
 def advisor_briefing(req: func.HttpRequest) -> func.HttpResponse:
     try:
+        _ensure_dependencies_loaded()
         body = _get_body(req)
         department = body.get("department")
         result = ask_advisor(
@@ -183,6 +207,7 @@ def advisor_briefing(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="advisor/ask", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
 def advisor_ask(req: func.HttpRequest) -> func.HttpResponse:
     try:
+        _ensure_dependencies_loaded()
         body = _get_body(req)
         question = body.get("question", "")
         if not question:
@@ -205,6 +230,7 @@ def advisor_ask(req: func.HttpRequest) -> func.HttpResponse:
 def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
     """Receive JSON payload from per-tenant collector."""
     try:
+        _ensure_dependencies_loaded()
         payload = validate_ingestion_request(req)
         snapshot_date = payload["timestamp"][:10]
         tenant_id = payload["tenant_id"]
@@ -350,6 +376,7 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
 def compute_aggregates(timer: func.TimerRequest) -> None:
     """Daily at 6:00 AM UTC: compute compliance workload trend rows."""
     try:
+        _ensure_dependencies_loaded()
         from datetime import date
 
         today = date.today().isoformat()
