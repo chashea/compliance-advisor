@@ -52,7 +52,10 @@ except Exception as e:
 
 def _ensure_dependencies_loaded() -> None:
     if _DEPENDENCY_IMPORT_ERROR is not None:
-        raise RuntimeError("Function dependencies failed to load. Check deployment package and app settings.")
+        error_detail = f"{type(_DEPENDENCY_IMPORT_ERROR).__name__}: {_DEPENDENCY_IMPORT_ERROR}"
+        raise RuntimeError(
+            f"Function dependencies failed to load: {error_detail}"
+        )
 
 
 def _json_response(data: dict, status_code: int = 200) -> func.HttpResponse:
