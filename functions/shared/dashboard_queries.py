@@ -368,8 +368,17 @@ def get_trend(department: str | None = None, days: int = 30) -> dict:
 
     trend = query(
         f"""
-        SELECT ct.snapshot_date::text, ct.ediscovery_cases, ct.sensitivity_labels,
-               ct.retention_labels, ct.dlp_alerts, ct.audit_records, ct.tenant_count
+        SELECT
+            ct.snapshot_date::text,
+            COALESCE((to_jsonb(ct) ->> 'ediscovery_cases')::int, (to_jsonb(ct) ->> 'ediscovery')::int, 0)
+                AS ediscovery_cases,
+            COALESCE((to_jsonb(ct) ->> 'sensitivity_labels')::int, (to_jsonb(ct) ->> 'sensitivity')::int, 0)
+                AS sensitivity_labels,
+            COALESCE((to_jsonb(ct) ->> 'retention_labels')::int, (to_jsonb(ct) ->> 'retention')::int, 0)
+                AS retention_labels,
+            COALESCE((to_jsonb(ct) ->> 'dlp_alerts')::int, (to_jsonb(ct) ->> 'dlp')::int, 0) AS dlp_alerts,
+            COALESCE((to_jsonb(ct) ->> 'audit_records')::int, (to_jsonb(ct) ->> 'audit')::int, 0) AS audit_records,
+            COALESCE((to_jsonb(ct) ->> 'tenant_count')::int, (to_jsonb(ct) ->> 'tenants')::int, 0) AS tenant_count
         FROM compliance_trend ct
         {trend_filter}
           AND ct.snapshot_date >= %(cutoff)s

@@ -164,6 +164,7 @@ def test_get_trend_default_30_days(mock_q):
     expected_cutoff = (date.today() - timedelta(days=30)).isoformat()
     assert params["cutoff"] == expected_cutoff
     assert "department IS NULL" in sql
+    assert "to_jsonb(ct)" in sql
     assert result["trend"] == [{"snapshot_date": "2026-03-01", "tenant_count": 2}]
 
 
