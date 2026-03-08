@@ -328,21 +328,95 @@ function renderRetentionLabels() {
 
 function renderDLPAlerts() {
   const alerts = currentData.dlp?.alerts || [];
+  populateDLPFilters(alerts);
+  applyDLPFilters();
+}
+
+function populateDLPFilters(alerts) {
+  const statusSel = $("#dlp-status-filter");
+  const tenantSel = $("#dlp-tenant-filter");
+  if (!statusSel || !tenantSel) return;
+
+  const curStatus = statusSel.value;
+  const curTenant = tenantSel.value;
+
+  const statuses = [...new Set(alerts.map(a => a.status).filter(Boolean))].sort();
+  const tenants = [...new Set(alerts.map(a => a.tenant_name).filter(Boolean))].sort();
+
+  while (statusSel.options.length > 1) statusSel.remove(1);
+  statuses.forEach(s => {
+    const opt = document.createElement("option");
+    opt.value = s;
+    opt.textContent = s;
+    statusSel.add(opt);
+  });
+  statusSel.value = curStatus;
+
+  while (tenantSel.options.length > 1) tenantSel.remove(1);
+  tenants.forEach(t => {
+    const opt = document.createElement("option");
+    opt.value = t;
+    opt.textContent = t;
+    tenantSel.add(opt);
+  });
+  tenantSel.value = curTenant;
+}
+
+function applyDLPFilters() {
+  const alerts = currentData.dlp?.alerts || [];
+  const sevFilter = $("#dlp-severity-filter")?.value || "";
+  const statusFilter = $("#dlp-status-filter")?.value || "";
+  const tenantFilter = $("#dlp-tenant-filter")?.value || "";
+
+  const filtered = alerts.filter(a => {
+    if (sevFilter && (a.severity || "").toLowerCase() !== sevFilter) return false;
+    if (statusFilter && a.status !== statusFilter) return false;
+    if (tenantFilter && a.tenant_name !== tenantFilter) return false;
+    return true;
+  });
+
   const tbody = $("#dlp-table tbody");
-  if (alerts.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="placeholder-text">No DLP alerts</td></tr>';
-    return;
+  if (filtered.length === 0) {
+    const msg = alerts.length === 0 ? "No DLP alerts" : "No alerts match the selected filters";
+    tbody.innerHTML = `<tr><td colspan="6" class="placeholder-text">${msg}</td></tr>`;
+  } else {
+    tbody.innerHTML = filtered.map(a => `
+      <tr>
+        <td>${esc(a.title)}</td>
+        <td>${severityBadge(a.severity)}</td>
+        <td>${statusBadge(a.status)}</td>
+        <td>${esc(a.policy_name)}</td>
+        <td>${esc(a.created?.slice(0, 10) || "")}</td>
+        <td>${esc(a.tenant_name)}</td>
+      </tr>
+    `).join("");
   }
-  tbody.innerHTML = alerts.map(a => `
-    <tr>
-      <td>${esc(a.title)}</td>
-      <td>${severityBadge(a.severity)}</td>
-      <td>${statusBadge(a.status)}</td>
-      <td>${esc(a.policy_name)}</td>
-      <td>${esc(a.created?.slice(0, 10) || "")}</td>
-      <td>${esc(a.tenant_name)}</td>
-    </tr>
-  `).join("");
+
+  updateDLPFilterState();
+}
+
+function updateDLPFilterState() {
+  const sevSel = $("#dlp-severity-filter");
+  const statusSel = $("#dlp-status-filter");
+  const tenantSel = $("#dlp-tenant-filter");
+  const clearBtn = $("#dlp-clear-filters");
+  if (!sevSel || !statusSel || !tenantSel || !clearBtn) return;
+
+  const active = Boolean(sevSel.value) || Boolean(statusSel.value) || Boolean(tenantSel.value);
+  clearBtn.disabled = !active;
+  sevSel.classList.toggle("filter-active", Boolean(sevSel.value));
+  statusSel.classList.toggle("filter-active", Boolean(statusSel.value));
+  tenantSel.classList.toggle("filter-active", Boolean(tenantSel.value));
+}
+
+function clearDLPFilters() {
+  const sevSel = $("#dlp-severity-filter");
+  const statusSel = $("#dlp-status-filter");
+  const tenantSel = $("#dlp-tenant-filter");
+  if (sevSel) sevSel.value = "";
+  if (statusSel) statusSel.value = "";
+  if (tenantSel) tenantSel.value = "";
+  applyDLPFilters();
 }
 
 function renderAuditRecords() {
@@ -593,6 +667,11 @@ document.addEventListener("DOMContentLoaded", () => {
     loadData();
   });
   $("#clear-filters-btn")?.addEventListener("click", clearFilters);
+
+  $("#dlp-severity-filter")?.addEventListener("change", applyDLPFilters);
+  $("#dlp-status-filter")?.addEventListener("change", applyDLPFilters);
+  $("#dlp-tenant-filter")?.addEventListener("change", applyDLPFilters);
+  $("#dlp-clear-filters")?.addEventListener("click", clearDLPFilters);
 
   initSortableTables();
   initBriefing();
