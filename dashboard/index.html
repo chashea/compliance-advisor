@@ -100,6 +100,45 @@
       </div>
     </section>
 
+    <!-- ── DLP Alerts Table ──────────────────────────────────────────── -->
+    <section class="chart-row">
+      <div class="card card--full">
+        <div class="card__header">
+          <h2 class="card__title">DLP Alerts</h2>
+          <div class="dlp-filters">
+            <select id="dlp-severity-filter" aria-label="Filter by severity">
+              <option value="">All Severities</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+            <select id="dlp-status-filter" aria-label="Filter by status">
+              <option value="">All Statuses</option>
+            </select>
+            <select id="dlp-tenant-filter" aria-label="Filter by tenant">
+              <option value="">All Tenants</option>
+            </select>
+            <button id="dlp-clear-filters" class="btn btn--ghost" title="Clear DLP filters" disabled>Clear</button>
+          </div>
+        </div>
+        <div class="card__body">
+          <table class="data-table data-table--sortable" id="dlp-table">
+            <thead>
+              <tr>
+                <th data-sort="title">Alert <span class="sort-icon"></span></th>
+                <th data-sort="severity">Severity <span class="sort-icon"></span></th>
+                <th data-sort="status">Status <span class="sort-icon"></span></th>
+                <th data-sort="policy_name">Policy <span class="sort-icon"></span></th>
+                <th data-sort="created">Created <span class="sort-icon"></span></th>
+                <th data-sort="tenant_name">Tenant <span class="sort-icon"></span></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <!-- ── eDiscovery Cases Table ─────────────────────────────────────── -->
     <section class="chart-row">
       <div class="card card--full">
@@ -149,45 +188,6 @@
                 <th>Duration</th>
                 <th>In Use</th>
                 <th>Status</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── DLP Alerts Table ──────────────────────────────────────────── -->
-    <section class="chart-row">
-      <div class="card card--full">
-        <div class="card__header">
-          <h2 class="card__title">DLP Alerts</h2>
-          <div class="dlp-filters">
-            <select id="dlp-severity-filter" aria-label="Filter by severity">
-              <option value="">All Severities</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
-            <select id="dlp-status-filter" aria-label="Filter by status">
-              <option value="">All Statuses</option>
-            </select>
-            <select id="dlp-tenant-filter" aria-label="Filter by tenant">
-              <option value="">All Tenants</option>
-            </select>
-            <button id="dlp-clear-filters" class="btn btn--ghost" title="Clear DLP filters" disabled>Clear</button>
-          </div>
-        </div>
-        <div class="card__body">
-          <table class="data-table data-table--sortable" id="dlp-table">
-            <thead>
-              <tr>
-                <th data-sort="title">Alert <span class="sort-icon"></span></th>
-                <th data-sort="severity">Severity <span class="sort-icon"></span></th>
-                <th data-sort="status">Status <span class="sort-icon"></span></th>
-                <th data-sort="policy_name">Policy <span class="sort-icon"></span></th>
-                <th data-sort="created">Created <span class="sort-icon"></span></th>
-                <th data-sort="tenant_name">Tenant <span class="sort-icon"></span></th>
               </tr>
             </thead>
             <tbody></tbody>

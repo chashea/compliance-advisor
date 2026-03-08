@@ -270,7 +270,6 @@ select:focus { outline: none; border-color: var(--accent); }
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow: hidden;
 }
 .card--wide { grid-column: span 1; }
 .card--full { grid-column: 1 / -1; }
