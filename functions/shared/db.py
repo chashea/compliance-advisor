@@ -9,7 +9,6 @@ import logging
 from contextlib import contextmanager
 from typing import Any
 
-import psycopg2
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import ThreadedConnectionPool
 
@@ -88,98 +87,220 @@ def upsert_tenant(
 def upsert_snapshot(
     tenant_id: str,
     snapshot_date: str,
-    compliance_score: float,
+    secure_score: float,
     max_score: float,
+    active_user_count: int = 0,
+    licensed_user_count: int = 0,
+    controls_total: int = 0,
+    controls_implemented: int = 0,
     collector_version: str = "",
 ) -> None:
     execute(
         """
-        INSERT INTO posture_snapshots (tenant_id, snapshot_date, compliance_score, max_score, collector_version)
-        VALUES (%s, %s, %s, %s, %s)
+        INSERT INTO posture_snapshots
+            (tenant_id, snapshot_date, secure_score, max_score,
+             active_user_count, licensed_user_count,
+             controls_total, controls_implemented, collector_version)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (tenant_id, snapshot_date) DO UPDATE SET
-            compliance_score = EXCLUDED.compliance_score,
+            secure_score = EXCLUDED.secure_score,
             max_score = EXCLUDED.max_score,
+            active_user_count = EXCLUDED.active_user_count,
+            licensed_user_count = EXCLUDED.licensed_user_count,
+            controls_total = EXCLUDED.controls_total,
+            controls_implemented = EXCLUDED.controls_implemented,
             collector_version = EXCLUDED.collector_version
         """,
-        (tenant_id, snapshot_date, compliance_score, max_score, collector_version),
-    )
-
-
-def upsert_assessment(
-    tenant_id: str,
-    assessment_id: str,
-    assessment_name: str,
-    regulation: str,
-    compliance_score: float,
-    passed_controls: int,
-    failed_controls: int,
-    total_controls: int,
-    snapshot_date: str,
-) -> None:
-    execute(
-        """
-        INSERT INTO assessments
-            (tenant_id, assessment_id, assessment_name, regulation,
-             compliance_score, passed_controls, failed_controls, total_controls, snapshot_date)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (tenant_id, assessment_id, snapshot_date) DO UPDATE SET
-            assessment_name = EXCLUDED.assessment_name,
-            regulation = EXCLUDED.regulation,
-            compliance_score = EXCLUDED.compliance_score,
-            passed_controls = EXCLUDED.passed_controls,
-            failed_controls = EXCLUDED.failed_controls,
-            total_controls = EXCLUDED.total_controls
-        """,
         (
-            tenant_id, assessment_id, assessment_name, regulation,
-            compliance_score, passed_controls, failed_controls, total_controls, snapshot_date,
+            tenant_id, snapshot_date, secure_score, max_score,
+            active_user_count, licensed_user_count,
+            controls_total, controls_implemented, collector_version,
         ),
     )
 
 
-def upsert_action(
+def upsert_control_score(
     tenant_id: str,
-    action_id: str,
     control_name: str,
-    control_family: str,
-    regulation: str,
+    category: str,
+    score: float,
+    score_pct: float,
     implementation_status: str,
-    test_status: str,
-    action_category: str,
-    is_mandatory: bool,
-    point_value: int,
-    owner: str,
-    service: str,
+    last_synced: str,
     description: str,
-    remediation_steps: str,
     snapshot_date: str,
 ) -> None:
     execute(
         """
-        INSERT INTO improvement_actions
-            (tenant_id, action_id, control_name, control_family, regulation,
-             implementation_status, test_status, action_category, is_mandatory,
-             point_value, owner, service, description, remediation_steps, snapshot_date)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (tenant_id, action_id, snapshot_date) DO UPDATE SET
-            control_name = EXCLUDED.control_name,
-            control_family = EXCLUDED.control_family,
-            regulation = EXCLUDED.regulation,
+        INSERT INTO control_scores
+            (tenant_id, control_name, category, score, score_pct,
+             implementation_status, last_synced, description, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (tenant_id, control_name, snapshot_date) DO UPDATE SET
+            category = EXCLUDED.category,
+            score = EXCLUDED.score,
+            score_pct = EXCLUDED.score_pct,
             implementation_status = EXCLUDED.implementation_status,
-            test_status = EXCLUDED.test_status,
-            action_category = EXCLUDED.action_category,
-            is_mandatory = EXCLUDED.is_mandatory,
-            point_value = EXCLUDED.point_value,
-            owner = EXCLUDED.owner,
-            service = EXCLUDED.service,
-            description = EXCLUDED.description,
-            remediation_steps = EXCLUDED.remediation_steps
+            last_synced = EXCLUDED.last_synced,
+            description = EXCLUDED.description
         """,
         (
-            tenant_id, action_id, control_name, control_family, regulation,
-            implementation_status, test_status, action_category, is_mandatory,
-            point_value, owner, service, description, remediation_steps, snapshot_date,
+            tenant_id, control_name, category, score, score_pct,
+            implementation_status, last_synced, description, snapshot_date,
         ),
+    )
+
+
+def upsert_control_profile(
+    tenant_id: str,
+    control_id: str,
+    title: str,
+    max_score: float,
+    service: str,
+    category: str,
+    action_type: str,
+    tier: str,
+    implementation_cost: str,
+    user_impact: str,
+    snapshot_date: str,
+) -> None:
+    execute(
+        """
+        INSERT INTO control_profiles
+            (tenant_id, control_id, title, max_score, service, category,
+             action_type, tier, implementation_cost, user_impact, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (tenant_id, control_id, snapshot_date) DO UPDATE SET
+            title = EXCLUDED.title,
+            max_score = EXCLUDED.max_score,
+            service = EXCLUDED.service,
+            category = EXCLUDED.category,
+            action_type = EXCLUDED.action_type,
+            tier = EXCLUDED.tier,
+            implementation_cost = EXCLUDED.implementation_cost,
+            user_impact = EXCLUDED.user_impact
+        """,
+        (
+            tenant_id, control_id, title, max_score, service, category,
+            action_type, tier, implementation_cost, user_impact, snapshot_date,
+        ),
+    )
+
+
+def upsert_security_alert(
+    tenant_id: str,
+    alert_id: str,
+    title: str,
+    severity: str,
+    status: str,
+    category: str,
+    service_source: str,
+    created: str,
+    resolved: str,
+    snapshot_date: str,
+) -> None:
+    execute(
+        """
+        INSERT INTO security_alerts
+            (tenant_id, alert_id, title, severity, status, category,
+             service_source, created, resolved, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (tenant_id, alert_id, snapshot_date) DO UPDATE SET
+            title = EXCLUDED.title,
+            severity = EXCLUDED.severity,
+            status = EXCLUDED.status,
+            category = EXCLUDED.category,
+            service_source = EXCLUDED.service_source,
+            created = EXCLUDED.created,
+            resolved = EXCLUDED.resolved
+        """,
+        (
+            tenant_id, alert_id, title, severity, status, category,
+            service_source, created, resolved, snapshot_date,
+        ),
+    )
+
+
+def upsert_security_incident(
+    tenant_id: str,
+    incident_id: str,
+    display_name: str,
+    severity: str,
+    status: str,
+    classification: str,
+    created: str,
+    last_update: str,
+    assigned_to: str,
+    snapshot_date: str,
+) -> None:
+    execute(
+        """
+        INSERT INTO security_incidents
+            (tenant_id, incident_id, display_name, severity, status,
+             classification, created, last_update, assigned_to, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (tenant_id, incident_id, snapshot_date) DO UPDATE SET
+            display_name = EXCLUDED.display_name,
+            severity = EXCLUDED.severity,
+            status = EXCLUDED.status,
+            classification = EXCLUDED.classification,
+            created = EXCLUDED.created,
+            last_update = EXCLUDED.last_update,
+            assigned_to = EXCLUDED.assigned_to
+        """,
+        (
+            tenant_id, incident_id, display_name, severity, status,
+            classification, created, last_update, assigned_to, snapshot_date,
+        ),
+    )
+
+
+def upsert_risky_user(
+    tenant_id: str,
+    user_id: str,
+    user_display_name: str,
+    user_principal_name: str,
+    risk_level: str,
+    risk_state: str,
+    risk_detail: str,
+    risk_last_updated: str,
+    snapshot_date: str,
+) -> None:
+    execute(
+        """
+        INSERT INTO risky_users
+            (tenant_id, user_id, user_display_name, user_principal_name,
+             risk_level, risk_state, risk_detail, risk_last_updated, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (tenant_id, user_id, snapshot_date) DO UPDATE SET
+            user_display_name = EXCLUDED.user_display_name,
+            user_principal_name = EXCLUDED.user_principal_name,
+            risk_level = EXCLUDED.risk_level,
+            risk_state = EXCLUDED.risk_state,
+            risk_detail = EXCLUDED.risk_detail,
+            risk_last_updated = EXCLUDED.risk_last_updated
+        """,
+        (
+            tenant_id, user_id, user_display_name, user_principal_name,
+            risk_level, risk_state, risk_detail, risk_last_updated, snapshot_date,
+        ),
+    )
+
+
+def upsert_service_health(
+    tenant_id: str,
+    service_name: str,
+    status: str,
+    snapshot_date: str,
+) -> None:
+    execute(
+        """
+        INSERT INTO service_health (tenant_id, service_name, status, snapshot_date)
+        VALUES (%s, %s, %s, %s)
+        ON CONFLICT (tenant_id, service_name, snapshot_date) DO UPDATE SET
+            status = EXCLUDED.status
+        """,
+        (tenant_id, service_name, status, snapshot_date),
     )
 
 
@@ -194,12 +315,12 @@ def upsert_trend(
     execute(
         """
         INSERT INTO compliance_trend
-            (snapshot_date, department, avg_compliance_pct, min_compliance_pct, max_compliance_pct, tenant_count)
+            (snapshot_date, department, avg_score_pct, min_score_pct, max_score_pct, tenant_count)
         VALUES (%s, %s, %s, %s, %s, %s)
         ON CONFLICT (snapshot_date, department) DO UPDATE SET
-            avg_compliance_pct = EXCLUDED.avg_compliance_pct,
-            min_compliance_pct = EXCLUDED.min_compliance_pct,
-            max_compliance_pct = EXCLUDED.max_compliance_pct,
+            avg_score_pct = EXCLUDED.avg_score_pct,
+            min_score_pct = EXCLUDED.min_score_pct,
+            max_score_pct = EXCLUDED.max_score_pct,
             tenant_count = EXCLUDED.tenant_count
         """,
         (snapshot_date, department, avg_pct, min_pct, max_pct, tenant_count),

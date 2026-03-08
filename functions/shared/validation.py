@@ -3,7 +3,7 @@ Request validation for the ingestion endpoint.
 
 Validates:
 1. Tenant ID against allow-list
-2. JSON body against the compliance-only payload schema
+2. JSON body against the PurviewPayload schema (Graph API data)
 """
 
 import logging
@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 
 PAYLOAD_SCHEMA: dict = {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "title": "CompliancePosturePayload",
+    "title": "PurviewPayload",
     "type": "object",
     "required": [
         "tenant_id",
@@ -25,10 +25,15 @@ PAYLOAD_SCHEMA: dict = {
         "department",
         "display_name",
         "timestamp",
-        "compliance_score_current",
-        "compliance_score_max",
-        "assessments",
-        "improvement_actions",
+        "secure_score_current",
+        "secure_score_max",
+        "secure_scores",
+        "control_scores",
+        "control_profiles",
+        "security_alerts",
+        "security_incidents",
+        "risky_users",
+        "service_health",
         "collector_version",
     ],
     "properties": {
@@ -37,46 +42,15 @@ PAYLOAD_SCHEMA: dict = {
         "department": {"type": "string", "minLength": 1},
         "display_name": {"type": "string", "minLength": 1},
         "timestamp": {"type": "string"},
-        "compliance_score_current": {"type": "number", "minimum": 0},
-        "compliance_score_max": {"type": "number", "minimum": 0},
-        "assessments": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "required": ["assessment_id", "regulation"],
-                "properties": {
-                    "assessment_id": {"type": "string"},
-                    "assessment_name": {"type": "string"},
-                    "regulation": {"type": "string"},
-                    "compliance_score": {"type": "number"},
-                    "passed_controls": {"type": "integer", "minimum": 0},
-                    "failed_controls": {"type": "integer", "minimum": 0},
-                    "total_controls": {"type": "integer", "minimum": 0},
-                },
-            },
-        },
-        "improvement_actions": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "required": ["action_id"],
-                "properties": {
-                    "action_id": {"type": "string"},
-                    "control_name": {"type": "string"},
-                    "control_family": {"type": "string"},
-                    "regulation": {"type": "string"},
-                    "implementation_status": {"type": "string"},
-                    "test_status": {"type": "string"},
-                    "action_category": {"type": "string"},
-                    "is_mandatory": {"type": "boolean"},
-                    "point_value": {"type": "integer", "minimum": 0},
-                    "owner": {"type": "string"},
-                    "service": {"type": "string"},
-                    "description": {"type": "string"},
-                    "remediation_steps": {"type": "string"},
-                },
-            },
-        },
+        "secure_score_current": {"type": "number", "minimum": 0},
+        "secure_score_max": {"type": "number", "minimum": 0},
+        "secure_scores": {"type": "array"},
+        "control_scores": {"type": "array"},
+        "control_profiles": {"type": "array"},
+        "security_alerts": {"type": "array"},
+        "security_incidents": {"type": "array"},
+        "risky_users": {"type": "array"},
+        "service_health": {"type": "array"},
         "collector_version": {"type": "string"},
     },
     "additionalProperties": False,

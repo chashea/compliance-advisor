@@ -11,22 +11,27 @@ import json
 import logging
 
 import azure.functions as func
-
 from shared.ai_agent import ask_advisor
+from shared.dashboard_queries import (
+    get_alerts,
+    get_controls,
+    get_overview,
+    get_score_trend,
+    get_security,
+    get_service_health,
+    get_status,
+)
 from shared.db import (
     query,
-    upsert_action,
-    upsert_assessment,
+    upsert_control_profile,
+    upsert_control_score,
+    upsert_risky_user,
+    upsert_security_alert,
+    upsert_security_incident,
+    upsert_service_health,
     upsert_snapshot,
     upsert_tenant,
     upsert_trend,
-)
-from shared.dashboard_queries import (
-    get_actions,
-    get_assessments,
-    get_compliance,
-    get_regulations,
-    get_status,
 )
 from shared.validation import validate_ingestion_request
 
@@ -62,51 +67,74 @@ def advisor_status(req: func.HttpRequest) -> func.HttpResponse:
         return _json_response({"error": str(e)}, 500)
 
 
-@app.function_name("advisor_compliance")
-@app.route(route="advisor/compliance", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
-def advisor_compliance(req: func.HttpRequest) -> func.HttpResponse:
+@app.function_name("advisor_overview")
+@app.route(route="advisor/overview", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_overview(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        body = _get_body(req)
+        return _json_response(get_overview(department=body.get("department")))
+    except Exception as e:
+        log.exception("advisor/overview error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+@app.function_name("advisor_score_trend")
+@app.route(route="advisor/score-trend", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_score_trend(req: func.HttpRequest) -> func.HttpResponse:
     try:
         body = _get_body(req)
         return _json_response(
-            get_compliance(
+            get_score_trend(
                 department=body.get("department"),
                 days=int(body.get("days", 30)),
             )
         )
     except Exception as e:
-        log.exception("advisor/compliance error: %s", e)
+        log.exception("advisor/score-trend error: %s", e)
         return _json_response({"error": str(e)}, 500)
 
 
-@app.function_name("advisor_assessments")
-@app.route(route="advisor/assessments", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
-def advisor_assessments(req: func.HttpRequest) -> func.HttpResponse:
+@app.function_name("advisor_controls")
+@app.route(route="advisor/controls", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_controls(req: func.HttpRequest) -> func.HttpResponse:
     try:
         body = _get_body(req)
-        return _json_response(get_assessments(department=body.get("department")))
+        return _json_response(get_controls(department=body.get("department")))
     except Exception as e:
-        log.exception("advisor/assessments error: %s", e)
+        log.exception("advisor/controls error: %s", e)
         return _json_response({"error": str(e)}, 500)
 
 
-@app.function_name("advisor_regulations")
-@app.route(route="advisor/regulations", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
-def advisor_regulations(req: func.HttpRequest) -> func.HttpResponse:
-    try:
-        return _json_response(get_regulations())
-    except Exception as e:
-        log.exception("advisor/regulations error: %s", e)
-        return _json_response({"error": str(e)}, 500)
-
-
-@app.function_name("advisor_actions")
-@app.route(route="advisor/actions", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
-def advisor_actions(req: func.HttpRequest) -> func.HttpResponse:
+@app.function_name("advisor_alerts")
+@app.route(route="advisor/alerts", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_alerts(req: func.HttpRequest) -> func.HttpResponse:
     try:
         body = _get_body(req)
-        return _json_response(get_actions(department=body.get("department")))
+        return _json_response(get_alerts(department=body.get("department")))
     except Exception as e:
-        log.exception("advisor/actions error: %s", e)
+        log.exception("advisor/alerts error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+@app.function_name("advisor_security")
+@app.route(route="advisor/security", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_security(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        body = _get_body(req)
+        return _json_response(get_security(department=body.get("department")))
+    except Exception as e:
+        log.exception("advisor/security error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+@app.function_name("advisor_service_health")
+@app.route(route="advisor/service-health", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_service_health_route(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        body = _get_body(req)
+        return _json_response(get_service_health(department=body.get("department")))
+    except Exception as e:
+        log.exception("advisor/service-health error: %s", e)
         return _json_response({"error": str(e)}, 500)
 
 
@@ -118,7 +146,7 @@ def advisor_briefing(req: func.HttpRequest) -> func.HttpResponse:
         department = body.get("department")
         result = ask_advisor(
             question="Generate a concise executive briefing summarizing the current "
-            "compliance posture, key trends, top risks, and recommended actions.",
+            "security posture, Secure Score trends, top risks, and recommended actions.",
             department=department,
         )
         return _json_response({"briefing": result["answer"]})
@@ -152,67 +180,128 @@ def ingest_posture(req: func.HttpRequest) -> func.HttpResponse:
     try:
         payload = validate_ingestion_request(req)
         snapshot_date = payload["timestamp"][:10]
+        tenant_id = payload["tenant_id"]
 
         # Upsert tenant
         upsert_tenant(
-            tenant_id=payload["tenant_id"],
+            tenant_id=tenant_id,
             display_name=payload["display_name"],
             department=payload["department"],
         )
 
-        # Upsert posture snapshot
+        # Upsert posture snapshot from latest secure score
+        scores = payload.get("secure_scores", [])
+        latest = scores[0] if scores else {}
         upsert_snapshot(
-            tenant_id=payload["tenant_id"],
+            tenant_id=tenant_id,
             snapshot_date=snapshot_date,
-            compliance_score=payload["compliance_score_current"],
-            max_score=payload["compliance_score_max"],
+            secure_score=payload["secure_score_current"],
+            max_score=payload["secure_score_max"],
+            active_user_count=latest.get("active_user_count", 0),
+            licensed_user_count=latest.get("licensed_user_count", 0),
+            controls_total=latest.get("control_scores_count", 0),
+            controls_implemented=latest.get("controls_implemented", 0),
             collector_version=payload.get("collector_version", ""),
         )
 
-        # Upsert assessments
-        for a in payload.get("assessments", []):
-            upsert_assessment(
-                tenant_id=payload["tenant_id"],
-                assessment_id=a["assessment_id"],
-                assessment_name=a.get("assessment_name", ""),
-                regulation=a["regulation"],
-                compliance_score=a.get("compliance_score", 0),
-                passed_controls=a.get("passed_controls", 0),
-                failed_controls=a.get("failed_controls", 0),
-                total_controls=a.get("total_controls", 0),
+        # Upsert control scores
+        for cs in payload.get("control_scores", []):
+            upsert_control_score(
+                tenant_id=tenant_id,
+                control_name=cs.get("control_name", ""),
+                category=cs.get("category", ""),
+                score=cs.get("score", 0),
+                score_pct=cs.get("score_pct", 0),
+                implementation_status=cs.get("implementation_status", ""),
+                last_synced=cs.get("last_synced", ""),
+                description=cs.get("description", ""),
                 snapshot_date=snapshot_date,
             )
 
-        # Upsert improvement actions
-        for ia in payload.get("improvement_actions", []):
-            upsert_action(
-                tenant_id=payload["tenant_id"],
-                action_id=ia["action_id"],
-                control_name=ia.get("control_name", ""),
-                control_family=ia.get("control_family", ""),
-                regulation=ia.get("regulation", ""),
-                implementation_status=ia.get("implementation_status", ""),
-                test_status=ia.get("test_status", ""),
-                action_category=ia.get("action_category", ""),
-                is_mandatory=ia.get("is_mandatory", True),
-                point_value=ia.get("point_value", 0),
-                owner=ia.get("owner", ""),
-                service=ia.get("service", ""),
-                description=ia.get("description", ""),
-                remediation_steps=ia.get("remediation_steps", ""),
+        # Upsert control profiles
+        for cp in payload.get("control_profiles", []):
+            upsert_control_profile(
+                tenant_id=tenant_id,
+                control_id=cp.get("control_id", ""),
+                title=cp.get("title", ""),
+                max_score=cp.get("max_score", 0),
+                service=cp.get("service", ""),
+                category=cp.get("category", ""),
+                action_type=cp.get("action_type", ""),
+                tier=cp.get("tier", ""),
+                implementation_cost=cp.get("implementation_cost", ""),
+                user_impact=cp.get("user_impact", ""),
+                snapshot_date=snapshot_date,
+            )
+
+        # Upsert security alerts
+        for a in payload.get("security_alerts", []):
+            upsert_security_alert(
+                tenant_id=tenant_id,
+                alert_id=a.get("alert_id", ""),
+                title=a.get("title", ""),
+                severity=a.get("severity", ""),
+                status=a.get("status", ""),
+                category=a.get("category", ""),
+                service_source=a.get("service_source", ""),
+                created=a.get("created", ""),
+                resolved=a.get("resolved", ""),
+                snapshot_date=snapshot_date,
+            )
+
+        # Upsert security incidents
+        for inc in payload.get("security_incidents", []):
+            upsert_security_incident(
+                tenant_id=tenant_id,
+                incident_id=inc.get("incident_id", ""),
+                display_name=inc.get("display_name", ""),
+                severity=inc.get("severity", ""),
+                status=inc.get("status", ""),
+                classification=inc.get("classification", ""),
+                created=inc.get("created", ""),
+                last_update=inc.get("last_update", ""),
+                assigned_to=inc.get("assigned_to", ""),
+                snapshot_date=snapshot_date,
+            )
+
+        # Upsert risky users
+        for ru in payload.get("risky_users", []):
+            upsert_risky_user(
+                tenant_id=tenant_id,
+                user_id=ru.get("user_id", ""),
+                user_display_name=ru.get("user_display_name", ""),
+                user_principal_name=ru.get("user_principal_name", ""),
+                risk_level=ru.get("risk_level", ""),
+                risk_state=ru.get("risk_state", ""),
+                risk_detail=ru.get("risk_detail", ""),
+                risk_last_updated=ru.get("risk_last_updated", ""),
+                snapshot_date=snapshot_date,
+            )
+
+        # Upsert service health
+        for sh in payload.get("service_health", []):
+            upsert_service_health(
+                tenant_id=tenant_id,
+                service_name=sh.get("service_name", ""),
+                status=sh.get("status", ""),
                 snapshot_date=snapshot_date,
             )
 
         log.info(
-            "Ingested: tenant=%s dept=%s score=%.1f%%",
-            payload["tenant_id"],
+            "Ingested: tenant=%s dept=%s score=%.1f/%.1f controls=%d alerts=%d incidents=%d",
+            tenant_id,
             payload["department"],
-            payload.get("compliance_score_current", 0),
+            payload["secure_score_current"],
+            payload["secure_score_max"],
+            len(payload.get("control_scores", [])),
+            len(payload.get("security_alerts", [])),
+            len(payload.get("security_incidents", [])),
         )
         return _json_response({
             "status": "ok",
-            "tenant_id": payload["tenant_id"],
-            "compliance_score": payload.get("compliance_score_current", 0),
+            "tenant_id": tenant_id,
+            "secure_score": payload["secure_score_current"],
+            "max_score": payload["secure_score_max"],
         })
 
     except ValueError as e:
@@ -229,13 +318,12 @@ def ingest_posture(req: func.HttpRequest) -> func.HttpResponse:
 @app.function_name("compute_aggregates")
 @app.timer_trigger(schedule="0 0 6 * * *", arg_name="timer", run_on_startup=False)
 def compute_aggregates(timer: func.TimerRequest) -> None:
-    """Daily at 6:00 AM UTC: compute compliance trend rows."""
+    """Daily at 6:00 AM UTC: compute score trend rows."""
     try:
-        # Get latest snapshot per tenant
         rows = query(
             """
             SELECT DISTINCT ON (ps.tenant_id)
-                t.department, ps.compliance_pct
+                t.department, ps.score_pct
             FROM posture_snapshots ps
             JOIN tenants t ON t.tenant_id = ps.tenant_id
             ORDER BY ps.tenant_id, ps.snapshot_date DESC
@@ -245,13 +333,11 @@ def compute_aggregates(timer: func.TimerRequest) -> None:
             log.info("No snapshots found, skipping aggregate computation")
             return
 
-        today = rows[0].get("snapshot_date", None)
-        if today is None:
-            from datetime import date
-            today = date.today().isoformat()
+        from datetime import date
+        today = date.today().isoformat()
 
         # Statewide aggregate
-        pcts = [r["compliance_pct"] for r in rows if r["compliance_pct"] is not None]
+        pcts = [r["score_pct"] for r in rows if r["score_pct"] is not None]
         if pcts:
             upsert_trend(
                 snapshot_date=today,
@@ -266,7 +352,7 @@ def compute_aggregates(timer: func.TimerRequest) -> None:
         depts: dict[str, list[float]] = {}
         for r in rows:
             dept = r.get("department")
-            pct = r.get("compliance_pct")
+            pct = r.get("score_pct")
             if dept and pct is not None:
                 depts.setdefault(dept, []).append(pct)
 

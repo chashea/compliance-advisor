@@ -456,6 +456,37 @@ select:focus { outline: none; border-color: var(--accent); }
 .badge--high   { background: var(--bad);  color: #fff; }
 .badge--medium { background: var(--warn); color: #1a1d27; }
 .badge--low    { background: var(--text-muted); color: #1a1d27; }
+.badge--red    { background: rgba(248,113,113,.15); color: var(--bad); }
+.badge--yellow { background: rgba(251,191,36,.15);  color: var(--warn); }
+.badge--green  { background: rgba(52,211,153,.15);  color: var(--good); }
+.badge--blue   { background: rgba(79,143,247,.15);  color: var(--accent); }
+
+/* ── Service Health Grid ─────────────────────────────────────────────────── */
+.service-health-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+.service-tile {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  background: var(--bg-input);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+.service-tile--degraded {
+  border: 1px solid var(--warn);
+}
+.service-tile__name {
+  flex: 1;
+  font-weight: 500;
+}
+.service-tile__status {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 1100px) {

@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 
 
 def get_status() -> dict:
-    """GET /api/advisor/status"""
+    """POST /api/advisor/status — basic health check."""
     row = query_one(
         """
         SELECT COUNT(DISTINCT tenant_id) AS active_tenants,
@@ -29,21 +29,23 @@ def get_status() -> dict:
     }
 
 
-def get_compliance(department: str | None = None, days: int = 30) -> dict:
-    """GET /api/advisor/compliance"""
+def get_overview(department: str | None = None) -> dict:
+    """POST /api/advisor/overview — top-level dashboard cards."""
     dept_filter = ""
-    params: dict = {"days": days}
+    params: dict = {}
     if department:
         dept_filter = "AND t.department = %(dept)s"
         params["dept"] = department
 
-    # Latest scores per tenant
-    latest_scores = query(
+    # Latest snapshot per tenant
+    tenants = query(
         f"""
         SELECT DISTINCT ON (ps.tenant_id)
-            ps.tenant_id, t.display_name, t.department, t.risk_tier,
-            ps.compliance_pct, ps.compliance_score AS current_score,
-            ps.max_score, ps.snapshot_date::text
+            ps.tenant_id, t.display_name, t.department,
+            ps.secure_score, ps.max_score, ps.score_pct,
+            ps.active_user_count, ps.licensed_user_count,
+            ps.controls_total, ps.controls_implemented,
+            ps.snapshot_date::text
         FROM posture_snapshots ps
         JOIN tenants t ON t.tenant_id = ps.tenant_id
         WHERE 1=1 {dept_filter}
@@ -52,13 +54,102 @@ def get_compliance(department: str | None = None, days: int = 30) -> dict:
         params,
     )
 
-    # Compliance trend
-    cutoff = (date.today() - timedelta(days=days)).isoformat()
-    trend_filter = "WHERE ct.department IS NULL" if not department else "WHERE ct.department = %(dept)s"
-    compliance_trend = query(
+    # Alert summary
+    alert_summary = query_one(
         f"""
-        SELECT ct.snapshot_date::text, ct.avg_compliance_pct,
-               ct.min_compliance_pct, ct.max_compliance_pct
+        SELECT
+            COUNT(*) FILTER (WHERE sa.severity = 'high')::int AS high_alerts,
+            COUNT(*) FILTER (WHERE sa.severity = 'medium')::int AS medium_alerts,
+            COUNT(*) FILTER (WHERE sa.severity = 'low')::int AS low_alerts,
+            COUNT(*) FILTER (WHERE sa.status != 'resolved')::int AS active_alerts,
+            COUNT(*)::int AS total_alerts
+        FROM security_alerts sa
+        JOIN tenants t ON t.tenant_id = sa.tenant_id
+        WHERE sa.snapshot_date = (SELECT MAX(snapshot_date) FROM security_alerts)
+          {dept_filter}
+        """,
+        params,
+    )
+
+    # Incident summary
+    incident_summary = query_one(
+        f"""
+        SELECT
+            COUNT(*)::int AS total_incidents,
+            COUNT(*) FILTER (WHERE si.status = 'active')::int AS active_incidents,
+            COUNT(*) FILTER (WHERE si.severity = 'high')::int AS high_incidents
+        FROM security_incidents si
+        JOIN tenants t ON t.tenant_id = si.tenant_id
+        WHERE si.snapshot_date = (SELECT MAX(snapshot_date) FROM security_incidents)
+          {dept_filter}
+        """,
+        params,
+    )
+
+    # Risky user count
+    risky_count = query_one(
+        f"""
+        SELECT COUNT(*)::int AS total_risky_users,
+               COUNT(*) FILTER (WHERE ru.risk_level = 'high')::int AS high_risk_users
+        FROM risky_users ru
+        JOIN tenants t ON t.tenant_id = ru.tenant_id
+        WHERE ru.snapshot_date = (SELECT MAX(snapshot_date) FROM risky_users)
+          {dept_filter}
+        """,
+        params,
+    )
+
+    # Service health summary
+    health_summary = query_one(
+        f"""
+        SELECT COUNT(*)::int AS total_services,
+               COUNT(*) FILTER (WHERE sh.status = 'serviceOperational')::int AS healthy_services
+        FROM service_health sh
+        JOIN tenants t ON t.tenant_id = sh.tenant_id
+        WHERE sh.snapshot_date = (SELECT MAX(snapshot_date) FROM service_health)
+          {dept_filter}
+        """,
+        params,
+    )
+
+    return {
+        "tenants": tenants,
+        "alert_summary": alert_summary or {},
+        "incident_summary": incident_summary or {},
+        "risky_user_summary": risky_count or {},
+        "service_health_summary": health_summary or {},
+    }
+
+
+def get_score_trend(department: str | None = None, days: int = 30) -> dict:
+    """POST /api/advisor/score-trend — Secure Score over time."""
+    params: dict = {"days": days}
+    dept_filter = ""
+    if department:
+        dept_filter = "AND t.department = %(dept)s"
+        params["dept"] = department
+
+    cutoff = (date.today() - timedelta(days=days)).isoformat()
+
+    # Per-tenant daily scores
+    daily_scores = query(
+        f"""
+        SELECT ps.snapshot_date::text, t.display_name,
+               ps.secure_score, ps.max_score, ps.score_pct
+        FROM posture_snapshots ps
+        JOIN tenants t ON t.tenant_id = ps.tenant_id
+        WHERE ps.snapshot_date >= %(cutoff)s {dept_filter}
+        ORDER BY ps.snapshot_date
+        """,
+        {**params, "cutoff": cutoff},
+    )
+
+    # Trend from compliance_trend table
+    trend_filter = "WHERE ct.department IS NULL" if not department else "WHERE ct.department = %(dept)s"
+    trend = query(
+        f"""
+        SELECT ct.snapshot_date::text, ct.avg_score_pct,
+               ct.min_score_pct, ct.max_score_pct
         FROM compliance_trend ct
         {trend_filter}
           AND ct.snapshot_date >= %(cutoff)s
@@ -67,234 +158,217 @@ def get_compliance(department: str | None = None, days: int = 30) -> dict:
         {**params, "cutoff": cutoff},
     )
 
-    # Week-over-week changes
-    weekly_changes = query(
-        f"""
-        WITH current_week AS (
-            SELECT DISTINCT ON (ps.tenant_id)
-                ps.tenant_id, ps.compliance_pct AS current_pct, ps.snapshot_date
-            FROM posture_snapshots ps
-            ORDER BY ps.tenant_id, ps.snapshot_date DESC
-        ),
-        prior_week AS (
-            SELECT DISTINCT ON (ps.tenant_id)
-                ps.tenant_id, ps.compliance_pct AS prior_pct
-            FROM posture_snapshots ps
-            WHERE ps.snapshot_date <= CURRENT_DATE - INTERVAL '7 days'
-            ORDER BY ps.tenant_id, ps.snapshot_date DESC
-        )
-        SELECT t.display_name, t.department,
-               cw.current_pct, COALESCE(pw.prior_pct, cw.current_pct) AS prior_pct,
-               ROUND((cw.current_pct - COALESCE(pw.prior_pct, cw.current_pct))::numeric, 2) AS wow_change,
-               CASE
-                   WHEN cw.current_pct > COALESCE(pw.prior_pct, cw.current_pct) THEN 'Improving'
-                   WHEN cw.current_pct < COALESCE(pw.prior_pct, cw.current_pct) THEN 'Declining'
-                   ELSE 'Stable'
-               END AS trend_direction
-        FROM current_week cw
-        JOIN tenants t ON t.tenant_id = cw.tenant_id
-        LEFT JOIN prior_week pw ON pw.tenant_id = cw.tenant_id
-        WHERE 1=1 {dept_filter}
-        ORDER BY wow_change ASC
-        """,
-        params,
-    )
-
-    # Department rollup
-    department_rollup = query(
-        f"""
-        WITH latest AS (
-            SELECT DISTINCT ON (ps.tenant_id)
-                ps.tenant_id, ps.compliance_pct
-            FROM posture_snapshots ps
-            ORDER BY ps.tenant_id, ps.snapshot_date DESC
-        )
-        SELECT t.department,
-               COUNT(*)::int AS tenant_count,
-               ROUND(AVG(l.compliance_pct)::numeric, 2) AS avg_compliance_pct,
-               ROUND(MIN(l.compliance_pct)::numeric, 2) AS min_compliance_pct,
-               ROUND(MAX(l.compliance_pct)::numeric, 2) AS max_compliance_pct,
-               COALESCE(SUM(asmt.total_assessments), 0)::int AS total_assessments,
-               COALESCE(SUM(asmt.total_failed), 0)::int AS total_failed_controls
-        FROM latest l
-        JOIN tenants t ON t.tenant_id = l.tenant_id
-        LEFT JOIN LATERAL (
-            SELECT COUNT(*)::int AS total_assessments,
-                   SUM(a.failed_controls)::int AS total_failed
-            FROM assessments a
-            WHERE a.tenant_id = t.tenant_id
-              AND a.snapshot_date = (SELECT MAX(snapshot_date) FROM assessments)
-        ) asmt ON TRUE
-        WHERE 1=1 {dept_filter}
-        GROUP BY t.department
-        ORDER BY avg_compliance_pct ASC
-        """,
-        params,
-    )
-
     return {
-        "latest_scores": latest_scores,
-        "compliance_trend": compliance_trend,
-        "weekly_changes": weekly_changes,
-        "department_rollup": department_rollup,
+        "daily_scores": daily_scores,
+        "trend": trend,
     }
 
 
-def get_assessments(department: str | None = None) -> dict:
-    """GET /api/advisor/assessments"""
+def get_controls(department: str | None = None) -> dict:
+    """POST /api/advisor/controls — control scores and profiles."""
     dept_filter = ""
     params: dict = {}
     if department:
         dept_filter = "AND t.department = %(dept)s"
         params["dept"] = department
 
-    assessments = query(
+    # Control scores
+    scores = query(
         f"""
-        SELECT a.assessment_name, a.regulation, t.display_name,
-               a.compliance_score, a.pass_rate,
-               a.passed_controls, a.failed_controls, a.total_controls
-        FROM assessments a
-        JOIN tenants t ON t.tenant_id = a.tenant_id
-        WHERE a.snapshot_date = (SELECT MAX(snapshot_date) FROM assessments)
+        SELECT cs.control_name, cs.category, cs.score, cs.score_pct,
+               cs.implementation_status, cs.description,
+               t.display_name
+        FROM control_scores cs
+        JOIN tenants t ON t.tenant_id = cs.tenant_id
+        WHERE cs.snapshot_date = (SELECT MAX(snapshot_date) FROM control_scores)
           {dept_filter}
-        ORDER BY a.compliance_score ASC
+        ORDER BY cs.score_pct ASC
         """,
         params,
     )
 
-    # Top gaps (highest-impact unimplemented actions)
-    top_gaps = query(
+    # Category rollup
+    categories = query(
         f"""
-        SELECT ia.control_name, ia.control_family, ia.regulation,
-               ia.implementation_status, ia.test_status,
-               ia.point_value AS points_gap, ia.owner, ia.service,
-               ia.description, ia.remediation_steps,
-               t.display_name, ia.action_category
-        FROM improvement_actions ia
-        JOIN tenants t ON t.tenant_id = ia.tenant_id
-        WHERE ia.implementation_status != 'implemented'
-          AND ia.snapshot_date = (SELECT MAX(snapshot_date) FROM improvement_actions)
-          {dept_filter}
-        ORDER BY ia.point_value DESC
-        LIMIT 20
-        """,
-        params,
-    )
-
-    # Control family rollup
-    control_families = query(
-        f"""
-        SELECT ia.control_family,
+        SELECT cs.category,
                COUNT(*)::int AS total_controls,
-               COUNT(*) FILTER (WHERE ia.implementation_status = 'implemented')::int AS implemented,
-               COUNT(*) FILTER (WHERE ia.test_status = 'passed')::int AS passed,
-               COUNT(*) FILTER (WHERE ia.implementation_status != 'implemented')::int AS failed,
-               ROUND(AVG(ia.point_value)::numeric, 1) AS avg_gap
-        FROM improvement_actions ia
-        JOIN tenants t ON t.tenant_id = ia.tenant_id
-        WHERE ia.snapshot_date = (SELECT MAX(snapshot_date) FROM improvement_actions)
+               COUNT(*) FILTER (WHERE cs.score_pct = 100)::int AS fully_implemented,
+               COUNT(*) FILTER (WHERE cs.score_pct = 0)::int AS not_implemented,
+               ROUND(AVG(cs.score_pct)::numeric, 1) AS avg_score_pct,
+               SUM(cs.score)::real AS total_score
+        FROM control_scores cs
+        JOIN tenants t ON t.tenant_id = cs.tenant_id
+        WHERE cs.snapshot_date = (SELECT MAX(snapshot_date) FROM control_scores)
           {dept_filter}
-        GROUP BY ia.control_family
-        ORDER BY failed DESC
+        GROUP BY cs.category
+        ORDER BY avg_score_pct ASC
+        """,
+        params,
+    )
+
+    # Top improvement opportunities (not fully implemented, sorted by potential points)
+    opportunities = query(
+        f"""
+        SELECT cp.title, cp.control_id, cp.service, cp.category,
+               cp.max_score, cp.tier, cp.implementation_cost, cp.user_impact,
+               cp.action_type, t.display_name
+        FROM control_profiles cp
+        JOIN tenants t ON t.tenant_id = cp.tenant_id
+        LEFT JOIN control_scores cs
+            ON cs.tenant_id = cp.tenant_id
+            AND cs.control_name = cp.control_id
+            AND cs.snapshot_date = cp.snapshot_date
+        WHERE cp.snapshot_date = (SELECT MAX(snapshot_date) FROM control_profiles)
+          AND (cs.score_pct IS NULL OR cs.score_pct < 100)
+          {dept_filter}
+        ORDER BY cp.max_score DESC
+        LIMIT 25
         """,
         params,
     )
 
     return {
-        "assessments": assessments,
-        "top_gaps": top_gaps,
-        "control_families": control_families,
+        "control_scores": scores,
+        "categories": categories,
+        "opportunities": opportunities,
     }
 
 
-def get_regulations() -> dict:
-    """GET /api/advisor/regulations"""
-    regulations = query(
-        """
-        SELECT a.regulation,
-               COUNT(DISTINCT a.tenant_id)::int AS tenant_count,
-               COUNT(*)::int AS assessment_count,
-               ROUND(AVG(a.compliance_score)::numeric, 1) AS avg_compliance_score,
-               SUM(a.passed_controls)::int AS total_passed,
-               SUM(a.failed_controls)::int AS total_failed,
-               SUM(a.total_controls)::int AS total_controls,
-               ROUND(
-                   (SUM(a.passed_controls)::numeric /
-                    NULLIF(SUM(a.total_controls), 0) * 100), 1
-               ) AS overall_pass_rate
-        FROM assessments a
-        WHERE a.snapshot_date = (SELECT MAX(snapshot_date) FROM assessments)
-        GROUP BY a.regulation
-        ORDER BY avg_compliance_score ASC
-        """
-    )
-    return {"regulations": regulations}
-
-
-def get_actions(department: str | None = None) -> dict:
-    """GET /api/advisor/actions"""
+def get_alerts(department: str | None = None) -> dict:
+    """POST /api/advisor/alerts — security alerts."""
     dept_filter = ""
     params: dict = {}
     if department:
         dept_filter = "AND t.department = %(dept)s"
         params["dept"] = department
 
-    actions = query(
+    alerts = query(
         f"""
-        SELECT ia.action_id, ia.control_name, ia.control_family, ia.regulation,
-               ia.implementation_status, ia.test_status, ia.action_category,
-               ia.is_mandatory, ia.point_value, ia.owner, ia.service,
-               ia.description, ia.remediation_steps,
-               t.display_name, t.department
-        FROM improvement_actions ia
-        JOIN tenants t ON t.tenant_id = ia.tenant_id
-        WHERE ia.snapshot_date = (SELECT MAX(snapshot_date) FROM improvement_actions)
+        SELECT sa.alert_id, sa.title, sa.severity, sa.status,
+               sa.category, sa.service_source, sa.created, sa.resolved,
+               t.display_name
+        FROM security_alerts sa
+        JOIN tenants t ON t.tenant_id = sa.tenant_id
+        WHERE sa.snapshot_date = (SELECT MAX(snapshot_date) FROM security_alerts)
           {dept_filter}
-        ORDER BY ia.point_value DESC
+        ORDER BY
+            CASE sa.severity
+                WHEN 'high' THEN 1
+                WHEN 'medium' THEN 2
+                WHEN 'low' THEN 3
+                ELSE 4
+            END,
+            sa.created DESC
         """,
         params,
     )
 
-    # Summary
-    summary_row = query_one(
+    # Severity breakdown
+    severity_breakdown = query(
         f"""
-        SELECT COUNT(*)::int AS total,
-               COUNT(*) FILTER (WHERE ia.implementation_status = 'implemented')::int AS implemented,
-               COUNT(*) FILTER (WHERE ia.implementation_status = 'planned')::int AS planned,
-               COUNT(*) FILTER (WHERE ia.implementation_status = 'notImplemented')::int AS not_implemented,
-               SUM(ia.point_value)::int AS total_points,
-               SUM(ia.point_value) FILTER (WHERE ia.implementation_status = 'implemented')::int AS earned_points,
-               COUNT(*) FILTER (WHERE ia.point_value >= 27)::int AS high_impact,
-               COUNT(*) FILTER (WHERE ia.point_value >= 3 AND ia.point_value < 27)::int AS medium_impact,
-               COUNT(*) FILTER (WHERE ia.point_value < 3)::int AS low_impact
-        FROM improvement_actions ia
-        JOIN tenants t ON t.tenant_id = ia.tenant_id
-        WHERE ia.snapshot_date = (SELECT MAX(snapshot_date) FROM improvement_actions)
-          {dept_filter}
-        """,
-        params,
-    )
-
-    # Owner breakdown
-    owner_breakdown = query(
-        f"""
-        SELECT ia.owner,
+        SELECT sa.severity,
                COUNT(*)::int AS total,
-               COUNT(*) FILTER (WHERE ia.implementation_status = 'implemented')::int AS implemented,
-               COUNT(*) FILTER (WHERE ia.implementation_status != 'implemented')::int AS pending,
-               SUM(ia.point_value)::int AS total_points
-        FROM improvement_actions ia
-        JOIN tenants t ON t.tenant_id = ia.tenant_id
-        WHERE ia.snapshot_date = (SELECT MAX(snapshot_date) FROM improvement_actions)
+               COUNT(*) FILTER (WHERE sa.status != 'resolved')::int AS active
+        FROM security_alerts sa
+        JOIN tenants t ON t.tenant_id = sa.tenant_id
+        WHERE sa.snapshot_date = (SELECT MAX(snapshot_date) FROM security_alerts)
           {dept_filter}
-        GROUP BY ia.owner
-        ORDER BY pending DESC
+        GROUP BY sa.severity
+        ORDER BY
+            CASE sa.severity
+                WHEN 'high' THEN 1
+                WHEN 'medium' THEN 2
+                WHEN 'low' THEN 3
+                ELSE 4
+            END
         """,
         params,
     )
 
     return {
-        "actions": actions,
-        "summary": summary_row or {},
-        "owner_breakdown": owner_breakdown,
+        "alerts": alerts,
+        "severity_breakdown": severity_breakdown,
     }
+
+
+def get_security(department: str | None = None) -> dict:
+    """POST /api/advisor/security — incidents and risky users."""
+    dept_filter = ""
+    params: dict = {}
+    if department:
+        dept_filter = "AND t.department = %(dept)s"
+        params["dept"] = department
+
+    incidents = query(
+        f"""
+        SELECT si.incident_id, si.display_name, si.severity, si.status,
+               si.classification, si.created, si.last_update, si.assigned_to,
+               t.display_name AS tenant_name
+        FROM security_incidents si
+        JOIN tenants t ON t.tenant_id = si.tenant_id
+        WHERE si.snapshot_date = (SELECT MAX(snapshot_date) FROM security_incidents)
+          {dept_filter}
+        ORDER BY
+            CASE si.severity
+                WHEN 'high' THEN 1
+                WHEN 'medium' THEN 2
+                WHEN 'low' THEN 3
+                ELSE 4
+            END,
+            si.created DESC
+        """,
+        params,
+    )
+
+    risky_users = query(
+        f"""
+        SELECT ru.user_display_name, ru.user_principal_name,
+               ru.risk_level, ru.risk_state, ru.risk_detail,
+               ru.risk_last_updated, t.display_name AS tenant_name
+        FROM risky_users ru
+        JOIN tenants t ON t.tenant_id = ru.tenant_id
+        WHERE ru.snapshot_date = (SELECT MAX(snapshot_date) FROM risky_users)
+          {dept_filter}
+        ORDER BY
+            CASE ru.risk_level
+                WHEN 'high' THEN 1
+                WHEN 'medium' THEN 2
+                WHEN 'low' THEN 3
+                ELSE 4
+            END
+        """,
+        params,
+    )
+
+    return {
+        "incidents": incidents,
+        "risky_users": risky_users,
+    }
+
+
+def get_service_health(department: str | None = None) -> dict:
+    """POST /api/advisor/service-health — M365 service health."""
+    dept_filter = ""
+    params: dict = {}
+    if department:
+        dept_filter = "AND t.department = %(dept)s"
+        params["dept"] = department
+
+    services = query(
+        f"""
+        SELECT sh.service_name, sh.status, t.display_name
+        FROM service_health sh
+        JOIN tenants t ON t.tenant_id = sh.tenant_id
+        WHERE sh.snapshot_date = (SELECT MAX(snapshot_date) FROM service_health)
+          {dept_filter}
+        ORDER BY
+            CASE sh.status
+                WHEN 'serviceOperational' THEN 2
+                ELSE 1
+            END,
+            sh.service_name
+        """,
+        params,
+    )
+
+    return {"services": services}

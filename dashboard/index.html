@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Compliance Advisor — Compliance Manager Dashboard</title>
+  <title>Compliance Advisor — Security Posture Dashboard</title>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
@@ -51,43 +51,43 @@
     <!-- ── KPI Cards ───────────────────────────────────────────────────── -->
     <section class="kpi-row">
       <div class="kpi-card">
-        <span class="kpi-card__label">Avg Compliance Score</span>
-        <span class="kpi-card__value" id="kpi-avg">–</span>
+        <span class="kpi-card__label">Secure Score</span>
+        <span class="kpi-card__value" id="kpi-score">–</span>
       </div>
       <div class="kpi-card">
-        <span class="kpi-card__label">Tenants Monitored</span>
+        <span class="kpi-card__label">Score %</span>
+        <span class="kpi-card__value" id="kpi-pct">–</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Tenants</span>
         <span class="kpi-card__value" id="kpi-tenants">–</span>
       </div>
       <div class="kpi-card">
-        <span class="kpi-card__label">Active Assessments</span>
-        <span class="kpi-card__value" id="kpi-assessments">–</span>
+        <span class="kpi-card__label">Controls</span>
+        <span class="kpi-card__value" id="kpi-controls">–</span>
       </div>
-      <div class="kpi-card" data-clickable data-scroll="wow-table" title="Click to scroll to Week-over-Week table">
-        <span class="kpi-card__label">Improving</span>
-        <span class="kpi-card__value kpi-card__value--good" id="kpi-improving">–</span>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Active Alerts</span>
+        <span class="kpi-card__value kpi-card__value--bad" id="kpi-alerts">–</span>
       </div>
-      <div class="kpi-card" data-clickable data-scroll="wow-table" title="Click to scroll to Week-over-Week table">
-        <span class="kpi-card__label">Declining</span>
-        <span class="kpi-card__value kpi-card__value--bad" id="kpi-declining">–</span>
-      </div>
-      <div class="kpi-card" data-clickable data-scroll="assessment-table" title="Click to scroll to Assessment Summary">
-        <span class="kpi-card__label">Failed Controls</span>
-        <span class="kpi-card__value kpi-card__value--bad" id="kpi-failed">–</span>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Services Healthy</span>
+        <span class="kpi-card__value kpi-card__value--good" id="kpi-health">–</span>
       </div>
     </section>
 
     <!-- ── Charts Row 1 ────────────────────────────────────────────────── -->
     <section class="chart-row">
       <div class="card card--wide">
-        <h2 class="card__title">Compliance Score Trend</h2>
+        <h2 class="card__title">Secure Score Trend</h2>
         <div class="card__body chart-container">
           <canvas id="trend-chart"></canvas>
         </div>
       </div>
       <div class="card">
-        <h2 class="card__title">Department Compliance</h2>
+        <h2 class="card__title">Control Categories</h2>
         <div class="card__body chart-container">
-          <canvas id="dept-chart"></canvas>
+          <canvas id="category-chart"></canvas>
         </div>
       </div>
     </section>
@@ -95,35 +95,24 @@
     <!-- ── Charts Row 2 ────────────────────────────────────────────────── -->
     <section class="chart-row">
       <div class="card">
-        <h2 class="card__title">Regulation Coverage</h2>
+        <h2 class="card__title">Alert Severity</h2>
         <div class="card__body chart-container">
-          <canvas id="regulation-chart"></canvas>
+          <canvas id="alert-chart"></canvas>
         </div>
       </div>
       <div class="card card--wide">
-        <h2 class="card__title">Control Family Gaps</h2>
-        <div class="card__body chart-container">
-          <canvas id="family-chart"></canvas>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── Assessment Summary Table ────────────────────────────────────── -->
-    <section class="chart-row">
-      <div class="card card--full">
-        <h2 class="card__title">Assessment Summary</h2>
+        <h2 class="card__title">Top Improvement Opportunities</h2>
         <div class="card__body">
-          <table class="data-table data-table--sortable" id="assessment-table">
+          <table class="data-table" id="opportunities-table">
             <thead>
               <tr>
-                <th data-sort="assessment_name">Assessment <span class="sort-icon"></span></th>
-                <th data-sort="regulation">Regulation <span class="sort-icon"></span></th>
-                <th data-sort="display_name">Tenant <span class="sort-icon"></span></th>
-                <th data-sort="compliance_score" data-sort-num>Score <span class="sort-icon"></span></th>
-                <th data-sort="pass_rate" data-sort-num>Pass Rate <span class="sort-icon"></span></th>
-                <th data-sort="passed_controls" data-sort-num>Passed <span class="sort-icon"></span></th>
-                <th data-sort="failed_controls" data-sort-num>Failed <span class="sort-icon"></span></th>
-                <th data-sort="total_controls" data-sort-num>Total <span class="sort-icon"></span></th>
+                <th>Control</th>
+                <th>Service</th>
+                <th>Category</th>
+                <th>Max Points</th>
+                <th>Tier</th>
+                <th>Cost</th>
+                <th>User Impact</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -132,20 +121,41 @@
       </div>
     </section>
 
-    <!-- ── Tables ──────────────────────────────────────────────────────── -->
+    <!-- ── Control Scores Table ─────────────────────────────────────────── -->
     <section class="chart-row">
-      <div class="card card--wide">
-        <h2 class="card__title">Week-over-Week Changes</h2>
+      <div class="card card--full">
+        <h2 class="card__title">Control Scores</h2>
         <div class="card__body">
-          <table class="data-table data-table--sortable" id="wow-table">
+          <table class="data-table data-table--sortable" id="controls-table">
             <thead>
               <tr>
-                <th data-sort="display_name">Tenant <span class="sort-icon"></span></th>
-                <th data-sort="department">Department <span class="sort-icon"></span></th>
-                <th data-sort="current_pct" data-sort-num>Current <span class="sort-icon"></span></th>
-                <th data-sort="prior_pct" data-sort-num>Prior <span class="sort-icon"></span></th>
-                <th data-sort="wow_change" data-sort-num>Change <span class="sort-icon"></span></th>
-                <th data-sort="trend_direction">Trend <span class="sort-icon"></span></th>
+                <th data-sort="control_name">Control <span class="sort-icon"></span></th>
+                <th data-sort="category">Category <span class="sort-icon"></span></th>
+                <th data-sort="score" data-sort-num>Score <span class="sort-icon"></span></th>
+                <th data-sort="score_pct" data-sort-num>Score % <span class="sort-icon"></span></th>
+                <th data-sort="implementation_status">Status <span class="sort-icon"></span></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Security: Alerts, Incidents, Risky Users ────────────────────── -->
+    <section class="chart-row">
+      <div class="card card--wide">
+        <h2 class="card__title">Security Alerts</h2>
+        <div class="card__body">
+          <table class="data-table data-table--sortable" id="alerts-table">
+            <thead>
+              <tr>
+                <th data-sort="title">Alert <span class="sort-icon"></span></th>
+                <th data-sort="severity">Severity <span class="sort-icon"></span></th>
+                <th data-sort="status">Status <span class="sort-icon"></span></th>
+                <th data-sort="category">Category <span class="sort-icon"></span></th>
+                <th data-sort="service_source">Source <span class="sort-icon"></span></th>
+                <th data-sort="created">Created <span class="sort-icon"></span></th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -153,18 +163,14 @@
         </div>
       </div>
       <div class="card">
-        <h2 class="card__title">Top Assessment Gaps</h2>
+        <h2 class="card__title">Risky Users</h2>
         <div class="card__body">
-          <table class="data-table" id="gaps-table">
+          <table class="data-table" id="risky-users-table">
             <thead>
               <tr>
-                <th>Control</th>
-                <th>Family</th>
-                <th>Status</th>
-                <th>Impact</th>
-                <th>Gap</th>
-                <th>Owner</th>
-                <th>Action</th>
+                <th>User</th>
+                <th>Risk Level</th>
+                <th>Risk State</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -173,45 +179,12 @@
       </div>
     </section>
 
-    <!-- ── Improvement Actions ───────────────────────────────────────────── -->
+    <!-- ── Service Health ──────────────────────────────────────────────── -->
     <section class="chart-row">
       <div class="card card--full">
-        <div class="card__header">
-          <h2 class="card__title">Improvement Actions &amp; Solutions</h2>
-          <div class="actions-filters">
-            <select id="actions-impact-filter" aria-label="Filter by impact">
-              <option value="">All Impact</option>
-              <option value="high">High Impact</option>
-              <option value="medium">Medium Impact</option>
-              <option value="low">Low Impact</option>
-            </select>
-            <select id="actions-status-filter" aria-label="Filter by implementation status (Purview)">
-              <option value="">All implementation statuses</option>
-              <option value="notImplemented">Not implemented</option>
-              <option value="planned">Planned</option>
-              <option value="alternative">Alternative implementation</option>
-              <option value="implemented">Implemented</option>
-              <option value="outOfScope">Out of scope</option>
-            </select>
-          </div>
-        </div>
+        <h2 class="card__title">M365 Service Health</h2>
         <div class="card__body">
-          <div id="actions-summary" class="actions-summary"></div>
-          <table class="data-table data-table--actions" id="actions-table">
-            <thead>
-              <tr>
-                <th></th>
-                <th>Control</th>
-                <th>Regulation</th>
-                <th>Status</th>
-                <th>Impact</th>
-                <th>Gap</th>
-                <th>Owner</th>
-                <th>Service</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+          <div id="service-health-grid" class="service-health-grid"></div>
         </div>
       </div>
     </section>
@@ -233,7 +206,7 @@
         <div class="card__body" id="briefing-content">
           <p class="placeholder-text">
             Click "Generate Briefing" to produce an AI-generated executive summary
-            for leadership consumption.
+            of your security posture for leadership.
           </p>
         </div>
       </div>
@@ -248,16 +221,15 @@
         <div class="card__body advisor-body">
           <div class="ask-row">
             <input type="text" id="ask-input" class="ask-input"
-                   placeholder="e.g. How are we tracking against NIST 800-53 assessments?">
+                   placeholder="e.g. What controls have the biggest score impact?">
             <button id="ask-btn" class="btn btn--primary">Ask</button>
           </div>
           <p class="ask-suggestions-label">Try asking:</p>
           <div id="ask-suggestions" class="ask-suggestions">
-            <button type="button" class="chip" data-question="What are our top 5 gaps against NIST 800-53?">Top NIST gaps</button>
-            <button type="button" class="chip" data-question="Which tenant has the lowest score this week?">Lowest score</button>
-            <button type="button" class="chip" data-question="Summarize Identity controls across all tenants">Identity controls</button>
-            <button type="button" class="chip" data-question="Which improvement actions would gain us the most points?">Best actions</button>
-            <button type="button" class="chip" data-question="Department compliance breakdown">Department breakdown</button>
+            <button type="button" class="chip" data-question="What are the top 5 controls we should implement?">Top controls</button>
+            <button type="button" class="chip" data-question="Summarize our security posture">Security summary</button>
+            <button type="button" class="chip" data-question="Which services are experiencing issues?">Service issues</button>
+            <button type="button" class="chip" data-question="What controls would gain us the most points?">Best actions</button>
           </div>
           <div id="ask-response" class="ask-response"></div>
         </div>
@@ -266,7 +238,7 @@
   </main>
 
   <footer class="footer">
-    <span>Compliance Advisor — Powered by Microsoft Foundry &amp; Microsoft Compliance Manager</span>
+    <span>Compliance Advisor — Powered by Microsoft Graph &amp; Azure AI</span>
   </footer>
 
   <script src="env.js"></script>
