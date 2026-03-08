@@ -52,6 +52,7 @@ def _get_body(req: func.HttpRequest) -> dict:
     try:
         return req.get_json()
     except ValueError:
+        log.warning("Failed to parse JSON body — returning empty dict")
         return {}
 
 
@@ -139,10 +140,16 @@ def advisor_governance(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_trend(req: func.HttpRequest) -> func.HttpResponse:
     try:
         body = _get_body(req)
+        try:
+            days = int(body.get("days", 30))
+        except (TypeError, ValueError):
+            return _json_response({"error": "Invalid 'days' parameter — must be an integer"}, 400)
+        if days < 1 or days > 365:
+            return _json_response({"error": "Invalid 'days' parameter — must be between 1 and 365"}, 400)
         return _json_response(
             get_trend(
                 department=body.get("department"),
-                days=int(body.get("days", 30)),
+                days=days,
             )
         )
     except Exception as e:

@@ -6,7 +6,7 @@ Project-specific guidance. Global conventions (communication style, git workflow
 
 - **Repo:** `github.com/chashea/compliance-advisor`, branch `main`
 - **Resource group:** `rg-compliance-advisor`
-- **Current version:** v0.6.1
+- **Current version:** v0.7.0
 
 ## Build & Run Commands
 
@@ -36,7 +36,7 @@ az deployment group create --resource-group rg-compliance-advisor --template-fil
 
 ## Tests
 
-No tests exist yet. `pyproject.toml` configures pytest with `testpaths = ["tests"]`.
+Run tests with `python3.12 -m pytest tests/` (37 tests covering validation, dashboard queries, and payload serialization).
 
 ## Code Style Overrides
 
