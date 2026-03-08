@@ -49,6 +49,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r functions/requirements.txt
+          pip install --target functions/.python_packages/lib/site-packages -r functions/requirements.txt
 
       - name: Azure Login (OIDC)
         uses: azure/login@v2
@@ -71,5 +72,3 @@ jobs:
         with:
           app-name: ${{ env.FUNCTION_APP_NAME }}
           package: functions/
-          scm-do-build-during-deployment: true
-          enable-oryx-build: true
