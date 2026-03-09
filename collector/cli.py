@@ -17,9 +17,11 @@ from collector.compliance_client import (
     get_audit_log_records,
     get_dlp_alerts,
     get_ediscovery_cases,
+    get_improvement_actions,
     get_protection_scopes,
     get_retention_events,
     get_retention_labels,
+    get_secure_scores,
     get_sensitivity_labels,
 )
 from collector.config import CollectorSettings
@@ -101,11 +103,18 @@ def main(
     click.echo("  Protection Scopes...")
     protection_scopes = get_protection_scopes(token)
 
+    click.echo("  Secure Score...")
+    secure_scores = get_secure_scores(token)
+
+    click.echo("  Improvement Actions...")
+    improvement_actions = get_improvement_actions(token)
+
     click.echo(
         f"\neDiscovery: {len(ediscovery_cases)} | Labels: {len(sensitivity_labels)} "
         f"| Retention: {len(retention_labels)} labels, {len(retention_events)} events "
         f"| Audit: {len(audit_records)} | DLP: {len(dlp_alerts)} "
-        f"| Scopes: {len(protection_scopes)}"
+        f"| Scopes: {len(protection_scopes)} | Secure Score: {len(secure_scores)} "
+        f"| Improvement Actions: {len(improvement_actions)}"
     )
 
     # Build payload
@@ -122,6 +131,8 @@ def main(
         audit_records=audit_records,
         dlp_alerts=dlp_alerts,
         protection_scopes=protection_scopes,
+        secure_scores=secure_scores,
+        improvement_actions=improvement_actions,
     )
 
     payload_dict = payload.to_dict()

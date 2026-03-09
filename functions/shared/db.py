@@ -319,3 +319,71 @@ def upsert_trend(
             tenant_count,
         ),
     )
+
+
+def upsert_secure_score(
+    tenant_id: str,
+    current_score: float,
+    max_score: float,
+    score_date: str,
+    snapshot_date: str,
+) -> None:
+    execute(
+        """
+        INSERT INTO secure_scores
+            (tenant_id, current_score, max_score, score_date, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s)
+        ON CONFLICT (tenant_id, score_date, snapshot_date) DO UPDATE SET
+            current_score = EXCLUDED.current_score,
+            max_score = EXCLUDED.max_score
+        """,
+        (tenant_id, current_score, max_score, score_date, snapshot_date),
+    )
+
+
+def upsert_improvement_action(
+    tenant_id: str,
+    control_id: str,
+    title: str,
+    control_category: str,
+    max_score: float,
+    current_score: float,
+    implementation_cost: str,
+    user_impact: str,
+    tier: str,
+    service: str,
+    threats: str,
+    remediation: str,
+    state: str,
+    deprecated: bool,
+    rank: int,
+    snapshot_date: str,
+) -> None:
+    execute(
+        """
+        INSERT INTO improvement_actions
+            (tenant_id, control_id, title, control_category, max_score, current_score,
+             implementation_cost, user_impact, tier, service, threats, remediation,
+             state, deprecated, rank, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (tenant_id, control_id, snapshot_date) DO UPDATE SET
+            title = EXCLUDED.title,
+            control_category = EXCLUDED.control_category,
+            max_score = EXCLUDED.max_score,
+            current_score = EXCLUDED.current_score,
+            implementation_cost = EXCLUDED.implementation_cost,
+            user_impact = EXCLUDED.user_impact,
+            tier = EXCLUDED.tier,
+            service = EXCLUDED.service,
+            threats = EXCLUDED.threats,
+            remediation = EXCLUDED.remediation,
+            state = EXCLUDED.state,
+            deprecated = EXCLUDED.deprecated,
+            rank = EXCLUDED.rank
+        """,
+        (
+            tenant_id, control_id, title, control_category, max_score, current_score,
+            implementation_cost, user_impact, tier, service, threats, remediation,
+            state, deprecated, rank, snapshot_date,
+        ),
+    )

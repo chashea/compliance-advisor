@@ -32,6 +32,8 @@ PAYLOAD_SCHEMA: dict = {
         "audit_records",
         "dlp_alerts",
         "protection_scopes",
+        "secure_scores",
+        "improvement_actions",
         "collector_version",
     ],
     "properties": {
@@ -47,6 +49,8 @@ PAYLOAD_SCHEMA: dict = {
         "audit_records": {"type": "array"},
         "dlp_alerts": {"type": "array"},
         "protection_scopes": {"type": "array"},
+        "secure_scores": {"type": "array"},
+        "improvement_actions": {"type": "array"},
         "collector_version": {"type": "string"},
     },
     "additionalProperties": False,

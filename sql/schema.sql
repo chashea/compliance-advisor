@@ -112,6 +112,39 @@ CREATE TABLE IF NOT EXISTS protection_scopes (
     UNIQUE (tenant_id, scope_type, snapshot_date)
 );
 
+-- Secure Score snapshots
+CREATE TABLE IF NOT EXISTS secure_scores (
+    id              SERIAL PRIMARY KEY,
+    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
+    current_score   REAL NOT NULL,
+    max_score       REAL NOT NULL,
+    score_date      DATE NOT NULL,
+    snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+    UNIQUE (tenant_id, score_date, snapshot_date)
+);
+
+-- Improvement actions (Secure Score control profiles)
+CREATE TABLE IF NOT EXISTS improvement_actions (
+    id                  SERIAL PRIMARY KEY,
+    tenant_id           TEXT NOT NULL REFERENCES tenants(tenant_id),
+    control_id          TEXT NOT NULL,
+    title               TEXT,
+    control_category    TEXT,
+    max_score           REAL DEFAULT 0,
+    current_score       REAL DEFAULT 0,
+    implementation_cost TEXT,
+    user_impact         TEXT,
+    tier                TEXT,
+    service             TEXT,
+    threats             TEXT,
+    remediation         TEXT,
+    state               TEXT DEFAULT 'Default',
+    deprecated          BOOLEAN DEFAULT FALSE,
+    rank                INT DEFAULT 0,
+    snapshot_date       DATE NOT NULL DEFAULT CURRENT_DATE,
+    UNIQUE (tenant_id, control_id, snapshot_date)
+);
+
 -- Daily compliance trend (computed by timer trigger)
 CREATE TABLE IF NOT EXISTS compliance_trend (
     id                  SERIAL PRIMARY KEY,
@@ -156,3 +189,12 @@ CREATE INDEX IF NOT EXISTS idx_trend_date
 
 CREATE INDEX IF NOT EXISTS idx_tenants_dept
     ON tenants(department);
+
+CREATE INDEX IF NOT EXISTS idx_secure_scores_tenant
+    ON secure_scores(tenant_id, snapshot_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_improvement_actions_tenant
+    ON improvement_actions(tenant_id, snapshot_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_improvement_actions_category
+    ON improvement_actions(control_category);

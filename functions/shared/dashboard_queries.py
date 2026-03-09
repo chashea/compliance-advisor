@@ -388,3 +388,62 @@ def get_trend(department: str | None = None, days: int = 30) -> dict:
     )
 
     return {"trend": trend}
+
+
+def get_improvement_actions(department: str | None = None) -> dict:
+    """POST /api/advisor/actions — Secure Score and improvement actions."""
+    dept_filter = ""
+    params: dict = {}
+    if department:
+        dept_filter = "AND t.department = %(dept)s"
+        params["dept"] = department
+
+    score = query_one(
+        f"""
+        SELECT ss.current_score, ss.max_score, ss.score_date::text
+        FROM secure_scores ss
+        JOIN tenants t ON t.tenant_id = ss.tenant_id
+        WHERE ss.snapshot_date = (SELECT MAX(snapshot_date) FROM secure_scores)
+          {dept_filter}
+        ORDER BY ss.score_date DESC
+        LIMIT 1
+        """,
+        params,
+    )
+
+    actions = query(
+        f"""
+        SELECT ia.control_id, ia.title, ia.control_category, ia.max_score,
+               ia.current_score, ia.implementation_cost, ia.user_impact,
+               ia.tier, ia.service, ia.threats, ia.remediation, ia.state,
+               ia.rank, t.display_name AS tenant_name
+        FROM improvement_actions ia
+        JOIN tenants t ON t.tenant_id = ia.tenant_id
+        WHERE ia.snapshot_date = (SELECT MAX(snapshot_date) FROM improvement_actions)
+          AND ia.deprecated = FALSE
+          {dept_filter}
+        ORDER BY ia.rank
+        """,
+        params,
+    )
+
+    category_breakdown = query(
+        f"""
+        SELECT ia.control_category, COUNT(*)::int AS total,
+               SUM(ia.max_score)::real AS total_max_score
+        FROM improvement_actions ia
+        JOIN tenants t ON t.tenant_id = ia.tenant_id
+        WHERE ia.snapshot_date = (SELECT MAX(snapshot_date) FROM improvement_actions)
+          AND ia.deprecated = FALSE
+          {dept_filter}
+        GROUP BY ia.control_category
+        ORDER BY total_max_score DESC
+        """,
+        params,
+    )
+
+    return {
+        "secure_score": score or {"current_score": 0, "max_score": 0, "score_date": None},
+        "actions": actions,
+        "category_breakdown": category_breakdown,
+    }

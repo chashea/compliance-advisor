@@ -21,6 +21,8 @@ def _make_payload(**overrides) -> CompliancePayload:
         "audit_records": [],
         "dlp_alerts": [],
         "protection_scopes": [],
+        "secure_scores": [],
+        "improvement_actions": [],
     }
     return CompliancePayload(**{**defaults, **overrides})
 
@@ -70,6 +72,8 @@ def test_to_dict_contains_all_fields():
         "audit_records",
         "dlp_alerts",
         "protection_scopes",
+        "secure_scores",
+        "improvement_actions",
         "collector_version",
     }
     assert set(d.keys()) == expected_keys

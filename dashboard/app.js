@@ -143,6 +143,20 @@ function generateDemoData() {
     audit: { records: auditRecords, service_breakdown: [{ service: "SharePoint", total: 1 }, { service: "Exchange", total: 1 }, { service: "OneDrive", total: 1 }], operation_breakdown: [] },
     governance: { scopes: governanceScopes },
     trend: { trend: [] },
+    actions: {
+      secure_score: { current_score: 62.5, max_score: 100, score_date: "2026-03-08" },
+      actions: [
+        { rank: 1, title: "Enable MFA for all users", control_category: "Identity", max_score: 10, implementation_cost: "Low", user_impact: "Moderate", tier: "Core", service: "Microsoft Entra ID", threats: "Account Breach", state: "Default", tenant_name: "Demo Tenant" },
+        { rank: 5, title: "Apply Data Loss Prevention policies", control_category: "Data", max_score: 20, implementation_cost: "Moderate", user_impact: "Moderate", tier: "Advanced", service: "IP", threats: "Data Exfiltration, Data Spillage", state: "Default", tenant_name: "Demo Tenant" },
+        { rank: 12, title: "Enable audit logging", control_category: "Data", max_score: 5, implementation_cost: "Low", user_impact: "Low", tier: "Core", service: "Exchange", threats: "Data Exfiltration", state: "Default", tenant_name: "Demo Tenant" },
+        { rank: 20, title: "Configure device compliance policies", control_category: "Device", max_score: 15, implementation_cost: "High", user_impact: "High", tier: "Defense in Depth", service: "Intune", threats: "Elevation of Privilege", state: "Default", tenant_name: "Demo Tenant" },
+      ],
+      category_breakdown: [
+        { control_category: "Data", total: 2, total_max_score: 25 },
+        { control_category: "Device", total: 1, total_max_score: 15 },
+        { control_category: "Identity", total: 1, total_max_score: 10 },
+      ],
+    },
   };
 }
 
@@ -162,7 +176,7 @@ async function loadData() {
     if (demoMode) {
       currentData = generateDemoData();
     } else {
-      const [overview, ediscovery, labels, dlp, audit, governance, trend] = await Promise.all([
+      const [overview, ediscovery, labels, dlp, audit, governance, trend, actions] = await Promise.all([
         api("overview", body),
         api("ediscovery", body),
         api("labels", body),
@@ -170,8 +184,9 @@ async function loadData() {
         api("audit", body),
         api("governance", body),
         api("trend", body),
+        api("actions", body),
       ]);
-      currentData = { overview, ediscovery, labels, dlp, audit, governance, trend };
+      currentData = { overview, ediscovery, labels, dlp, audit, governance, trend, actions };
     }
 
     renderAll();
@@ -199,6 +214,7 @@ function renderAll() {
   renderDLPAlerts();
   renderAuditRecords();
   renderGovernance();
+  renderImprovementActions();
   populateDepartments();
 }
 
@@ -452,6 +468,104 @@ function renderGovernance() {
   `).join("");
 }
 
+// ── Improvement Actions ─────────────────────────────────────────────────────
+
+function renderImprovementActions() {
+  const data = currentData.actions || {};
+  const score = data.secure_score || {};
+  const scoreEl = $("#secure-score-value");
+  if (scoreEl) {
+    const cur = score.current_score ?? 0;
+    const max = score.max_score ?? 0;
+    scoreEl.textContent = max > 0 ? `${Math.round(cur)} / ${Math.round(max)}` : "–";
+  }
+
+  const actions = data.actions || [];
+  populateActionsFilters(actions);
+  applyActionsFilters();
+}
+
+function populateActionsFilters(actions) {
+  const catSel = $("#actions-category-filter");
+  if (!catSel) return;
+  const cur = catSel.value;
+  const categories = [...new Set(actions.map(a => a.control_category).filter(Boolean))].sort();
+  while (catSel.options.length > 1) catSel.remove(1);
+  categories.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = c;
+    opt.textContent = c;
+    catSel.add(opt);
+  });
+  catSel.value = cur;
+}
+
+function applyActionsFilters() {
+  const actions = currentData.actions?.actions || [];
+  const catFilter = $("#actions-category-filter")?.value || "";
+  const costFilter = $("#actions-cost-filter")?.value || "";
+  const tierFilter = $("#actions-tier-filter")?.value || "";
+
+  const filtered = actions.filter(a => {
+    if (catFilter && a.control_category !== catFilter) return false;
+    if (costFilter && a.implementation_cost !== costFilter) return false;
+    if (tierFilter && a.tier !== tierFilter) return false;
+    return true;
+  });
+
+  const tbody = $("#actions-table tbody");
+  if (filtered.length === 0) {
+    const msg = actions.length === 0 ? "No improvement actions" : "No actions match the selected filters";
+    tbody.innerHTML = `<tr><td colspan="7" class="placeholder-text">${msg}</td></tr>`;
+  } else {
+    tbody.innerHTML = filtered.map(a => `
+      <tr>
+        <td>${a.rank || "–"}</td>
+        <td title="${esc(a.remediation || "")}">${esc(a.title)}</td>
+        <td>${esc(a.control_category)}</td>
+        <td>${a.max_score || 0}</td>
+        <td>${costBadge(a.implementation_cost)}</td>
+        <td>${esc(a.tier)}</td>
+        <td>${esc(a.service)}</td>
+      </tr>
+    `).join("");
+  }
+
+  updateActionsFilterState();
+}
+
+function costBadge(cost) {
+  const c = (cost || "").toLowerCase();
+  let cls = "badge--blue";
+  if (c === "low") cls = "badge--green";
+  else if (c === "moderate") cls = "badge--yellow";
+  else if (c === "high") cls = "badge--red";
+  return `<span class="badge ${cls}">${esc(cost)}</span>`;
+}
+
+function updateActionsFilterState() {
+  const catSel = $("#actions-category-filter");
+  const costSel = $("#actions-cost-filter");
+  const tierSel = $("#actions-tier-filter");
+  const clearBtn = $("#actions-clear-filters");
+  if (!catSel || !costSel || !tierSel || !clearBtn) return;
+  const active = Boolean(catSel.value) || Boolean(costSel.value) || Boolean(tierSel.value);
+  clearBtn.disabled = !active;
+  catSel.classList.toggle("filter-active", Boolean(catSel.value));
+  costSel.classList.toggle("filter-active", Boolean(costSel.value));
+  tierSel.classList.toggle("filter-active", Boolean(tierSel.value));
+}
+
+function clearActionsFilters() {
+  const catSel = $("#actions-category-filter");
+  const costSel = $("#actions-cost-filter");
+  const tierSel = $("#actions-tier-filter");
+  if (catSel) catSel.value = "";
+  if (costSel) costSel.value = "";
+  if (tierSel) tierSel.value = "";
+  applyActionsFilters();
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 function esc(s) {
@@ -672,6 +786,11 @@ document.addEventListener("DOMContentLoaded", () => {
   $("#dlp-status-filter")?.addEventListener("change", applyDLPFilters);
   $("#dlp-tenant-filter")?.addEventListener("change", applyDLPFilters);
   $("#dlp-clear-filters")?.addEventListener("click", clearDLPFilters);
+
+  $("#actions-category-filter")?.addEventListener("change", applyActionsFilters);
+  $("#actions-cost-filter")?.addEventListener("change", applyActionsFilters);
+  $("#actions-tier-filter")?.addEventListener("change", applyActionsFilters);
+  $("#actions-clear-filters")?.addEventListener("click", clearActionsFilters);
 
   initSortableTables();
   initBriefing();

@@ -389,3 +389,87 @@ def get_protection_scopes(token: str) -> list[dict[str, Any]]:
 
     log.info("Retrieved %d protection scopes", len(scopes))
     return scopes
+
+
+# ── Secure Score ──────────────────────────────────────────────────
+
+
+def get_secure_scores(token: str) -> list[dict[str, Any]]:
+    """Return the most recent Secure Score snapshot."""
+    sess = _session(token)
+    url = f"{GRAPH_BASE}/security/secureScores?$top=1"
+
+    try:
+        resp = sess.get(url, timeout=30)
+        resp.raise_for_status()
+        items = resp.json().get("value", [])
+    except requests.HTTPError as e:
+        log.warning("secureScores failed: %s", e)
+        return []
+
+    scores = []
+    for item in items:
+        scores.append(
+            {
+                "current_score": item.get("currentScore", 0),
+                "max_score": item.get("maxScore", 0),
+                "score_date": item.get("createdDateTime", "")[:10],
+            }
+        )
+
+    log.info("Retrieved %d secure score snapshots", len(scores))
+    return scores
+
+
+# ── Improvement Actions (Secure Score Control Profiles) ───────────
+
+
+def get_improvement_actions(token: str) -> list[dict[str, Any]]:
+    """Return Secure Score control profiles (improvement actions)."""
+    sess = _session(token)
+    url = f"{GRAPH_BASE}/security/secureScoreControlProfiles"
+
+    try:
+        items = _paginate(sess, url, max_pages=5)
+    except requests.HTTPError as e:
+        log.warning("secureScoreControlProfiles failed: %s", e)
+        return []
+
+    actions = []
+    for item in items:
+        if item.get("deprecated", False):
+            continue
+
+        threats = item.get("threats", [])
+        threats_str = ", ".join(threats) if isinstance(threats, list) else str(threats or "")
+
+        state = "Default"
+        updates = item.get("controlStateUpdates", [])
+        if isinstance(updates, list) and updates:
+            state = updates[-1].get("state", "Default") if isinstance(updates[-1], dict) else "Default"
+
+        current_score = 0
+        # currentScore may be in controlScores of the latest secureScore, not here;
+        # we default to 0 and can enrich later from secureScores data.
+
+        actions.append(
+            {
+                "control_id": item.get("id", ""),
+                "title": item.get("title", ""),
+                "control_category": item.get("controlCategory", ""),
+                "max_score": item.get("maxScore", 0),
+                "current_score": current_score,
+                "implementation_cost": item.get("implementationCost", ""),
+                "user_impact": item.get("userImpact", ""),
+                "tier": item.get("tier", ""),
+                "service": item.get("service", ""),
+                "threats": threats_str,
+                "remediation": item.get("remediation", ""),
+                "state": state,
+                "deprecated": False,
+                "rank": item.get("rank", 0),
+            }
+        )
+
+    log.info("Retrieved %d improvement actions", len(actions))
+    return actions

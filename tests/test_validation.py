@@ -20,6 +20,8 @@ VALID_PAYLOAD = {
     "audit_records": [],
     "dlp_alerts": [],
     "protection_scopes": [],
+    "secure_scores": [],
+    "improvement_actions": [],
     "collector_version": "3.0.0",
 }
 
@@ -57,6 +59,8 @@ def test_schema_requires_all_fields():
         "audit_records",
         "dlp_alerts",
         "protection_scopes",
+        "secure_scores",
+        "improvement_actions",
         "collector_version",
     }
 

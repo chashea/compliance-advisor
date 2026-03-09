@@ -23,6 +23,7 @@ try:
         get_dlp,
         get_ediscovery,
         get_governance,
+        get_improvement_actions,
         get_labels,
         get_overview,
         get_status,
@@ -33,9 +34,11 @@ try:
         upsert_audit_record,
         upsert_dlp_alert,
         upsert_ediscovery_case,
+        upsert_improvement_action,
         upsert_protection_scope,
         upsert_retention_event,
         upsert_retention_label,
+        upsert_secure_score,
         upsert_sensitivity_label,
         upsert_tenant,
         upsert_trend,
@@ -180,6 +183,18 @@ def advisor_trend(req: func.HttpRequest) -> func.HttpResponse:
         )
     except Exception as e:
         log.exception("advisor/trend error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+@app.function_name("advisor_actions")
+@app.route(route="advisor/actions", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_actions(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        _ensure_dependencies_loaded()
+        body = _get_body(req)
+        return _json_response(get_improvement_actions(department=body.get("department")))
+    except Exception as e:
+        log.exception("advisor/actions error: %s", e)
         return _json_response({"error": str(e)}, 500)
 
 
@@ -339,8 +354,40 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 snapshot_date=snapshot_date,
             )
 
+        # Upsert secure scores
+        for ss in payload.get("secure_scores", []):
+            upsert_secure_score(
+                tenant_id=tenant_id,
+                current_score=ss.get("current_score", 0),
+                max_score=ss.get("max_score", 0),
+                score_date=ss.get("score_date", snapshot_date),
+                snapshot_date=snapshot_date,
+            )
+
+        # Upsert improvement actions
+        for ia in payload.get("improvement_actions", []):
+            upsert_improvement_action(
+                tenant_id=tenant_id,
+                control_id=ia.get("control_id", ""),
+                title=ia.get("title", ""),
+                control_category=ia.get("control_category", ""),
+                max_score=ia.get("max_score", 0),
+                current_score=ia.get("current_score", 0),
+                implementation_cost=ia.get("implementation_cost", ""),
+                user_impact=ia.get("user_impact", ""),
+                tier=ia.get("tier", ""),
+                service=ia.get("service", ""),
+                threats=ia.get("threats", ""),
+                remediation=ia.get("remediation", ""),
+                state=ia.get("state", "Default"),
+                deprecated=ia.get("deprecated", False),
+                rank=ia.get("rank", 0),
+                snapshot_date=snapshot_date,
+            )
+
         log.info(
-            "Ingested: tenant=%s dept=%s ediscovery=%d labels=%d retention=%d audit=%d dlp=%d scopes=%d",
+            "Ingested: tenant=%s dept=%s ediscovery=%d labels=%d retention=%d audit=%d dlp=%d scopes=%d "
+            "scores=%d actions=%d",
             tenant_id,
             payload["department"],
             len(payload.get("ediscovery_cases", [])),
@@ -349,6 +396,8 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
             len(payload.get("audit_records", [])),
             len(payload.get("dlp_alerts", [])),
             len(payload.get("protection_scopes", [])),
+            len(payload.get("secure_scores", [])),
+            len(payload.get("improvement_actions", [])),
         )
         return _json_response(
             {
