@@ -401,29 +401,56 @@ def get_protection_scopes(token: str) -> list[dict[str, Any]]:
 
 
 def get_secure_scores(token: str) -> list[dict[str, Any]]:
-    """Return the most recent Secure Score snapshot."""
+    """Return the most recent Secure Score snapshot with Data category breakdown."""
     sess = _session(token)
-    url = f"{GRAPH_BASE}/security/secureScores?$top=1"
 
     try:
-        resp = sess.get(url, timeout=30)
+        resp = sess.get(f"{GRAPH_BASE}/security/secureScores?$top=1", timeout=30)
         resp.raise_for_status()
         items = resp.json().get("value", [])
     except requests.HTTPError as e:
         log.warning("secureScores failed: %s", e)
         return []
 
-    scores = []
-    for item in items:
-        scores.append(
-            {
-                "current_score": item.get("currentScore", 0),
-                "max_score": item.get("maxScore", 0),
-                "score_date": item.get("createdDateTime", "")[:10],
-            }
-        )
+    if not items:
+        return []
 
-    log.info("Retrieved %d secure score snapshots", len(scores))
+    # Build per-control current score lookup from the snapshot
+    item = items[0]
+    control_scores: dict[str, float] = {
+        cs["controlName"]: float(cs.get("score") or 0)
+        for cs in item.get("controlScores", [])
+        if isinstance(cs, dict) and cs.get("controlName")
+    }
+
+    # Fetch Data category control profiles to compute Data score
+    data_current = 0.0
+    data_max = 0.0
+    try:
+        profiles = _paginate(
+            sess,
+            f"{GRAPH_BASE}/security/secureScoreControlProfiles" "?$filter=controlCategory eq 'Data'",
+            max_pages=5,
+        )
+        for p in profiles:
+            if p.get("deprecated", False):
+                continue
+            data_max += float(p.get("maxScore") or 0)
+            data_current += control_scores.get(p.get("id", ""), 0)
+    except requests.HTTPError as e:
+        log.warning("secureScoreControlProfiles (Data) failed: %s", e)
+
+    scores = [
+        {
+            "current_score": item.get("currentScore", 0),
+            "max_score": item.get("maxScore", 0),
+            "score_date": item.get("createdDateTime", "")[:10],
+            "data_current_score": round(data_current, 2),
+            "data_max_score": round(data_max, 2),
+        }
+    ]
+
+    log.info("Retrieved secure score snapshot (data: %.1f/%.1f)", data_current, data_max)
     return scores
 
 

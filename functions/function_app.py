@@ -469,6 +469,8 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 max_score=ss.get("max_score", 0),
                 score_date=ss.get("score_date", snapshot_date),
                 snapshot_date=snapshot_date,
+                data_current_score=ss.get("data_current_score", 0),
+                data_max_score=ss.get("data_max_score", 0),
             )
 
         # Upsert improvement actions

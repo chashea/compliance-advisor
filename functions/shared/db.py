@@ -434,17 +434,22 @@ def upsert_secure_score(
     max_score: float,
     score_date: str,
     snapshot_date: str,
+    data_current_score: float = 0,
+    data_max_score: float = 0,
 ) -> None:
     execute(
         """
         INSERT INTO secure_scores
-            (tenant_id, current_score, max_score, score_date, snapshot_date)
-        VALUES (%s, %s, %s, %s, %s)
+            (tenant_id, current_score, max_score, score_date, snapshot_date,
+             data_current_score, data_max_score)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (tenant_id, score_date, snapshot_date) DO UPDATE SET
             current_score = EXCLUDED.current_score,
-            max_score = EXCLUDED.max_score
+            max_score = EXCLUDED.max_score,
+            data_current_score = EXCLUDED.data_current_score,
+            data_max_score = EXCLUDED.data_max_score
         """,
-        (tenant_id, current_score, max_score, score_date, snapshot_date),
+        (tenant_id, current_score, max_score, score_date, snapshot_date, data_current_score, data_max_score),
     )
 
 

@@ -130,12 +130,14 @@ CREATE TABLE IF NOT EXISTS irm_alerts (
 
 -- Secure Score snapshots
 CREATE TABLE IF NOT EXISTS secure_scores (
-    id              SERIAL PRIMARY KEY,
-    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
-    current_score   REAL NOT NULL,
-    max_score       REAL NOT NULL,
-    score_date      DATE NOT NULL,
-    snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+    id                  SERIAL PRIMARY KEY,
+    tenant_id           TEXT NOT NULL REFERENCES tenants(tenant_id),
+    current_score       REAL NOT NULL,
+    max_score           REAL NOT NULL,
+    score_date          DATE NOT NULL,
+    snapshot_date       DATE NOT NULL DEFAULT CURRENT_DATE,
+    data_current_score  REAL DEFAULT 0,
+    data_max_score      REAL DEFAULT 0,
     UNIQUE (tenant_id, score_date, snapshot_date)
 );
 

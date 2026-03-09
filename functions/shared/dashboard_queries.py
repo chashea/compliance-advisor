@@ -538,7 +538,8 @@ def get_improvement_actions(department: str | None = None) -> dict:
 
     score = query_one(
         f"""
-        SELECT ss.current_score, ss.max_score, ss.score_date::text
+        SELECT ss.current_score, ss.max_score, ss.score_date::text,
+               ss.data_current_score, ss.data_max_score
         FROM secure_scores ss
         JOIN tenants t ON t.tenant_id = ss.tenant_id
         WHERE ss.snapshot_date = (SELECT MAX(snapshot_date) FROM secure_scores)
@@ -581,7 +582,14 @@ def get_improvement_actions(department: str | None = None) -> dict:
     )
 
     return {
-        "secure_score": score or {"current_score": 0, "max_score": 0, "score_date": None},
+        "secure_score": score
+        or {
+            "current_score": 0,
+            "max_score": 0,
+            "score_date": None,
+            "data_current_score": 0,
+            "data_max_score": 0,
+        },
         "actions": actions,
         "category_breakdown": category_breakdown,
     }
