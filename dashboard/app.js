@@ -158,7 +158,7 @@ function generateDemoData() {
       ],
     },
     actions: {
-      secure_score: { current_score: 62.5, max_score: 100, score_date: "2026-03-08" },
+      secure_score: { current_score: 62.5, max_score: 100, score_date: "2026-03-08", data_current_score: 38, data_max_score: 85 },
       actions: [
         { rank: 1, title: "Enable MFA for all users", control_category: "Identity", max_score: 10, implementation_cost: "Low", user_impact: "Moderate", tier: "Core", service: "Microsoft Entra ID", threats: "Account Breach", state: "Default", tenant_name: "Demo Tenant" },
         { rank: 5, title: "Apply Data Loss Prevention policies", control_category: "Data", max_score: 20, implementation_cost: "Moderate", user_impact: "Moderate", tier: "Advanced", service: "IP", threats: "Data Exfiltration, Data Spillage", state: "Default", tenant_name: "Demo Tenant" },
@@ -232,11 +232,16 @@ function renderAll() {
 function renderKPIs() {
   const ov = currentData.overview || {};
   const tenants = ov.tenants || [];
-  const edSummary = ov.ediscovery_summary || {};
   const dlpSummary = ov.dlp_summary || {};
 
   $("#kpi-tenants").textContent = tenants.length;
-  $("#kpi-ediscovery").textContent = `${edSummary.active_cases || 0} active`;
+
+  const score = currentData.actions?.secure_score || {};
+  const dataCur = score.data_current_score ?? 0;
+  const dataMax = score.data_max_score ?? 0;
+  $("#kpi-secure-score").textContent = dataMax > 0 ? `${Math.round(dataCur)} / ${Math.round(dataMax)}` : "–";
+  $("#kpi-secure-score-pct").textContent = dataMax > 0 ? `${Math.round(dataCur / dataMax * 100)}%` : "";
+
   $("#kpi-dlp").textContent = `${dlpSummary.active_alerts || 0} active`;
   const irmAlerts = currentData.irm?.alerts || [];
   const irmActive = irmAlerts.filter(a => (a.status || "").toLowerCase() !== "resolved").length;
@@ -508,14 +513,6 @@ function renderCommCompliance() {
 
 function renderImprovementActions() {
   const data = currentData.actions || {};
-  const score = data.secure_score || {};
-  const scoreEl = $("#secure-score-value");
-  if (scoreEl) {
-    const cur = score.current_score ?? 0;
-    const max = score.max_score ?? 0;
-    scoreEl.textContent = max > 0 ? `${Math.round(cur)} / ${Math.round(max)}` : "–";
-  }
-
   const actions = data.actions || [];
   populateActionsFilters(actions);
   applyActionsFilters();

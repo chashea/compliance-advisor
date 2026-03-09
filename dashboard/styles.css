@@ -272,6 +272,7 @@ select:focus { outline: none; border-color: var(--accent); }
 }
 .kpi-card__value--good { color: var(--good); }
 .kpi-card__value--bad { color: var(--bad); }
+.kpi-card__sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.1rem; }
 .kpi-card[data-clickable] { cursor: pointer; transition: border-color .15s, box-shadow .15s; }
 .kpi-card[data-clickable]:hover { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 
