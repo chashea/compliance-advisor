@@ -46,8 +46,8 @@ log = logging.getLogger("collector")
 @click.option(
     "--actions-category",
     envvar="ACTIONS_CATEGORY",
-    default=None,
-    help="Filter improvement actions by controlCategory (e.g. Data, Identity, Device). Default: all.",
+    default="Data",
+    help="Filter improvement actions by controlCategory (e.g. Data, Identity, Device). Default: Data.",
 )
 def main(
     tenant_id: str,
