@@ -259,19 +259,14 @@ function renderKPIs() {
   const ov = currentData.overview || {};
   const tenants = ov.tenants || [];
   const edSummary = ov.ediscovery_summary || {};
-  const labelsSummary = ov.labels_summary || {};
   const dlpSummary = ov.dlp_summary || {};
-  const auditSummary = ov.audit_summary || {};
 
   $("#kpi-tenants").textContent = tenants.length;
   $("#kpi-ediscovery").textContent = `${edSummary.active_cases || 0} active`;
-  $("#kpi-sensitivity").textContent = labelsSummary.sensitivity_labels || 0;
-  $("#kpi-retention").textContent = labelsSummary.retention_labels || 0;
   $("#kpi-dlp").textContent = `${dlpSummary.active_alerts || 0} active`;
   const irmAlerts = currentData.irm?.alerts || [];
   const irmActive = irmAlerts.filter(a => (a.status || "").toLowerCase() !== "resolved").length;
   $("#kpi-irm").textContent = `${irmActive} active`;
-  $("#kpi-audit").textContent = auditSummary.total_records || 0;
 }
 
 function renderTrendChart() {
