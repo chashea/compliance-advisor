@@ -115,7 +115,6 @@ module functionApp 'modules/function-app.bicep' = {
     openAiEndpoint: openai.outputs.openAiEndpoint
     openAiDeployment: openAiDeploymentModel
     allowedTenantIds: allowedTenantIds
-    databaseUrl: postgres.outputs.connectionString
     entraClientId: entraClientId
   }
 }

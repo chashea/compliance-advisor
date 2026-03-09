@@ -78,6 +78,8 @@ def _get_openai_client() -> Any:
         azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
         azure_ad_token_provider=token_provider,
         api_version=settings.AZURE_OPENAI_API_VERSION,
+        max_retries=3,
+        timeout=30.0,
     )
 
 

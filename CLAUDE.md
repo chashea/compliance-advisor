@@ -84,7 +84,7 @@ Multi-tenant GCC compliance workload dashboard. Three independent components sha
 ## Key Design Decisions
 
 - All dashboard API routes are POST (not GET) — body contains optional filters.
-- DATABASE_URL is stored plaintext in Function App app settings (Key Vault public access is disabled, so direct KV reference is not used in prod).
+- DATABASE_URL is stored as a Key Vault reference in Function App app settings (`@Microsoft.KeyVault(SecretUri=...)`). The Function App's SystemAssigned managed identity has `Key Vault Secrets User` RBAC on the resource group.
 - Collector uses client credentials (app-only) auth via MSAL `ConfidentialClientApplication` — `CLIENT_ID` + `CLIENT_SECRET` in `.env`. App registration: `compliance-advisor-collector` (28ce4587-667e-4eec-8740-190dee3634da), multi-tenant. Service principal must be in eDiscovery Manager and Compliance Administrator role groups in Purview compliance portal.
 - Config uses pydantic-settings: `functions/shared/config.py` (`FunctionSettings`) and `collector/config.py` (`CollectorSettings`).
 - Audit log API is async: POST query → poll status → GET records.

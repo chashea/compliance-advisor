@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "3221864846739526272"
+      "templateHash": "3734644446864667878"
     }
   },
   "parameters": {
@@ -81,7 +81,8 @@
       "properties": {
         "minimumTlsVersion": "TLS1_2",
         "supportsHttpsTrafficOnly": true,
-        "allowSharedKeyAccess": true
+        "allowSharedKeyAccess": true,
+        "publicNetworkAccess": "Enabled"
       }
     },
     {
@@ -137,7 +138,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "15694932930061361642"
+              "templateHash": "14194650989098317608"
             }
           },
           "parameters": {
@@ -185,8 +186,8 @@
                   "storageSizeGB": "[parameters('storageSizeGB')]"
                 },
                 "backup": {
-                  "backupRetentionDays": 7,
-                  "geoRedundantBackup": "Disabled"
+                  "backupRetentionDays": 35,
+                  "geoRedundantBackup": "Enabled"
                 },
                 "highAvailability": {
                   "mode": "Disabled"
@@ -590,9 +591,6 @@
           "allowedTenantIds": {
             "value": "[parameters('allowedTenantIds')]"
           },
-          "databaseUrl": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'postgres'), '2025-04-01').outputs.connectionString.value]"
-          },
           "entraClientId": {
             "value": "[parameters('entraClientId')]"
           }
@@ -604,7 +602,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "4254315611582905428"
+              "templateHash": "7790861771520311240"
             }
           },
           "parameters": {
@@ -640,9 +638,6 @@
             },
             "allowedTenantIds": {
               "type": "string"
-            },
-            "databaseUrl": {
-              "type": "securestring"
             },
             "entraClientId": {
               "type": "string",
@@ -804,7 +799,6 @@
         "[resourceId('Microsoft.Resources/deployments', 'keyvault')]",
         "[resourceId('Microsoft.Resources/deployments', 'monitoring')]",
         "[resourceId('Microsoft.Resources/deployments', 'openai')]",
-        "[resourceId('Microsoft.Resources/deployments', 'postgres')]",
         "[resourceId('Microsoft.Storage/storageAccounts', variables('storageName'))]"
       ]
     }

@@ -13,9 +13,6 @@ param openAiEndpoint string
 param openAiDeployment string
 param allowedTenantIds string
 
-@secure()
-param databaseUrl string
-
 // EasyAuth params
 param entraClientId string = ''
 param entraTenantId string = subscription().tenantId
