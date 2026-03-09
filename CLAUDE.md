@@ -14,8 +14,11 @@ Project-specific guidance. Global conventions (communication style, git workflow
 # Install collector CLI (editable)
 pip install -e .
 
-# Run collector (dry run)
+# Run collector (dry run, Data category improvement actions by default)
 compliance-collect --tenant-id <GUID> --agency-id <ID> --department <DEPT> --display-name "<NAME>" --dry-run
+
+# Run collector with different actions category
+compliance-collect --tenant-id <GUID> --agency-id <ID> --department <DEPT> --actions-category Identity
 
 # Run Function App locally
 cd functions && pip install -r requirements.txt && func start
@@ -56,7 +59,7 @@ Multi-tenant GCC compliance workload dashboard. Three independent components sha
 
 3. **Dashboard** (`dashboard/`) — Static HTML/CSS/JS SPA. Config in `env.js` (`window.COMPLIANCE_API_BASE`, `window.COMPLIANCE_API_KEY`). No build step. Has built-in demo data mode toggled by checkbox.
 
-**Database**: PostgreSQL with 15 tables: `tenants`, `ediscovery_cases`, `sensitivity_labels`, `retention_labels`, `retention_events`, `audit_records`, `dlp_alerts`, `irm_alerts`, `protection_scopes`, `secure_scores` (includes `data_current_score`, `data_max_score`), `improvement_actions`, `subject_rights_requests`, `comm_compliance_policies`, `info_barrier_policies`, `user_content_policies`, `compliance_trend`. Schema in `sql/schema.sql`. Connection pool via psycopg2 `ThreadedConnectionPool` in `shared/db.py`.
+**Database**: PostgreSQL with 16 tables: `tenants`, `ediscovery_cases`, `sensitivity_labels`, `retention_labels`, `retention_events`, `audit_records`, `dlp_alerts`, `irm_alerts`, `protection_scopes`, `secure_scores` (includes `data_current_score`, `data_max_score`), `improvement_actions`, `subject_rights_requests`, `comm_compliance_policies`, `info_barrier_policies`, `user_content_policies`, `compliance_trend`. Schema in `sql/schema.sql`. Connection pool via psycopg2 `ThreadedConnectionPool` in `shared/db.py`.
 
 **Infrastructure** (`infra/`): Bicep modules for PostgreSQL Flexible Server, Function App + App Service Plan, Key Vault, Azure OpenAI, Log Analytics + App Insights. Function App uses SystemAssigned managed identity with RBAC for Key Vault and OpenAI. `azuredeploy.json` at repo root is the compiled ARM template for the "Deploy to Azure" button.
 
@@ -70,7 +73,7 @@ Multi-tenant GCC compliance workload dashboard. Three independent components sha
 | AI agent | `functions/shared/ai_agent.py` | Azure OpenAI GPT-4o integration |
 | Validation | `functions/shared/validation.py` | JSON schema validation for ingest |
 | Function config | `functions/shared/config.py` | `FunctionSettings` (pydantic-settings) |
-| Collector client | `collector/compliance_client.py` | Graph API calls for 12 compliance workloads |
+| Collector client | `collector/compliance_client.py` | Graph API calls for 14 compliance workloads |
 | Collector config | `collector/config.py` | `CollectorSettings` (pydantic-settings) |
 | Payload | `collector/payload.py` | `CompliancePayload` dataclass |
 | DB schema | `sql/schema.sql` | PostgreSQL table definitions |
@@ -86,6 +89,9 @@ Multi-tenant GCC compliance workload dashboard. Three independent components sha
 - Config uses pydantic-settings: `functions/shared/config.py` (`FunctionSettings`) and `collector/config.py` (`CollectorSettings`).
 - Audit log API is async: POST query → poll status → GET records.
 - Sensitivity labels use beta API with v1.0 fallback.
+- DLP and IRM alerts use the legacy `/v1.0/security/alerts` endpoint filtered by `vendorInformation/provider` — IRM has no valid `serviceSource` enum in `alerts_v2`; DLP surfaces more reliably this way.
+- Improvement actions default to `controlCategory eq 'Data'` via `--actions-category` / `ACTIONS_CATEGORY` env var.
+- Secure Score snapshot cross-references `controlScores` with Data category profiles to compute `data_current_score` / `data_max_score`.
 
 ## CI/CD
 
