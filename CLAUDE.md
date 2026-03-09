@@ -6,7 +6,7 @@ Project-specific guidance. Global conventions (communication style, git workflow
 
 - **Repo:** `github.com/chashea/compliance-advisor`, branch `main`
 - **Resource group:** `rg-compliance-advisor`
-- **Current version:** v0.20.1
+- **Current version:** v0.21.0
 
 ## Build & Run Commands
 
@@ -50,7 +50,7 @@ Run tests with `python3.12 -m pytest tests/` (42 tests covering validation, dash
 
 Multi-tenant GCC compliance workload dashboard. Three independent components share a PostgreSQL database:
 
-1. **Collector** (`collector/`) — Python CLI (`compliance-collect`) that authenticates to GCC tenants via MSAL ROPC, pulls compliance workload data from Microsoft Graph API (eDiscovery, sensitivity labels, retention labels/events, audit log, DLP alerts, IRM alerts, protection scopes, Secure Score with Data category breakdown, improvement actions filtered to Data category by default, subject rights requests, communication compliance, information barriers), and POSTs a payload to the Function App's `/api/ingest` endpoint. DLP and IRM alerts use the legacy `/security/alerts` endpoint filtered by `vendorInformation/provider`. Use `--actions-category` (env: `ACTIONS_CATEGORY`, default: `Data`) to control which Secure Score category is collected.
+1. **Collector** (`collector/`) — Python CLI (`compliance-collect`) that authenticates to GCC tenants via MSAL client credentials (app-only), pulls compliance workload data from Microsoft Graph API (eDiscovery, sensitivity labels, retention labels/events, audit log, DLP alerts, IRM alerts, protection scopes, Secure Score with Data category breakdown, improvement actions filtered to Data category by default, subject rights requests, communication compliance, information barriers), and POSTs a payload to the Function App's `/api/ingest` endpoint. DLP and IRM alerts use the legacy `/security/alerts` endpoint filtered by `vendorInformation/provider`. Use `--actions-category` (env: `ACTIONS_CATEGORY`, default: `Data`) to control which Secure Score category is collected.
 
 2. **Function App** (`functions/`) — Azure Functions v2 Python (decorator-based, no `function.json` files). All routes defined in `function_app.py`. Two categories:
    - **Ingest** (`/api/ingest`) — FUNCTION-level auth, validates payload via JSON schema (`shared/validation.py`), upserts to PostgreSQL (`shared/db.py`).
@@ -84,8 +84,8 @@ Multi-tenant GCC compliance workload dashboard. Three independent components sha
 ## Key Design Decisions
 
 - All dashboard API routes are POST (not GET) — body contains optional filters.
-- DATABASE_URL is stored in Key Vault; Function App references it via `@Microsoft.KeyVault(...)` app setting — never in plain text.
-- Collector uses ROPC (service account) auth — non-interactive, per-tenant credentials stored in Key Vault.
+- DATABASE_URL is stored plaintext in Function App app settings (Key Vault public access is disabled, so direct KV reference is not used in prod).
+- Collector uses client credentials (app-only) auth via MSAL `ConfidentialClientApplication` — `CLIENT_ID` + `CLIENT_SECRET` in `.env`. App registration: `compliance-advisor-collector` (28ce4587-667e-4eec-8740-190dee3634da), multi-tenant. Service principal must be in eDiscovery Manager and Compliance Administrator role groups in Purview compliance portal.
 - Config uses pydantic-settings: `functions/shared/config.py` (`FunctionSettings`) and `collector/config.py` (`CollectorSettings`).
 - Audit log API is async: POST query → poll status → GET records.
 - Sensitivity labels use beta API with v1.0 fallback.

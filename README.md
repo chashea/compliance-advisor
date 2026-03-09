@@ -7,11 +7,11 @@ Multi-tenant GCC compliance workload dashboard that aggregates Microsoft 365 com
 ```
 GCC Tenant A ──┐
 GCC Tenant B ──┤  collector/cli.py              Azure Function App
-GCC Tenant C ──┘  (ROPC, service account)  ──▶  POST /api/ingest
+GCC Tenant C ──┘  (client credentials)     ──▶  POST /api/ingest
                   Microsoft Graph API              │
                                                    ▼
                                              PostgreSQL
-                                             (15 tables: tenants,
+                                             (16 tables: tenants,
                                               ediscovery, labels, dlp,
                                               irm, audit, scores, ...)
                                                    │
@@ -65,10 +65,13 @@ GCC Tenant C ──┘  (ROPC, service account)  ──▶  POST /api/ingest
 - Python 3.11+
 - Azure subscription (Commercial)
 - Access to GCC tenant(s) with Microsoft 365 compliance workloads
-- Service account per tenant with appropriate Graph API permissions
+- Multi-tenant Entra app registration with client credentials (client secret)
+- App service principal added to eDiscovery Manager and Compliance Administrator role groups in Microsoft Purview
 - Azure CLI (`az`)
 
-### Required Graph API Permissions
+### Required Graph API Permissions (Application)
+
+All permissions are **Application** type (not delegated) granted to the multi-tenant app registration.
 
 | Permission | Workload |
 |---|---|
@@ -76,11 +79,14 @@ GCC Tenant C ──┘  (ROPC, service account)  ──▶  POST /api/ingest
 | `InformationProtectionPolicy.Read.All` | Sensitivity labels |
 | `RecordsManagement.Read.All` | Retention labels & events |
 | `AuditLogsQuery.Read.All` | Audit log queries |
-| `SecurityAlert.Read.All` | DLP alerts, IRM alerts |
-| `SecurityEvents.Read.All` | Secure Score, Improvement Actions |
-| `Content.Process.All` | Data security & governance |
+| `SecurityEvents.Read.All` | DLP alerts, IRM alerts, Secure Score, Improvement Actions |
 | `SubjectRightsRequest.Read.All` | Subject rights requests |
-| `InformationBarriersPolicy.Read.All` | Information barriers |
+| `Policy.Read.All` | Information barriers |
+| `User.Read.All` | User enumeration (for content policy probing) |
+
+Additionally, the app's service principal must be added to these role groups in [compliance.microsoft.com](https://compliance.microsoft.com) → Permissions:
+- **eDiscovery Manager**
+- **Compliance Administrator**
 
 ## Local Development
 
@@ -152,10 +158,14 @@ compliance-collect --tenant-id <GUID> --agency-id <NAME> --department <DEPT> --d
 
 | Variable | Default | Description |
 |---|---|---|
+| `CLIENT_ID` | — | App registration client ID |
+| `CLIENT_SECRET` | — | App registration client secret |
 | `TENANT_ID` | — | Target tenant GUID |
 | `AGENCY_ID` | — | Logical agency identifier |
 | `DEPARTMENT` | — | Department name |
 | `DISPLAY_NAME` | — | Human-readable tenant name |
+| `FUNCTION_APP_URL` | — | Ingest endpoint URL |
+| `FUNCTION_APP_KEY` | — | Function-level API key |
 | `ACTIONS_CATEGORY` | `Data` | Secure Score control category filter |
 | `AUDIT_LOG_DAYS` | `1` | Audit log lookback window (days) |
 
@@ -219,16 +229,14 @@ psql "<CONNECTION_STRING>" -f sql/schema.sql
 
 ## Onboarding a New GCC Tenant
 
-1. Create a service account in the GCC tenant with the required Graph API permissions
-2. Store credentials in Key Vault:
-   ```bash
-   az keyvault secret set --vault-name <KV_NAME> --name "svc-<agency-id>-username" --value "<UPN>"
-   az keyvault secret set --vault-name <KV_NAME> --name "svc-<agency-id>-password" --value "<PASSWORD>"
-   ```
-3. Add the tenant GUID to `ALLOWED_TENANT_IDS` in the Function App config
+1. Grant admin consent for the `compliance-advisor-collector` app in the target tenant:
+   - Navigate to `https://login.microsoftonline.com/<TENANT_ID>/adminconsent?client_id=<CLIENT_ID>`
+   - Or use the Entra admin center → Enterprise applications → Grant admin consent
+2. Add the app's service principal to **eDiscovery Manager** and **Compliance Administrator** role groups in the tenant's [Microsoft Purview compliance portal](https://compliance.microsoft.com) → Permissions
+3. Add the tenant GUID to `ALLOWED_TENANT_IDS` in the Function App config (if allowlist is enabled)
 4. Run the collector:
    ```bash
-   compliance-collect --tenant-id <GUID> --agency-id <NAME> --department <DEPT>
+   compliance-collect --tenant-id <GUID> --agency-id <NAME> --department <DEPT> --display-name "<NAME>"
    ```
 
 ## Project Structure
@@ -238,7 +246,7 @@ compliance-advisor/
 ├── dashboard/          Static HTML/CSS/JS dashboard
 ├── collector/          Per-tenant data collector (Python CLI)
 ├── functions/          Azure Functions v2 API backend
-├── sql/                PostgreSQL schema (15 tables)
+├── sql/                PostgreSQL schema (16 tables)
 ├── infra/              Bicep IaC templates
 ├── tests/              pytest test suite (42 tests)
 └── .github/workflows/  CI/CD
