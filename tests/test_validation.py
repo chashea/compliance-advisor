@@ -171,6 +171,45 @@ def test_empty_agency_id_rejected(mock_get):
         validate_ingestion_request(req)
 
 
+# ── Array item schema validation ──────────────────────────────────
+
+
+@patch("shared.validation.get_settings")
+def test_dlp_alert_missing_alert_id_rejected(mock_get):
+    mock_get.return_value = _mock_settings("")
+    payload = {**VALID_PAYLOAD, "dlp_alerts": [{"severity": "high"}]}
+    req = _mock_request(payload)
+    with pytest.raises(ValueError, match="Schema validation failed"):
+        validate_ingestion_request(req)
+
+
+@patch("shared.validation.get_settings")
+def test_dlp_alert_missing_severity_rejected(mock_get):
+    mock_get.return_value = _mock_settings("")
+    payload = {**VALID_PAYLOAD, "dlp_alerts": [{"alert_id": "a1"}]}
+    req = _mock_request(payload)
+    with pytest.raises(ValueError, match="Schema validation failed"):
+        validate_ingestion_request(req)
+
+
+@patch("shared.validation.get_settings")
+def test_ediscovery_case_missing_case_id_rejected(mock_get):
+    mock_get.return_value = _mock_settings("")
+    payload = {**VALID_PAYLOAD, "ediscovery_cases": [{"display_name": "Case 1"}]}
+    req = _mock_request(payload)
+    with pytest.raises(ValueError, match="Schema validation failed"):
+        validate_ingestion_request(req)
+
+
+@patch("shared.validation.get_settings")
+def test_secure_score_missing_required_fields_rejected(mock_get):
+    mock_get.return_value = _mock_settings("")
+    payload = {**VALID_PAYLOAD, "secure_scores": [{"score_date": "2026-03-09"}]}
+    req = _mock_request(payload)
+    with pytest.raises(ValueError, match="Schema validation failed"):
+        validate_ingestion_request(req)
+
+
 # ── Tenant allow-list ─────────────────────────────────────────────
 
 

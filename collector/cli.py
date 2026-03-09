@@ -32,6 +32,7 @@ from collector.compliance_client import (
 from collector.config import CollectorSettings
 from collector.payload import CompliancePayload
 from collector.submit import submit_payload
+from collector.telemetry import track_event
 
 log = logging.getLogger("collector")
 
@@ -89,6 +90,16 @@ def main(
         token = get_graph_token(settings)
     except RuntimeError as e:
         click.echo(f"Authentication failed: {e}", err=True)
+        track_event(
+            settings.APPINSIGHTS_CONNECTION_STRING,
+            "CollectorRun",
+            {
+                "tenant_id": settings.TENANT_ID,
+                "agency_id": settings.AGENCY_ID,
+                "status": "auth_failed",
+                "error": str(e),
+            },
+        )
         sys.exit(1)
 
     click.echo("Authenticated. Collecting compliance data from Microsoft Graph...")
@@ -182,8 +193,32 @@ def main(
     try:
         result = submit_payload(payload_dict, settings)
         click.echo(f"Success: {json.dumps(result)}")
+        track_event(
+            settings.APPINSIGHTS_CONNECTION_STRING,
+            "CollectorRun",
+            {
+                "tenant_id": settings.TENANT_ID,
+                "agency_id": settings.AGENCY_ID,
+                "status": "success",
+                "duplicate": result.get("duplicate", False),
+                "ediscovery_cases": len(ediscovery_cases),
+                "sensitivity_labels": len(sensitivity_labels),
+                "dlp_alerts": len(dlp_alerts),
+                "audit_records": len(audit_records),
+            },
+        )
     except Exception as e:
         click.echo(f"Submission failed: {e}", err=True)
+        track_event(
+            settings.APPINSIGHTS_CONNECTION_STRING,
+            "CollectorRun",
+            {
+                "tenant_id": settings.TENANT_ID,
+                "agency_id": settings.AGENCY_ID,
+                "status": "submit_failed",
+                "error": str(e),
+            },
+        )
         sys.exit(1)
 
 

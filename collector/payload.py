@@ -12,9 +12,18 @@ Includes data from Microsoft Graph compliance APIs:
 - User content policies (userDataSecurityAndGovernance)
 """
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
 from typing import Any
+
+
+def _collector_version() -> str:
+    try:
+        return _pkg_version("compliance-advisor")
+    except PackageNotFoundError:
+        return "unknown"
 
 
 @dataclass
@@ -38,7 +47,7 @@ class CompliancePayload:
     secure_scores: list[dict[str, Any]]
     improvement_actions: list[dict[str, Any]]
     user_content_policies: list[dict[str, Any]]
-    collector_version: str = "4.2.0"
+    collector_version: str = field(default_factory=_collector_version)
 
     @staticmethod
     def now_iso() -> str:

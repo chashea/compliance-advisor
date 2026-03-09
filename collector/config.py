@@ -35,6 +35,9 @@ class CollectorSettings(BaseSettings):
     # Audit log query lookback window
     AUDIT_LOG_DAYS: int = Field(default=1, description="Days of audit log history to query")
 
+    # Monitoring
+    APPINSIGHTS_CONNECTION_STRING: str = Field(default="", description="Application Insights connection string")
+
     @property
     def login_authority(self) -> str:
         return "https://login.microsoftonline.com"
