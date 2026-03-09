@@ -316,7 +316,7 @@ def get_dlp_alerts(token: str) -> list[dict[str, Any]]:
     sess = _session(token)
     url = (
         f"{GRAPH_BASE}/security/alerts_v2"
-        "?$filter=serviceSource eq 'microsoftDataLossPrevention'"
+        "?$filter=serviceSource eq 'dataLossPrevention'"
         "&$top=100&$orderby=createdDateTime desc"
     )
 
@@ -350,51 +350,6 @@ def get_dlp_alerts(token: str) -> list[dict[str, Any]]:
         )
 
     log.info("Retrieved %d DLP alerts", len(alerts))
-    return alerts
-
-
-# ── Insider Risk Management alerts ────────────────────────────────
-
-
-def get_irm_alerts(token: str) -> list[dict[str, Any]]:
-    """Return Insider Risk Management alerts from alerts_v2."""
-    sess = _session(token)
-    url = (
-        f"{GRAPH_BASE}/security/alerts_v2"
-        "?$filter=serviceSource eq 'insiderRiskManagement'"
-        "&$top=100&$orderby=createdDateTime desc"
-    )
-
-    try:
-        items = _paginate(sess, url, max_pages=5)
-    except requests.HTTPError as e:
-        log.warning("IRM alerts failed: %s", e)
-        return []
-
-    alerts = []
-    for item in items:
-        policy_name = ""
-        evidence = item.get("evidence", [])
-        if isinstance(evidence, list):
-            for ev in evidence:
-                if isinstance(ev, dict) and ev.get("policyName"):
-                    policy_name = ev.get("policyName", "")
-                    break
-
-        alerts.append(
-            {
-                "alert_id": item.get("id", ""),
-                "title": item.get("title", ""),
-                "severity": item.get("severity", ""),
-                "status": item.get("status", ""),
-                "category": item.get("category", ""),
-                "created": item.get("createdDateTime", ""),
-                "resolved": item.get("resolvedDateTime", ""),
-                "policy_name": policy_name,
-            }
-        )
-
-    log.info("Retrieved %d IRM alerts", len(alerts))
     return alerts
 
 
@@ -601,9 +556,7 @@ def get_info_barrier_policies(token: str) -> list[dict[str, Any]]:
     for item in items:
         segments = item.get("segments", [])
         segments_str = (
-            ", ".join(s.get("displayName", "") for s in segments)
-            if isinstance(segments, list)
-            else str(segments or "")
+            ", ".join(s.get("displayName", "") for s in segments) if isinstance(segments, list) else str(segments or "")
         )
 
         results.append(

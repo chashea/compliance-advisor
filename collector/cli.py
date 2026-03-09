@@ -20,7 +20,6 @@ from collector.compliance_client import (
     get_ediscovery_cases,
     get_improvement_actions,
     get_info_barrier_policies,
-    get_irm_alerts,
     get_protection_scopes,
     get_retention_events,
     get_retention_labels,
@@ -105,9 +104,6 @@ def main(
     click.echo("  DLP Alerts...")
     dlp_alerts = get_dlp_alerts(token)
 
-    click.echo("  IRM Alerts...")
-    irm_alerts = get_irm_alerts(token)
-
     click.echo("  Subject Rights Requests...")
     subject_rights_requests = get_subject_rights_requests(token)
 
@@ -133,7 +129,6 @@ def main(
         f"\neDiscovery: {len(ediscovery_cases)} | Labels: {len(sensitivity_labels)} "
         f"| Retention: {len(retention_labels)} labels, {len(retention_events)} events "
         f"| Audit: {len(audit_records)} | DLP: {len(dlp_alerts)} "
-        f"| IRM: {len(irm_alerts)} "
         f"| SRR: {len(subject_rights_requests)} | CommCompliance: {len(comm_compliance_policies)} "
         f"| InfoBarriers: {len(info_barrier_policies)} "
         f"| Scopes: {len(protection_scopes)} | Secure Score: {len(secure_scores)} "
@@ -154,7 +149,6 @@ def main(
         retention_events=retention_events,
         audit_records=audit_records,
         dlp_alerts=dlp_alerts,
-        irm_alerts=irm_alerts,
         subject_rights_requests=subject_rights_requests,
         comm_compliance_policies=comm_compliance_policies,
         info_barrier_policies=info_barrier_policies,

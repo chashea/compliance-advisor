@@ -20,7 +20,6 @@ def _make_payload(**overrides) -> CompliancePayload:
         "retention_events": [],
         "audit_records": [],
         "dlp_alerts": [],
-        "irm_alerts": [],
         "subject_rights_requests": [],
         "comm_compliance_policies": [],
         "info_barrier_policies": [],
@@ -37,12 +36,12 @@ def _make_payload(**overrides) -> CompliancePayload:
 
 def test_default_collector_version():
     p = _make_payload()
-    assert p.collector_version == "4.0.0"
+    assert p.collector_version == "4.1.0"
 
 
 def test_custom_collector_version():
-    p = _make_payload(collector_version="4.0.0")
-    assert p.collector_version == "4.0.0"
+    p = _make_payload(collector_version="4.1.0")
+    assert p.collector_version == "4.1.0"
 
 
 def test_fields_set_correctly():
@@ -76,7 +75,6 @@ def test_to_dict_contains_all_fields():
         "retention_events",
         "audit_records",
         "dlp_alerts",
-        "irm_alerts",
         "subject_rights_requests",
         "comm_compliance_policies",
         "info_barrier_policies",
