@@ -100,6 +100,53 @@
       </div>
     </section>
 
+    <!-- ── Improvement Actions ─────────────────────────────────────── -->
+    <section class="chart-row">
+      <div class="card card--full">
+        <div class="card__header">
+          <h2 class="card__title">Improvement Actions</h2>
+          <div class="actions-score-badge" id="secure-score-badge">
+            <span id="secure-score-value">–</span>
+            <span class="actions-score-label">Secure Score</span>
+          </div>
+        </div>
+        <div class="card__body">
+          <div class="actions-filters" id="actions-filters">
+            <select id="actions-category-filter" aria-label="Filter by category">
+              <option value="">All Categories</option>
+            </select>
+            <select id="actions-cost-filter" aria-label="Filter by cost">
+              <option value="">All Costs</option>
+              <option value="Low">Low</option>
+              <option value="Moderate">Moderate</option>
+              <option value="High">High</option>
+            </select>
+            <select id="actions-tier-filter" aria-label="Filter by tier">
+              <option value="">All Tiers</option>
+              <option value="Core">Core</option>
+              <option value="Defense in Depth">Defense in Depth</option>
+              <option value="Advanced">Advanced</option>
+            </select>
+            <button id="actions-clear-filters" class="btn btn--ghost" disabled>Clear</button>
+          </div>
+          <table class="data-table data-table--sortable" id="actions-table">
+            <thead>
+              <tr>
+                <th data-sort="rank" data-sort-num>Rank <span class="sort-icon"></span></th>
+                <th data-sort="title">Action <span class="sort-icon"></span></th>
+                <th data-sort="control_category">Category <span class="sort-icon"></span></th>
+                <th data-sort="max_score" data-sort-num>Points <span class="sort-icon"></span></th>
+                <th data-sort="implementation_cost">Cost <span class="sort-icon"></span></th>
+                <th data-sort="tier">Tier <span class="sort-icon"></span></th>
+                <th data-sort="service">Service <span class="sort-icon"></span></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <!-- ── DLP Alerts Table ──────────────────────────────────────────── -->
     <section class="chart-row">
       <div class="card card--full">
@@ -250,53 +297,6 @@
             Click "Generate Briefing" to produce an AI-generated executive summary
             of your compliance posture for leadership.
           </p>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── Improvement Actions ─────────────────────────────────────── -->
-    <section class="chart-row">
-      <div class="card card--full">
-        <div class="card__header">
-          <h2 class="card__title">Improvement Actions</h2>
-          <div class="actions-score-badge" id="secure-score-badge">
-            <span id="secure-score-value">–</span>
-            <span class="actions-score-label">Secure Score</span>
-          </div>
-        </div>
-        <div class="card__body">
-          <div class="actions-filters" id="actions-filters">
-            <select id="actions-category-filter" aria-label="Filter by category">
-              <option value="">All Categories</option>
-            </select>
-            <select id="actions-cost-filter" aria-label="Filter by cost">
-              <option value="">All Costs</option>
-              <option value="Low">Low</option>
-              <option value="Moderate">Moderate</option>
-              <option value="High">High</option>
-            </select>
-            <select id="actions-tier-filter" aria-label="Filter by tier">
-              <option value="">All Tiers</option>
-              <option value="Core">Core</option>
-              <option value="Defense in Depth">Defense in Depth</option>
-              <option value="Advanced">Advanced</option>
-            </select>
-            <button id="actions-clear-filters" class="btn btn--ghost" disabled>Clear</button>
-          </div>
-          <table class="data-table data-table--sortable" id="actions-table">
-            <thead>
-              <tr>
-                <th data-sort="rank" data-sort-num>Rank <span class="sort-icon"></span></th>
-                <th data-sort="title">Action <span class="sort-icon"></span></th>
-                <th data-sort="control_category">Category <span class="sort-icon"></span></th>
-                <th data-sort="max_score" data-sort-num>Points <span class="sort-icon"></span></th>
-                <th data-sort="implementation_cost">Cost <span class="sort-icon"></span></th>
-                <th data-sort="tier">Tier <span class="sort-icon"></span></th>
-                <th data-sort="service">Service <span class="sort-icon"></span></th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
         </div>
       </div>
     </section>
