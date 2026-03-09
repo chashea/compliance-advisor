@@ -22,7 +22,7 @@
 }
 
 /* ── Light theme overrides ───────────────────────────────────────────────── */
-[data-theme="light"] {
+html.light-theme {
   --bg:           #f4f5f7;
   --bg-card:      #ffffff;
   --bg-input:     #eceef2;

@@ -11,11 +11,12 @@ const CONFIG = {
 
 // ── Theme ────────────────────────────────────────────────────────────────────
 function applyTheme(theme) {
-  document.documentElement.setAttribute("data-theme", theme === "light" ? "light" : "");
   if (theme === "light") {
+    document.documentElement.classList.add("light-theme");
     Chart.defaults.color = "#6b7280";
     Chart.defaults.borderColor = "rgba(209,213,219,.6)";
   } else {
+    document.documentElement.classList.remove("light-theme");
     Chart.defaults.color = "#8b8fa3";
     Chart.defaults.borderColor = "rgba(45,48,64,.6)";
   }
@@ -991,13 +992,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const themeBtn = $("#theme-toggle");
   if (themeBtn) {
-    const currentTheme = document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
-    themeBtn.textContent = currentTheme === "light" ? "🌙" : "☀";
+    const syncIcon = () => {
+      themeBtn.textContent = document.documentElement.classList.contains("light-theme") ? "🌙" : "☀";
+    };
+    syncIcon();
     themeBtn.addEventListener("click", () => {
-      const cur = document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
-      const next = cur === "light" ? "dark" : "light";
-      applyTheme(next);
-      themeBtn.textContent = next === "light" ? "🌙" : "☀";
+      const isLight = document.documentElement.classList.contains("light-theme");
+      applyTheme(isLight ? "dark" : "light");
+      syncIcon();
       renderAll();
     });
   }
