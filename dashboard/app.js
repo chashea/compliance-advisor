@@ -171,7 +171,13 @@ function generateDemoData() {
         { display_name: "HR - Finance Barrier", state: "active", segments_applied: "HR, Finance", tenant_name: "Demo Tenant" },
       ],
     },
-    trend: { trend: [] },
+    trend: { trend: [
+      { snapshot_date: "2026-02-07", ediscovery_cases: 2, dlp_alerts: 1, audit_records: 8, sensitivity_labels: 4, retention_labels: 2, tenant_count: 1 },
+      { snapshot_date: "2026-02-14", ediscovery_cases: 2, dlp_alerts: 2, audit_records: 12, sensitivity_labels: 4, retention_labels: 3, tenant_count: 1 },
+      { snapshot_date: "2026-02-21", ediscovery_cases: 3, dlp_alerts: 1, audit_records: 15, sensitivity_labels: 5, retention_labels: 3, tenant_count: 1 },
+      { snapshot_date: "2026-02-28", ediscovery_cases: 3, dlp_alerts: 3, audit_records: 10, sensitivity_labels: 5, retention_labels: 3, tenant_count: 1 },
+      { snapshot_date: "2026-03-07", ediscovery_cases: 3, dlp_alerts: 3, audit_records: 3, sensitivity_labels: 5, retention_labels: 3, tenant_count: 1 },
+    ] },
     actions: {
       secure_score: { current_score: 62.5, max_score: 100, score_date: "2026-03-08" },
       actions: [
