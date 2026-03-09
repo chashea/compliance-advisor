@@ -9,6 +9,27 @@ const CONFIG = {
   functionKey: window.COMPLIANCE_API_KEY || "",
 };
 
+// ── Theme ────────────────────────────────────────────────────────────────────
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme === "light" ? "light" : "");
+  if (theme === "light") {
+    Chart.defaults.color = "#6b7280";
+    Chart.defaults.borderColor = "rgba(209,213,219,.6)";
+  } else {
+    Chart.defaults.color = "#8b8fa3";
+    Chart.defaults.borderColor = "rgba(45,48,64,.6)";
+  }
+  localStorage.setItem("theme", theme);
+}
+
+function initTheme() {
+  const saved = localStorage.getItem("theme");
+  const preferred = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  applyTheme(saved || preferred);
+}
+
+initTheme();
+
 // ── Chart.js global defaults ────────────────────────────────────────────────
 Chart.defaults.color = "#8b8fa3";
 Chart.defaults.borderColor = "rgba(45,48,64,.6)";
@@ -969,6 +990,19 @@ document.addEventListener("DOMContentLoaded", () => {
   $("#actions-cost-filter")?.addEventListener("change", applyActionsFilters);
   $("#actions-tier-filter")?.addEventListener("change", applyActionsFilters);
   $("#actions-clear-filters")?.addEventListener("click", clearActionsFilters);
+
+  const themeBtn = $("#theme-toggle");
+  if (themeBtn) {
+    const currentTheme = document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+    themeBtn.textContent = currentTheme === "light" ? "🌙" : "☀";
+    themeBtn.addEventListener("click", () => {
+      const cur = document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+      const next = cur === "light" ? "dark" : "light";
+      applyTheme(next);
+      themeBtn.textContent = next === "light" ? "🌙" : "☀";
+      renderAll();
+    });
+  }
 
   initSortableTables();
   initBriefing();

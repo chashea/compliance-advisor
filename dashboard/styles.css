@@ -21,6 +21,23 @@
   --shadow:       0 2px 12px rgba(0,0,0,.35);
 }
 
+/* ── Light theme overrides ───────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg:           #f4f5f7;
+  --bg-card:      #ffffff;
+  --bg-input:     #eceef2;
+  --border:       #d1d5db;
+  --text:         #111827;
+  --text-muted:   #6b7280;
+  --shadow:       0 2px 12px rgba(0,0,0,.10);
+}
+
+.theme-toggle {
+  font-size: 1rem;
+  padding: 0.4rem 0.6rem;
+  line-height: 1;
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
