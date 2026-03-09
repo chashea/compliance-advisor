@@ -271,10 +271,10 @@ function renderDLPChart() {
   const totals = breakdown.map(b => b.total);
   const grand = totals.reduce((a, b) => a + b, 0);
   const colors = labels.map(l => {
-    if (l === "high") return CHART_COLORS.red;
-    if (l === "medium") return CHART_COLORS.yellow;
-    if (l === "low") return CHART_COLORS.green;
-    return CHART_COLORS.purple;
+    if (l === "high") return "rgba(248,113,113,.6)";
+    if (l === "medium") return "rgba(251,191,36,.55)";
+    if (l === "low") return "rgba(52,211,153,.55)";
+    return "rgba(167,139,250,.55)";
   });
 
   charts.dlp = new Chart($("#dlp-chart"), {
