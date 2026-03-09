@@ -24,6 +24,7 @@ try:
         get_ediscovery,
         get_governance,
         get_improvement_actions,
+        get_irm,
         get_labels,
         get_overview,
         get_status,
@@ -35,6 +36,7 @@ try:
         upsert_dlp_alert,
         upsert_ediscovery_case,
         upsert_improvement_action,
+        upsert_irm_alert,
         upsert_protection_scope,
         upsert_retention_event,
         upsert_retention_label,
@@ -148,6 +150,18 @@ def advisor_dlp(req: func.HttpRequest) -> func.HttpResponse:
         return _json_response(get_dlp(department=body.get("department")))
     except Exception as e:
         log.exception("advisor/dlp error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+@app.function_name("advisor_irm")
+@app.route(route="advisor/irm", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_irm(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        _ensure_dependencies_loaded()
+        body = _get_body(req)
+        return _json_response(get_irm(department=body.get("department")))
+    except Exception as e:
+        log.exception("advisor/irm error: %s", e)
         return _json_response({"error": str(e)}, 500)
 
 
@@ -351,6 +365,21 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 execution_mode=ps.get("execution_mode", ""),
                 locations=ps.get("locations", ""),
                 activity_types=ps.get("activity_types", ""),
+                snapshot_date=snapshot_date,
+            )
+
+        # Upsert IRM alerts
+        for ia in payload.get("irm_alerts", []):
+            upsert_irm_alert(
+                tenant_id=tenant_id,
+                alert_id=ia.get("alert_id", ""),
+                title=ia.get("title", ""),
+                severity=ia.get("severity", ""),
+                status=ia.get("status", ""),
+                category=ia.get("category", ""),
+                policy_name=ia.get("policy_name", ""),
+                created=ia.get("created", ""),
+                resolved=ia.get("resolved", ""),
                 snapshot_date=snapshot_date,
             )
 

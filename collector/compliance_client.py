@@ -352,6 +352,51 @@ def get_dlp_alerts(token: str) -> list[dict[str, Any]]:
     return alerts
 
 
+# ── Insider Risk Management alerts ────────────────────────────────
+
+
+def get_irm_alerts(token: str) -> list[dict[str, Any]]:
+    """Return Insider Risk Management alerts from alerts_v2."""
+    sess = _session(token)
+    url = (
+        f"{GRAPH_BASE}/security/alerts_v2"
+        "?$filter=serviceSource eq 'insiderRiskManagement'"
+        "&$top=100&$orderby=createdDateTime desc"
+    )
+
+    try:
+        items = _paginate(sess, url, max_pages=5)
+    except requests.HTTPError as e:
+        log.warning("IRM alerts failed: %s", e)
+        return []
+
+    alerts = []
+    for item in items:
+        policy_name = ""
+        evidence = item.get("evidence", [])
+        if isinstance(evidence, list):
+            for ev in evidence:
+                if isinstance(ev, dict) and ev.get("policyName"):
+                    policy_name = ev.get("policyName", "")
+                    break
+
+        alerts.append(
+            {
+                "alert_id": item.get("id", ""),
+                "title": item.get("title", ""),
+                "severity": item.get("severity", ""),
+                "status": item.get("status", ""),
+                "category": item.get("category", ""),
+                "created": item.get("createdDateTime", ""),
+                "resolved": item.get("resolvedDateTime", ""),
+                "policy_name": policy_name,
+            }
+        )
+
+    log.info("Retrieved %d IRM alerts", len(alerts))
+    return alerts
+
+
 # ── Data Security & Governance (protection scopes) ────────────────
 
 

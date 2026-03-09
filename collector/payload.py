@@ -29,6 +29,7 @@ class CompliancePayload:
     retention_events: list[dict[str, Any]]
     audit_records: list[dict[str, Any]]
     dlp_alerts: list[dict[str, Any]]
+    irm_alerts: list[dict[str, Any]]
     protection_scopes: list[dict[str, Any]]
     secure_scores: list[dict[str, Any]]
     improvement_actions: list[dict[str, Any]]

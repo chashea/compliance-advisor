@@ -142,6 +142,16 @@ function generateDemoData() {
     dlp: { alerts: dlpAlerts, severity_breakdown: dlpSeverityBreakdown, policy_breakdown: [{ policy_name: "PII Protection", total: 2 }, { policy_name: "Financial Data", total: 1 }] },
     audit: { records: auditRecords, service_breakdown: [{ service: "SharePoint", total: 1 }, { service: "Exchange", total: 1 }, { service: "OneDrive", total: 1 }], operation_breakdown: [] },
     governance: { scopes: governanceScopes },
+    irm: {
+      alerts: [
+        { title: "Unusual file download volume", severity: "high", status: "new", policy_name: "Data Theft", created: "2026-03-07", tenant_name: "Demo Tenant" },
+        { title: "Sequence of exfiltration activities", severity: "medium", status: "inProgress", policy_name: "Data Leaks", created: "2026-03-06", tenant_name: "Demo Tenant" },
+      ],
+      severity_breakdown: [
+        { severity: "high", total: 1, active: 1 },
+        { severity: "medium", total: 1, active: 1 },
+      ],
+    },
     trend: { trend: [] },
     actions: {
       secure_score: { current_score: 62.5, max_score: 100, score_date: "2026-03-08" },
@@ -176,17 +186,18 @@ async function loadData() {
     if (demoMode) {
       currentData = generateDemoData();
     } else {
-      const [overview, ediscovery, labels, dlp, audit, governance, trend, actions] = await Promise.all([
+      const [overview, ediscovery, labels, dlp, irm, audit, governance, trend, actions] = await Promise.all([
         api("overview", body),
         api("ediscovery", body),
         api("labels", body),
         api("dlp", body),
+        api("irm", body),
         api("audit", body),
         api("governance", body),
         api("trend", body),
         api("actions", body),
       ]);
-      currentData = { overview, ediscovery, labels, dlp, audit, governance, trend, actions };
+      currentData = { overview, ediscovery, labels, dlp, irm, audit, governance, trend, actions };
     }
 
     renderAll();
@@ -212,6 +223,7 @@ function renderAll() {
   renderSensitivityLabels();
   renderRetentionLabels();
   renderDLPAlerts();
+  renderIRMAlerts();
   renderAuditRecords();
   renderGovernance();
   renderImprovementActions();
@@ -231,6 +243,9 @@ function renderKPIs() {
   $("#kpi-sensitivity").textContent = labelsSummary.sensitivity_labels || 0;
   $("#kpi-retention").textContent = labelsSummary.retention_labels || 0;
   $("#kpi-dlp").textContent = `${dlpSummary.active_alerts || 0} active`;
+  const irmAlerts = currentData.irm?.alerts || [];
+  const irmActive = irmAlerts.filter(a => (a.status || "").toLowerCase() !== "resolved").length;
+  $("#kpi-irm").textContent = `${irmActive} active`;
   $("#kpi-audit").textContent = auditSummary.total_records || 0;
 }
 
@@ -448,6 +463,71 @@ function clearDLPFilters() {
   if (statusSel) statusSel.value = "";
   if (tenantSel) tenantSel.value = "";
   applyDLPFilters();
+}
+
+function renderIRMAlerts() {
+  const alerts = currentData.irm?.alerts || [];
+  const statusSel = $("#irm-status-filter");
+  if (statusSel) {
+    const cur = statusSel.value;
+    const statuses = [...new Set(alerts.map(a => a.status).filter(Boolean))].sort();
+    while (statusSel.options.length > 1) statusSel.remove(1);
+    statuses.forEach(s => {
+      const opt = document.createElement("option");
+      opt.value = s;
+      opt.textContent = s;
+      statusSel.add(opt);
+    });
+    statusSel.value = cur;
+  }
+  applyIRMFilters();
+}
+
+function applyIRMFilters() {
+  const alerts = currentData.irm?.alerts || [];
+  const sevFilter = $("#irm-severity-filter")?.value || "";
+  const statusFilter = $("#irm-status-filter")?.value || "";
+
+  const filtered = alerts.filter(a => {
+    if (sevFilter && (a.severity || "").toLowerCase() !== sevFilter) return false;
+    if (statusFilter && a.status !== statusFilter) return false;
+    return true;
+  });
+
+  const tbody = $("#irm-table tbody");
+  if (filtered.length === 0) {
+    const msg = alerts.length === 0 ? "No insider risk alerts" : "No alerts match the selected filters";
+    tbody.innerHTML = `<tr><td colspan="6" class="placeholder-text">${msg}</td></tr>`;
+  } else {
+    tbody.innerHTML = filtered.map(a => `
+      <tr>
+        <td>${esc(a.title)}</td>
+        <td>${severityBadge(a.severity)}</td>
+        <td>${statusBadge(a.status)}</td>
+        <td>${esc(a.policy_name)}</td>
+        <td>${esc(a.created?.slice(0, 10) || "")}</td>
+        <td>${esc(a.tenant_name)}</td>
+      </tr>
+    `).join("");
+  }
+
+  const sevSel = $("#irm-severity-filter");
+  const stSel = $("#irm-status-filter");
+  const clearBtn = $("#irm-clear-filters");
+  if (sevSel && stSel && clearBtn) {
+    const active = Boolean(sevSel.value) || Boolean(stSel.value);
+    clearBtn.disabled = !active;
+    sevSel.classList.toggle("filter-active", Boolean(sevSel.value));
+    stSel.classList.toggle("filter-active", Boolean(stSel.value));
+  }
+}
+
+function clearIRMFilters() {
+  const sevSel = $("#irm-severity-filter");
+  const stSel = $("#irm-status-filter");
+  if (sevSel) sevSel.value = "";
+  if (stSel) stSel.value = "";
+  applyIRMFilters();
 }
 
 function renderAuditRecords() {
@@ -801,6 +881,10 @@ document.addEventListener("DOMContentLoaded", () => {
   $("#dlp-status-filter")?.addEventListener("change", applyDLPFilters);
   $("#dlp-tenant-filter")?.addEventListener("change", applyDLPFilters);
   $("#dlp-clear-filters")?.addEventListener("click", clearDLPFilters);
+
+  $("#irm-severity-filter")?.addEventListener("change", applyIRMFilters);
+  $("#irm-status-filter")?.addEventListener("change", applyIRMFilters);
+  $("#irm-clear-filters")?.addEventListener("click", clearIRMFilters);
 
   $("#actions-category-filter")?.addEventListener("change", applyActionsFilters);
   $("#actions-cost-filter")?.addEventListener("change", applyActionsFilters);

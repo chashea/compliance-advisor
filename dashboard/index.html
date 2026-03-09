@@ -79,6 +79,10 @@
         <span class="kpi-card__value kpi-card__value--bad" id="kpi-dlp">–</span>
       </div>
       <div class="kpi-card">
+        <span class="kpi-card__label">IRM Alerts</span>
+        <span class="kpi-card__value kpi-card__value--bad" id="kpi-irm">–</span>
+      </div>
+      <div class="kpi-card">
         <span class="kpi-card__label">Audit Records</span>
         <span class="kpi-card__value" id="kpi-audit">–</span>
       </div>
@@ -184,6 +188,42 @@
               <tbody></tbody>
             </table>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── IRM Alerts Table ──────────────────────────────────────────── -->
+    <section class="chart-row">
+      <div class="card card--full">
+        <div class="card__header">
+          <h2 class="card__title">Insider Risk Alerts</h2>
+          <div class="dlp-filters">
+            <select id="irm-severity-filter" aria-label="Filter by severity">
+              <option value="">All Severities</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+            <select id="irm-status-filter" aria-label="Filter by status">
+              <option value="">All Statuses</option>
+            </select>
+            <button id="irm-clear-filters" class="btn btn--ghost" title="Clear IRM filters" disabled>Clear</button>
+          </div>
+        </div>
+        <div class="card__body">
+          <table class="data-table data-table--sortable" id="irm-table">
+            <thead>
+              <tr>
+                <th data-sort="title">Alert <span class="sort-icon"></span></th>
+                <th data-sort="severity">Severity <span class="sort-icon"></span></th>
+                <th data-sort="status">Status <span class="sort-icon"></span></th>
+                <th data-sort="policy_name">Policy <span class="sort-icon"></span></th>
+                <th data-sort="created">Created <span class="sort-icon"></span></th>
+                <th data-sort="tenant_name">Tenant <span class="sort-icon"></span></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
         </div>
       </div>
     </section>

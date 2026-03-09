@@ -390,6 +390,58 @@ def get_trend(department: str | None = None, days: int = 30) -> dict:
     return {"trend": trend}
 
 
+def get_irm(department: str | None = None) -> dict:
+    """POST /api/advisor/irm — Insider Risk Management alerts."""
+    dept_filter = ""
+    params: dict = {}
+    if department:
+        dept_filter = "AND t.department = %(dept)s"
+        params["dept"] = department
+
+    alerts = query(
+        f"""
+        SELECT ia.alert_id, ia.title, ia.severity, ia.status, ia.category,
+               ia.policy_name, ia.created, ia.resolved,
+               t.display_name AS tenant_name
+        FROM irm_alerts ia
+        JOIN tenants t ON t.tenant_id = ia.tenant_id
+        WHERE ia.snapshot_date = (SELECT MAX(snapshot_date) FROM irm_alerts)
+          {dept_filter}
+        ORDER BY
+            CASE ia.severity
+                WHEN 'high' THEN 1
+                WHEN 'medium' THEN 2
+                WHEN 'low' THEN 3
+                ELSE 4
+            END,
+            ia.created DESC
+        """,
+        params,
+    )
+
+    severity_breakdown = query(
+        f"""
+        SELECT ia.severity, COUNT(*)::int AS total,
+               COUNT(*) FILTER (WHERE ia.status != 'resolved')::int AS active
+        FROM irm_alerts ia
+        JOIN tenants t ON t.tenant_id = ia.tenant_id
+        WHERE ia.snapshot_date = (SELECT MAX(snapshot_date) FROM irm_alerts)
+          {dept_filter}
+        GROUP BY ia.severity
+        ORDER BY
+            CASE ia.severity
+                WHEN 'high' THEN 1
+                WHEN 'medium' THEN 2
+                WHEN 'low' THEN 3
+                ELSE 4
+            END
+        """,
+        params,
+    )
+
+    return {"alerts": alerts, "severity_breakdown": severity_breakdown}
+
+
 def get_improvement_actions(department: str | None = None) -> dict:
     """POST /api/advisor/actions — Secure Score and improvement actions."""
     dept_filter = ""

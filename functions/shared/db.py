@@ -284,6 +284,37 @@ def upsert_protection_scope(
     )
 
 
+def upsert_irm_alert(
+    tenant_id: str,
+    alert_id: str,
+    title: str,
+    severity: str,
+    status: str,
+    category: str,
+    policy_name: str,
+    created: str,
+    resolved: str,
+    snapshot_date: str,
+) -> None:
+    execute(
+        """
+        INSERT INTO irm_alerts
+            (tenant_id, alert_id, title, severity, status, category,
+             policy_name, created, resolved, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (tenant_id, alert_id, snapshot_date) DO UPDATE SET
+            title = EXCLUDED.title,
+            severity = EXCLUDED.severity,
+            status = EXCLUDED.status,
+            category = EXCLUDED.category,
+            policy_name = EXCLUDED.policy_name,
+            created = EXCLUDED.created,
+            resolved = EXCLUDED.resolved
+        """,
+        (tenant_id, alert_id, title, severity, status, category, policy_name, created, resolved, snapshot_date),
+    )
+
+
 def upsert_trend(
     snapshot_date: str,
     department: str | None,
