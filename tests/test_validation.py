@@ -26,7 +26,8 @@ VALID_PAYLOAD = {
     "protection_scopes": [],
     "secure_scores": [],
     "improvement_actions": [],
-    "collector_version": "3.0.0",
+    "user_content_policies": [],
+    "collector_version": "4.0.0",
 }
 
 
@@ -69,6 +70,7 @@ def test_schema_requires_all_fields():
         "protection_scopes",
         "secure_scores",
         "improvement_actions",
+        "user_content_policies",
         "collector_version",
     }
 

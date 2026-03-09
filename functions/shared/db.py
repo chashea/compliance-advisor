@@ -448,6 +448,32 @@ def upsert_secure_score(
     )
 
 
+def upsert_user_content_policies(tenant_id: str, records: list[dict], snapshot_date: str) -> int:
+    if not records:
+        return 0
+    sql = """
+        INSERT INTO user_content_policies
+            (tenant_id, snapshot_date, user_id, user_upn, action, policy_id, policy_name,
+             rule_id, rule_name, match_count)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (tenant_id, snapshot_date, user_id) DO UPDATE SET
+            action = EXCLUDED.action,
+            policy_id = EXCLUDED.policy_id,
+            policy_name = EXCLUDED.policy_name,
+            rule_id = EXCLUDED.rule_id,
+            rule_name = EXCLUDED.rule_name,
+            match_count = EXCLUDED.match_count
+    """
+    params = [
+        (tenant_id, snapshot_date, r["user_id"], r["user_upn"], r.get("action", ""),
+         r.get("policy_id", ""), r.get("policy_name", ""), r.get("rule_id", ""),
+         r.get("rule_name", ""), r.get("match_count", 0))
+        for r in records
+    ]
+    execute_many(sql, params)
+    return len(params)
+
+
 def upsert_improvement_action(
     tenant_id: str,
     control_id: str,

@@ -27,6 +27,7 @@ from collector.compliance_client import (
     get_secure_scores,
     get_sensitivity_labels,
     get_subject_rights_requests,
+    get_user_content_policies,
 )
 from collector.config import CollectorSettings
 from collector.payload import CompliancePayload
@@ -125,6 +126,9 @@ def main(
     click.echo("  Improvement Actions...")
     improvement_actions = get_improvement_actions(token)
 
+    click.echo("  User Content Policies...")
+    user_content_policies = get_user_content_policies(token)
+
     click.echo(
         f"\neDiscovery: {len(ediscovery_cases)} | Labels: {len(sensitivity_labels)} "
         f"| Retention: {len(retention_labels)} labels, {len(retention_events)} events "
@@ -133,7 +137,8 @@ def main(
         f"| SRR: {len(subject_rights_requests)} | CommCompliance: {len(comm_compliance_policies)} "
         f"| InfoBarriers: {len(info_barrier_policies)} "
         f"| Scopes: {len(protection_scopes)} | Secure Score: {len(secure_scores)} "
-        f"| Improvement Actions: {len(improvement_actions)}"
+        f"| Improvement Actions: {len(improvement_actions)} "
+        f"| UserContent: {len(user_content_policies)}"
     )
 
     # Build payload
@@ -156,6 +161,7 @@ def main(
         protection_scopes=protection_scopes,
         secure_scores=secure_scores,
         improvement_actions=improvement_actions,
+        user_content_policies=user_content_policies,
     )
 
     payload_dict = payload.to_dict()

@@ -201,6 +201,22 @@ CREATE TABLE IF NOT EXISTS info_barrier_policies (
     UNIQUE (tenant_id, policy_id, snapshot_date)
 );
 
+-- User content policies (userDataSecurityAndGovernance processContent probe)
+CREATE TABLE IF NOT EXISTS user_content_policies (
+    id              SERIAL PRIMARY KEY,
+    tenant_id       UUID NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
+    snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+    user_id         TEXT NOT NULL,
+    user_upn        TEXT NOT NULL,
+    action          TEXT,
+    policy_id       TEXT,
+    policy_name     TEXT,
+    rule_id         TEXT,
+    rule_name       TEXT,
+    match_count     INTEGER DEFAULT 0,
+    UNIQUE (tenant_id, snapshot_date, user_id)
+);
+
 -- Daily compliance trend (computed by timer trigger)
 CREATE TABLE IF NOT EXISTS compliance_trend (
     id                  SERIAL PRIMARY KEY,

@@ -9,6 +9,7 @@ Pulls data from:
 - POST /v1.0/security/auditLog/queries + GET records             — audit log (async)
 - GET  /v1.0/security/alerts_v2?$filter=...DLP                  — DLP alerts
 - POST /v1.0/dataSecurityAndGovernance/protectionScopes/compute  — protection scopes
+- POST /v1.0/users/{id}/dataSecurityAndGovernance/processContent — user content policies
 """
 
 import logging
@@ -615,4 +616,104 @@ def get_info_barrier_policies(token: str) -> list[dict[str, Any]]:
         )
 
     log.info("Retrieved %d information barrier policies", len(results))
+    return results
+
+
+# ── User Content Policies (userDataSecurityAndGovernance) ─────────
+
+
+def _get_users(sess: requests.Session, max_pages: int = 5) -> list[dict]:
+    """Return list of {id, userPrincipalName} dicts for all users."""
+    url = f"{GRAPH_BASE}/users?$select=id,userPrincipalName&$top=100"
+    try:
+        items = _paginate(sess, url, max_pages=max_pages)
+    except requests.HTTPError as e:
+        log.warning("users enumeration failed: %s", e)
+        return []
+    return [{"id": u.get("id", ""), "userPrincipalName": u.get("userPrincipalName", "")} for u in items]
+
+
+def get_user_content_policies(token: str) -> list[dict[str, Any]]:
+    """Submit a standard test content payload to each user and return per-user policy results."""
+    sess = _session(token)
+    users = _get_users(sess)
+
+    probe_body = {
+        "contentToProcess": {
+            "@odata.type": "#microsoft.graph.textContent",
+            "identifier": "compliance-advisor-probe",
+            "name": "probe",
+            "content": "SSN: 123-45-6789. Credit Card: 4111-1111-1111-1111.",
+            "contentMetaData": {
+                "@odata.type": "#microsoft.graph.processConversationMetadata",
+                "messageIdentifier": "probe-1",
+                "conversationIdentifier": "probe-conv-1",
+            },
+        },
+        "activityMetaData": {
+            "@odata.type": "#microsoft.graph.activityMetaData",
+            "activityType": "uploadText",
+        },
+        "deviceMetaData": {
+            "@odata.type": "#microsoft.graph.deviceMetaData",
+            "operatingSystemSpecifications": {
+                "@odata.type": "#microsoft.graph.operatingSystemSpecifications",
+                "operatingSystemPlatform": "",
+                "operatingSystemVersion": "",
+            },
+        },
+        "integratedAppMetaData": {
+            "@odata.type": "#microsoft.graph.integratedAppMetaData",
+            "name": "compliance-advisor-collector",
+        },
+    }
+
+    results = []
+    for user in users:
+        user_id = user["id"]
+        user_upn = user["userPrincipalName"]
+        url = f"{GRAPH_BASE}/users/{user_id}/dataSecurityAndGovernance/processContent"
+        try:
+            resp = sess.post(url, json=probe_body, timeout=30)
+            resp.raise_for_status()
+        except requests.HTTPError as e:
+            log.warning("processContent failed for user %s: %s", user_upn, e)
+            continue
+
+        action = "none"
+        policy_id = ""
+        policy_name = ""
+        rule_id = ""
+        rule_name = ""
+        match_count = 0
+
+        if resp.status_code == 200:
+            try:
+                data = resp.json()
+                policy_actions = data.get("policyActions", [])
+                match_count = len(policy_actions)
+                if policy_actions:
+                    first = policy_actions[0]
+                    action = first.get("action", "none")
+                    policy_id = first.get("policyId", "")
+                    policy_name = first.get("policyName", "")
+                    rule_id = first.get("ruleId", "")
+                    rule_name = first.get("ruleName", "")
+            except Exception:
+                pass
+
+        results.append(
+            {
+                "user_id": user_id,
+                "user_upn": user_upn,
+                "action": action,
+                "policy_id": policy_id,
+                "policy_name": policy_name,
+                "rule_id": rule_id,
+                "rule_name": rule_name,
+                "match_count": match_count,
+            }
+        )
+
+    log.info("Retrieved user content policies for %d/%d users", len(results), len(users))
     return results

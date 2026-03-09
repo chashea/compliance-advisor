@@ -50,6 +50,7 @@ try:
         upsert_subject_rights_request,
         upsert_tenant,
         upsert_trend,
+        upsert_user_content_policies,
     )
     from shared.validation import validate_ingestion_request
 except Exception as e:
@@ -492,6 +493,13 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 rank=ia.get("rank", 0),
                 snapshot_date=snapshot_date,
             )
+
+        # Upsert user content policies
+        upsert_user_content_policies(
+            tenant_id=tenant_id,
+            records=payload.get("user_content_policies", []),
+            snapshot_date=snapshot_date,
+        )
 
         log.info(
             "Ingested: tenant=%s dept=%s ediscovery=%d labels=%d retention=%d audit=%d dlp=%d "

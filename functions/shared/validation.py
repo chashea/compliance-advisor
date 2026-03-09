@@ -38,6 +38,7 @@ PAYLOAD_SCHEMA: dict = {
         "protection_scopes",
         "secure_scores",
         "improvement_actions",
+        "user_content_policies",
         "collector_version",
     ],
     "properties": {
@@ -59,6 +60,7 @@ PAYLOAD_SCHEMA: dict = {
         "protection_scopes": {"type": "array"},
         "secure_scores": {"type": "array"},
         "improvement_actions": {"type": "array"},
+        "user_content_policies": {"type": "array"},
         "collector_version": {"type": "string"},
     },
     "additionalProperties": False,

@@ -9,6 +9,7 @@ Includes data from Microsoft Graph compliance APIs:
 - DLP alerts (Data Security)
 - Protection scopes (Data Security & Governance)
 - Secure Score and improvement actions (Posture Management)
+- User content policies (userDataSecurityAndGovernance)
 """
 
 from dataclasses import asdict, dataclass
@@ -36,7 +37,8 @@ class CompliancePayload:
     protection_scopes: list[dict[str, Any]]
     secure_scores: list[dict[str, Any]]
     improvement_actions: list[dict[str, Any]]
-    collector_version: str = "3.0.0"
+    user_content_policies: list[dict[str, Any]]
+    collector_version: str = "4.0.0"
 
     @staticmethod
     def now_iso() -> str:

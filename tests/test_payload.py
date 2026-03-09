@@ -27,6 +27,7 @@ def _make_payload(**overrides) -> CompliancePayload:
         "protection_scopes": [],
         "secure_scores": [],
         "improvement_actions": [],
+        "user_content_policies": [],
     }
     return CompliancePayload(**{**defaults, **overrides})
 
@@ -36,7 +37,7 @@ def _make_payload(**overrides) -> CompliancePayload:
 
 def test_default_collector_version():
     p = _make_payload()
-    assert p.collector_version == "3.0.0"
+    assert p.collector_version == "4.0.0"
 
 
 def test_custom_collector_version():
@@ -82,6 +83,7 @@ def test_to_dict_contains_all_fields():
         "protection_scopes",
         "secure_scores",
         "improvement_actions",
+        "user_content_policies",
         "collector_version",
     }
     assert set(d.keys()) == expected_keys
