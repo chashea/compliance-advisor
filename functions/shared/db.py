@@ -9,7 +9,7 @@ import logging
 from contextlib import contextmanager
 from typing import Any
 
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import Json, RealDictCursor
 from psycopg2.pool import ThreadedConnectionPool
 
 from shared.config import get_settings
@@ -23,7 +23,13 @@ def _get_pool() -> ThreadedConnectionPool:
     global _pool
     if _pool is None:
         settings = get_settings()
-        _pool = ThreadedConnectionPool(minconn=1, maxconn=10, dsn=settings.DATABASE_URL)
+        _pool = ThreadedConnectionPool(
+            minconn=1,
+            maxconn=10,
+            dsn=settings.DATABASE_URL,
+            connect_timeout=10,
+            options="-c statement_timeout=30000",
+        )
     return _pool
 
 
@@ -63,6 +69,28 @@ def execute_many(sql: str, params_list: list[tuple]) -> None:
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.executemany(sql, params_list)
+
+
+# ── Ingestion Idempotency ──────────────────────────────────────────
+
+
+def check_ingestion_duplicate(tenant_id: str, snapshot_date: str, payload_hash: str) -> bool:
+    row = query_one(
+        "SELECT 1 FROM ingestion_log WHERE tenant_id = %s AND snapshot_date = %s AND payload_hash = %s",
+        (tenant_id, snapshot_date, payload_hash),
+    )
+    return row is not None
+
+
+def record_ingestion(tenant_id: str, snapshot_date: str, payload_hash: str, counts: dict) -> None:
+    execute(
+        """
+        INSERT INTO ingestion_log (tenant_id, snapshot_date, payload_hash, record_counts)
+        VALUES (%s, %s, %s, %s)
+        ON CONFLICT (tenant_id, snapshot_date, payload_hash) DO NOTHING
+        """,
+        (tenant_id, snapshot_date, payload_hash, Json(counts)),
+    )
 
 
 # ── Write Operations ───────────────────────────────────────────────

@@ -104,7 +104,7 @@ def test_valid_payload_with_populated_arrays(mock_get):
     payload = {
         **VALID_PAYLOAD,
         "ediscovery_cases": [{"case_id": "c1"}],
-        "dlp_alerts": [{"alert_id": "a1"}, {"alert_id": "a2"}],
+        "dlp_alerts": [{"alert_id": "a1", "severity": "high"}, {"alert_id": "a2", "severity": "medium"}],
     }
     req = _mock_request(payload)
     result = validate_ingestion_request(req)

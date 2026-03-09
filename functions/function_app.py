@@ -7,6 +7,7 @@ Functions:
 - compute_aggregates:   Timer     — daily compliance trend computation
 """
 
+import hashlib
 import json
 import logging
 
@@ -34,7 +35,9 @@ try:
         get_trend,
     )
     from shared.db import (
+        check_ingestion_duplicate,
         query,
+        record_ingestion,
         upsert_audit_record,
         upsert_comm_compliance_policy,
         upsert_dlp_alert,
@@ -308,6 +311,12 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
         snapshot_date = payload["timestamp"][:10]
         tenant_id = payload["tenant_id"]
 
+        # Idempotency: skip re-processing exact duplicate submissions
+        payload_hash = hashlib.sha256(req.get_body()).hexdigest()
+        if check_ingestion_duplicate(tenant_id, snapshot_date, payload_hash):
+            log.info("Duplicate ingest skipped: tenant=%s snapshot=%s", tenant_id, snapshot_date)
+            return _json_response({"status": "ok", "tenant_id": tenant_id, "duplicate": True})
+
         # Upsert tenant
         upsert_tenant(
             tenant_id=tenant_id,
@@ -501,40 +510,39 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
             snapshot_date=snapshot_date,
         )
 
+        counts = {
+            "ediscovery_cases": len(payload.get("ediscovery_cases", [])),
+            "sensitivity_labels": len(payload.get("sensitivity_labels", [])),
+            "retention_labels": len(payload.get("retention_labels", [])),
+            "audit_records": len(payload.get("audit_records", [])),
+            "dlp_alerts": len(payload.get("dlp_alerts", [])),
+            "irm_alerts": len(payload.get("irm_alerts", [])),
+            "subject_rights_requests": len(payload.get("subject_rights_requests", [])),
+            "comm_compliance_policies": len(payload.get("comm_compliance_policies", [])),
+            "info_barrier_policies": len(payload.get("info_barrier_policies", [])),
+            "protection_scopes": len(payload.get("protection_scopes", [])),
+        }
+        record_ingestion(tenant_id, snapshot_date, payload_hash, counts)
+
         log.info(
             "Ingested: tenant=%s dept=%s ediscovery=%d labels=%d retention=%d audit=%d dlp=%d "
             "irm=%d srr=%d comm_compliance=%d info_barriers=%d scopes=%d scores=%d actions=%d",
             tenant_id,
             payload["department"],
-            len(payload.get("ediscovery_cases", [])),
-            len(payload.get("sensitivity_labels", [])),
-            len(payload.get("retention_labels", [])),
-            len(payload.get("audit_records", [])),
-            len(payload.get("dlp_alerts", [])),
-            len(payload.get("irm_alerts", [])),
-            len(payload.get("subject_rights_requests", [])),
-            len(payload.get("comm_compliance_policies", [])),
-            len(payload.get("info_barrier_policies", [])),
-            len(payload.get("protection_scopes", [])),
+            counts["ediscovery_cases"],
+            counts["sensitivity_labels"],
+            counts["retention_labels"],
+            counts["audit_records"],
+            counts["dlp_alerts"],
+            counts["irm_alerts"],
+            counts["subject_rights_requests"],
+            counts["comm_compliance_policies"],
+            counts["info_barrier_policies"],
+            counts["protection_scopes"],
             len(payload.get("secure_scores", [])),
             len(payload.get("improvement_actions", [])),
         )
-        return _json_response(
-            {
-                "status": "ok",
-                "tenant_id": tenant_id,
-                "ediscovery_cases": len(payload.get("ediscovery_cases", [])),
-                "sensitivity_labels": len(payload.get("sensitivity_labels", [])),
-                "retention_labels": len(payload.get("retention_labels", [])),
-                "audit_records": len(payload.get("audit_records", [])),
-                "dlp_alerts": len(payload.get("dlp_alerts", [])),
-                "irm_alerts": len(payload.get("irm_alerts", [])),
-                "subject_rights_requests": len(payload.get("subject_rights_requests", [])),
-                "comm_compliance_policies": len(payload.get("comm_compliance_policies", [])),
-                "info_barrier_policies": len(payload.get("info_barrier_policies", [])),
-                "protection_scopes": len(payload.get("protection_scopes", [])),
-            }
-        )
+        return _json_response({"status": "ok", "tenant_id": tenant_id, **counts})
 
     except ValueError as e:
         log.warning("Validation failed: %s", e)

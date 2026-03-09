@@ -233,6 +233,17 @@ CREATE TABLE IF NOT EXISTS compliance_trend (
     UNIQUE (snapshot_date, department)
 );
 
+-- Ingestion log (idempotency tracking)
+CREATE TABLE IF NOT EXISTS ingestion_log (
+    id              SERIAL PRIMARY KEY,
+    tenant_id       TEXT NOT NULL,
+    snapshot_date   DATE NOT NULL,
+    payload_hash    TEXT NOT NULL,
+    ingested_at     TIMESTAMPTZ DEFAULT now(),
+    record_counts   JSONB,
+    UNIQUE (tenant_id, snapshot_date, payload_hash)
+);
+
 -- ── Indexes ──────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_ediscovery_tenant
     ON ediscovery_cases(tenant_id, snapshot_date DESC);
@@ -287,3 +298,6 @@ CREATE INDEX IF NOT EXISTS idx_comm_compliance_policies_tenant
 
 CREATE INDEX IF NOT EXISTS idx_info_barrier_policies_tenant
     ON info_barrier_policies(tenant_id, snapshot_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ingestion_log_lookup
+    ON ingestion_log(tenant_id, snapshot_date, payload_hash);

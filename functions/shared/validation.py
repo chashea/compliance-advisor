@@ -47,20 +47,130 @@ PAYLOAD_SCHEMA: dict = {
         "department": {"type": "string", "minLength": 1},
         "display_name": {"type": "string", "minLength": 1},
         "timestamp": {"type": "string"},
-        "ediscovery_cases": {"type": "array"},
-        "sensitivity_labels": {"type": "array"},
-        "retention_labels": {"type": "array"},
-        "retention_events": {"type": "array"},
-        "audit_records": {"type": "array"},
-        "dlp_alerts": {"type": "array"},
-        "irm_alerts": {"type": "array"},
-        "subject_rights_requests": {"type": "array"},
-        "comm_compliance_policies": {"type": "array"},
-        "info_barrier_policies": {"type": "array"},
-        "protection_scopes": {"type": "array"},
-        "secure_scores": {"type": "array"},
-        "improvement_actions": {"type": "array"},
-        "user_content_policies": {"type": "array"},
+        "ediscovery_cases": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["case_id"],
+                "properties": {"case_id": {"type": "string", "minLength": 1}},
+            },
+        },
+        "sensitivity_labels": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["label_id"],
+                "properties": {"label_id": {"type": "string", "minLength": 1}},
+            },
+        },
+        "retention_labels": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["label_id"],
+                "properties": {"label_id": {"type": "string", "minLength": 1}},
+            },
+        },
+        "retention_events": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["event_id"],
+                "properties": {"event_id": {"type": "string", "minLength": 1}},
+            },
+        },
+        "audit_records": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["record_id"],
+                "properties": {"record_id": {"type": "string", "minLength": 1}},
+            },
+        },
+        "dlp_alerts": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["alert_id", "severity"],
+                "properties": {
+                    "alert_id": {"type": "string", "minLength": 1},
+                    "severity": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        "irm_alerts": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["alert_id", "severity"],
+                "properties": {
+                    "alert_id": {"type": "string", "minLength": 1},
+                    "severity": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+        "subject_rights_requests": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["request_id"],
+                "properties": {"request_id": {"type": "string", "minLength": 1}},
+            },
+        },
+        "comm_compliance_policies": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["policy_id"],
+                "properties": {"policy_id": {"type": "string", "minLength": 1}},
+            },
+        },
+        "info_barrier_policies": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["policy_id"],
+                "properties": {"policy_id": {"type": "string", "minLength": 1}},
+            },
+        },
+        "protection_scopes": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["scope_type"],
+                "properties": {"scope_type": {"type": "string", "minLength": 1}},
+            },
+        },
+        "secure_scores": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["current_score", "max_score"],
+                "properties": {
+                    "current_score": {"type": "number"},
+                    "max_score": {"type": "number"},
+                },
+            },
+        },
+        "improvement_actions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["control_id"],
+                "properties": {"control_id": {"type": "string", "minLength": 1}},
+            },
+        },
+        "user_content_policies": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["user_id", "user_upn"],
+                "properties": {
+                    "user_id": {"type": "string", "minLength": 1},
+                    "user_upn": {"type": "string", "minLength": 1},
+                },
+            },
+        },
         "collector_version": {"type": "string"},
     },
     "additionalProperties": False,
