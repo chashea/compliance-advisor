@@ -70,7 +70,7 @@ def get_ediscovery_cases(token: str) -> list[dict[str, Any]]:
 
     try:
         items = _paginate(sess, url)
-    except requests.HTTPError as e:
+    except requests.exceptions.RequestException as e:
         log.warning("ediscoveryCases failed: %s", e)
         return []
 
@@ -103,7 +103,7 @@ def get_sensitivity_labels(token: str) -> list[dict[str, Any]]:
 
     try:
         items = _paginate(sess, url)
-    except requests.HTTPError as e:
+    except requests.exceptions.RequestException as e:
         log.warning("sensitivityLabels (beta) failed: %s — trying v1.0", e)
         try:
             url = f"{GRAPH_BASE}/security/informationProtection/sensitivityLabels"
@@ -141,7 +141,7 @@ def get_retention_labels(token: str) -> list[dict[str, Any]]:
 
     try:
         items = _paginate(sess, url)
-    except requests.HTTPError as e:
+    except requests.exceptions.RequestException as e:
         log.warning("retentionLabels failed: %s", e)
         return []
 
@@ -180,7 +180,7 @@ def get_retention_events(token: str) -> list[dict[str, Any]]:
 
     try:
         items = _paginate(sess, url)
-    except requests.HTTPError as e:
+    except requests.exceptions.RequestException as e:
         log.warning("retentionEvents failed: %s", e)
         return []
 
@@ -243,7 +243,7 @@ def get_audit_log_records(token: str, days: int = 1) -> list[dict[str, Any]]:
         resp.raise_for_status()
         query_data = resp.json()
         query_id = query_data.get("id", "")
-    except requests.HTTPError as e:
+    except requests.exceptions.RequestException as e:
         log.warning("auditLog query creation failed: %s", e)
         return []
 
@@ -266,7 +266,7 @@ def get_audit_log_records(token: str, days: int = 1) -> list[dict[str, Any]]:
             resp = sess.get(poll_url, timeout=30)
             resp.raise_for_status()
             status_data = resp.json()
-        except requests.HTTPError as e:
+        except requests.exceptions.RequestException as e:
             log.warning("auditLog query poll failed: %s", e)
             return []
 
@@ -287,7 +287,7 @@ def get_audit_log_records(token: str, days: int = 1) -> list[dict[str, Any]]:
     records_url = f"{poll_url}/records"
     try:
         items = _paginate(sess, records_url)
-    except requests.HTTPError as e:
+    except requests.exceptions.RequestException as e:
         log.warning("auditLog records fetch failed: %s", e)
         return []
 
@@ -322,7 +322,7 @@ def _legacy_alerts(token: str, provider: str, label: str) -> list[dict[str, Any]
 
     try:
         items = _paginate(sess, url, max_pages=5)
-    except requests.HTTPError as e:
+    except requests.exceptions.RequestException as e:
         log.warning("%s alerts failed: %s", label, e)
         return []
 
@@ -370,7 +370,7 @@ def get_protection_scopes(token: str) -> list[dict[str, Any]]:
         resp = sess.post(url, json={}, timeout=30)
         resp.raise_for_status()
         data = resp.json()
-    except requests.HTTPError as e:
+    except requests.exceptions.RequestException as e:
         log.warning("protectionScopes failed: %s", e)
         return []
 
@@ -408,7 +408,7 @@ def get_secure_scores(token: str) -> list[dict[str, Any]]:
         resp = sess.get(f"{GRAPH_BASE}/security/secureScores?$top=1", timeout=30)
         resp.raise_for_status()
         items = resp.json().get("value", [])
-    except requests.HTTPError as e:
+    except requests.exceptions.RequestException as e:
         log.warning("secureScores failed: %s", e)
         return []
 
@@ -437,7 +437,7 @@ def get_secure_scores(token: str) -> list[dict[str, Any]]:
                 continue
             data_max += float(p.get("maxScore") or 0)
             data_current += control_scores.get(p.get("id", ""), 0)
-    except requests.HTTPError as e:
+    except requests.exceptions.RequestException as e:
         log.warning("secureScoreControlProfiles (Data) failed: %s", e)
 
     scores = [
@@ -472,7 +472,7 @@ def get_improvement_actions(token: str, category: str | None = None) -> list[dic
 
     try:
         items = _paginate(sess, url, max_pages=5)
-    except requests.HTTPError as e:
+    except requests.exceptions.RequestException as e:
         log.warning("secureScoreControlProfiles failed: %s", e)
         return []
 
@@ -526,7 +526,7 @@ def get_subject_rights_requests(token: str) -> list[dict[str, Any]]:
 
     try:
         items = _paginate(sess, url, max_pages=10)
-    except requests.HTTPError as e:
+    except requests.exceptions.RequestException as e:
         log.warning("subjectRightsRequests failed: %s", e)
         return []
 
@@ -558,7 +558,7 @@ def get_comm_compliance_policies(token: str) -> list[dict[str, Any]]:
 
     try:
         items = _paginate(sess, url, max_pages=10)
-    except requests.HTTPError as e:
+    except requests.exceptions.RequestException as e:
         log.warning("communicationCompliance policies failed: %s", e)
         return []
 
@@ -588,7 +588,7 @@ def get_info_barrier_policies(token: str) -> list[dict[str, Any]]:
 
     try:
         items = _paginate(sess, url, max_pages=10)
-    except requests.HTTPError as e:
+    except requests.exceptions.RequestException as e:
         log.warning("informationBarriers policies failed: %s", e)
         return []
 
@@ -620,7 +620,7 @@ def _get_users(sess: requests.Session, max_pages: int = 5) -> list[dict]:
     url = f"{GRAPH_BASE}/users?$select=id,userPrincipalName&$top=100"
     try:
         items = _paginate(sess, url, max_pages=max_pages)
-    except requests.HTTPError as e:
+    except requests.exceptions.RequestException as e:
         log.warning("users enumeration failed: %s", e)
         return []
     return [{"id": u.get("id", ""), "userPrincipalName": u.get("userPrincipalName", "")} for u in items]
@@ -669,7 +669,7 @@ def get_user_content_policies(token: str) -> list[dict[str, Any]]:
         try:
             resp = sess.post(url, json=probe_body, timeout=30)
             resp.raise_for_status()
-        except requests.HTTPError as e:
+        except requests.exceptions.RequestException as e:
             log.warning("processContent failed for user %s: %s", user_upn, e)
             continue
 

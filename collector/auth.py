@@ -1,11 +1,8 @@
 """
-ROPC (Resource Owner Password Credential) authentication for
-Microsoft Graph API.
+Client credentials authentication for Microsoft Graph API.
 
-Uses MSAL PublicClientApplication with username/password flow to
-acquire a delegated token scoped to graph.microsoft.com.
-
-Each GCC tenant has a dedicated service account.
+Uses MSAL ConfidentialClientApplication with client_credentials flow
+to acquire an app-only token scoped to graph.microsoft.com.
 """
 
 import logging
@@ -16,13 +13,11 @@ from collector.config import CollectorSettings
 
 log = logging.getLogger(__name__)
 
-_app_cache: dict[str, msal.PublicClientApplication] = {}
+_app_cache: dict[str, msal.ConfidentialClientApplication] = {}
 
 
 def get_graph_token(settings: CollectorSettings) -> str:
-    """Acquire a delegated token for Microsoft Graph.
-
-    Uses ROPC flow with the configured service account credentials.
+    """Acquire an app-only token for Microsoft Graph via client credentials.
 
     Returns:
         The access token string.
@@ -36,37 +31,22 @@ def get_graph_token(settings: CollectorSettings) -> str:
         authority = f"{settings.login_authority}/{settings.TENANT_ID}"
         log.info("Creating MSAL app for tenant=%s authority=%s", settings.TENANT_ID, authority)
 
-        _app_cache[cache_key] = msal.PublicClientApplication(
+        _app_cache[cache_key] = msal.ConfidentialClientApplication(
             client_id=settings.CLIENT_ID,
+            client_credential=settings.CLIENT_SECRET,
             authority=authority,
         )
 
     app = _app_cache[cache_key]
 
-    # Try to get token from cache first
-    accounts = app.get_accounts(username=settings.SERVICE_ACCOUNT_USERNAME)
-    if accounts:
-        result = app.acquire_token_silent(
-            scopes=settings.graph_scope,
-            account=accounts[0],
-        )
-        if result and "access_token" in result:
-            log.debug("Token acquired from cache for tenant=%s", settings.TENANT_ID)
-            return result["access_token"]
-
-    # ROPC flow
-    result = app.acquire_token_by_username_password(
-        username=settings.SERVICE_ACCOUNT_USERNAME,
-        password=settings.SERVICE_ACCOUNT_PASSWORD,
-        scopes=settings.graph_scope,
-    )
+    result = app.acquire_token_for_client(scopes=settings.graph_scope)
 
     if "access_token" not in result:
         error_desc = result.get("error_description", result.get("error", "Unknown error"))
-        raise RuntimeError(f"MSAL ROPC authentication failed for tenant {settings.TENANT_ID}: {error_desc}")
+        raise RuntimeError(f"MSAL client credentials failed for tenant {settings.TENANT_ID}: {error_desc}")
 
     log.debug(
-        "Token acquired via ROPC for tenant=%s (expires_in=%s)",
+        "Token acquired via client credentials for tenant=%s (expires_in=%s)",
         settings.TENANT_ID,
         result.get("expires_in"),
     )

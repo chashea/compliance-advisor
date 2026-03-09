@@ -1,8 +1,7 @@
 """
 Collector configuration using Pydantic Settings.
 
-Uses ROPC (Resource Owner Password Credential) flow with service accounts
-to authenticate to the Microsoft Graph compliance APIs.
+Uses client credentials flow to authenticate to the Microsoft Graph compliance APIs.
 
 GCC (standard) uses:
   - login.microsoftonline.com
@@ -18,10 +17,7 @@ class CollectorSettings(BaseSettings):
 
     # Multi-tenant app registration (registered in home tenant)
     CLIENT_ID: str = Field(..., description="Application (client) ID of the multi-tenant app")
-
-    # Service account credentials (per tenant, stored in Key Vault)
-    SERVICE_ACCOUNT_USERNAME: str = Field(..., description="Service account UPN for the target tenant")
-    SERVICE_ACCOUNT_PASSWORD: str = Field(..., description="Service account password")
+    CLIENT_SECRET: str = Field(..., description="Client secret for the app registration")
 
     # Key Vault (for retrieving credentials if not set directly)
     KEY_VAULT_URL: str = Field(default="", description="Key Vault URL, e.g. https://<vault>.vault.azure.net/")

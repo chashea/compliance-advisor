@@ -15,9 +15,11 @@ def test_ask_advisor_returns_structured_answer():
     mock_client.chat.completions.create.return_value = response
     settings = SimpleNamespace(AZURE_OPENAI_DEPLOYMENT="gpt-4o")
 
-    with patch("shared.ai_agent._build_context", return_value="context"), patch(
-        "shared.ai_agent._get_openai_client", return_value=mock_client
-    ), patch("shared.ai_agent.get_settings", return_value=settings):
+    with (
+        patch("shared.ai_agent._build_context", return_value="context"),
+        patch("shared.ai_agent._get_openai_client", return_value=mock_client),
+        patch("shared.ai_agent.get_settings", return_value=settings),
+    ):
         result = ask_advisor("Generate briefing")
 
     assert result["answer"] == "Executive summary"
@@ -44,9 +46,11 @@ def test_ask_advisor_raises_on_empty_ai_answer():
     mock_client.chat.completions.create.return_value = response
     settings = SimpleNamespace(AZURE_OPENAI_DEPLOYMENT="gpt-4o")
 
-    with patch("shared.ai_agent._build_context", return_value="context"), patch(
-        "shared.ai_agent._get_openai_client", return_value=mock_client
-    ), patch("shared.ai_agent.get_settings", return_value=settings):
+    with (
+        patch("shared.ai_agent._build_context", return_value="context"),
+        patch("shared.ai_agent._get_openai_client", return_value=mock_client),
+        patch("shared.ai_agent.get_settings", return_value=settings),
+    ):
         with pytest.raises(AdvisorAIError) as exc:
             ask_advisor("Generate briefing")
 
