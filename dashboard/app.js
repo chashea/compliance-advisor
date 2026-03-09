@@ -166,6 +166,8 @@ function generateDemoData() {
       alerts: [
         { title: "Unusual file download volume", severity: "high", status: "new", policy_name: "Data Theft", created: "2026-03-07", tenant_name: "Demo Tenant" },
         { title: "Sequence of exfiltration activities", severity: "medium", status: "inProgress", policy_name: "Data Leaks", created: "2026-03-06", tenant_name: "Demo Tenant" },
+        { title: "Sensitive data pasted into Copilot prompt", severity: "high", status: "new", policy_name: "Potential risky AI usage", created: "2026-03-08", tenant_name: "Demo Tenant" },
+        { title: "Bulk upload to ChatGPT detected", severity: "medium", status: "new", policy_name: "Potential risky AI usage", created: "2026-03-07", tenant_name: "Demo Tenant" },
       ],
       severity_breakdown: [
         { severity: "high", total: 1, active: 1 },
@@ -529,14 +531,18 @@ function renderIRMAlerts() {
   applyIRMFilters();
 }
 
+const AI_PATTERN = /\bai\b|copilot|chatgpt|generative|openai/i;
+
 function applyIRMFilters() {
   const alerts = currentData.irm?.alerts || [];
   const sevFilter = $("#irm-severity-filter")?.value || "";
   const statusFilter = $("#irm-status-filter")?.value || "";
+  const aiOnly = $("#irm-ai-only")?.checked || false;
 
   const filtered = alerts.filter(a => {
     if (sevFilter && (a.severity || "").toLowerCase() !== sevFilter) return false;
     if (statusFilter && a.status !== statusFilter) return false;
+    if (aiOnly && !AI_PATTERN.test(a.policy_name || "") && !AI_PATTERN.test(a.title || "")) return false;
     return true;
   });
 
@@ -559,9 +565,10 @@ function applyIRMFilters() {
 
   const sevSel = $("#irm-severity-filter");
   const stSel = $("#irm-status-filter");
+  const aiBox = $("#irm-ai-only");
   const clearBtn = $("#irm-clear-filters");
   if (sevSel && stSel && clearBtn) {
-    const active = Boolean(sevSel.value) || Boolean(stSel.value);
+    const active = Boolean(sevSel.value) || Boolean(stSel.value) || Boolean(aiBox?.checked);
     clearBtn.disabled = !active;
     sevSel.classList.toggle("filter-active", Boolean(sevSel.value));
     stSel.classList.toggle("filter-active", Boolean(stSel.value));
@@ -571,8 +578,10 @@ function applyIRMFilters() {
 function clearIRMFilters() {
   const sevSel = $("#irm-severity-filter");
   const stSel = $("#irm-status-filter");
+  const aiBox = $("#irm-ai-only");
   if (sevSel) sevSel.value = "";
   if (stSel) stSel.value = "";
+  if (aiBox) aiBox.checked = false;
   applyIRMFilters();
 }
 
@@ -983,6 +992,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   $("#irm-severity-filter")?.addEventListener("change", applyIRMFilters);
   $("#irm-status-filter")?.addEventListener("change", applyIRMFilters);
+  $("#irm-ai-only")?.addEventListener("change", applyIRMFilters);
   $("#irm-clear-filters")?.addEventListener("click", clearIRMFilters);
 
   $("#actions-category-filter")?.addEventListener("change", applyActionsFilters);

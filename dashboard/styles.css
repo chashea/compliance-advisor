@@ -465,6 +465,16 @@ select:focus { outline: none; border-color: var(--accent); }
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent);
 }
+.filter-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.filter-checkbox input { cursor: pointer; }
 
 .dlp-combined {
   display: grid;
