@@ -28,13 +28,11 @@ function initTheme() {
   applyTheme(saved || preferred);
 }
 
-initTheme();
-
 // ── Chart.js global defaults ────────────────────────────────────────────────
-Chart.defaults.color = "#8b8fa3";
-Chart.defaults.borderColor = "rgba(45,48,64,.6)";
 Chart.defaults.font.family =
   '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
+initTheme();
 
 const CHART_COLORS = {
   blue:    "#4f8ff7",
