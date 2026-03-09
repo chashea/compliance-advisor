@@ -152,6 +152,25 @@ function generateDemoData() {
         { severity: "medium", total: 1, active: 1 },
       ],
     },
+    subjectRights: {
+      requests: [
+        { display_name: "DSAR - John Doe", request_type: "access", status: "active", created: "2026-03-01", tenant_name: "Demo Tenant" },
+        { display_name: "DSAR - Jane Smith", request_type: "delete", status: "closed", created: "2026-02-15", tenant_name: "Demo Tenant" },
+      ],
+      status_breakdown: [{ status: "active", total: 1 }, { status: "closed", total: 1 }],
+    },
+    commCompliance: {
+      policies: [
+        { display_name: "Offensive Language Policy", policy_type: "offensive_language", status: "active", review_pending_count: 5, tenant_name: "Demo Tenant" },
+        { display_name: "Regulatory Compliance", policy_type: "regulatory", status: "active", review_pending_count: 0, tenant_name: "Demo Tenant" },
+      ],
+    },
+    infoBarriers: {
+      policies: [
+        { display_name: "Research - Trading Wall", state: "active", segments_applied: "Research, Trading", tenant_name: "Demo Tenant" },
+        { display_name: "HR - Finance Barrier", state: "active", segments_applied: "HR, Finance", tenant_name: "Demo Tenant" },
+      ],
+    },
     trend: { trend: [] },
     actions: {
       secure_score: { current_score: 62.5, max_score: 100, score_date: "2026-03-08" },
@@ -186,18 +205,21 @@ async function loadData() {
     if (demoMode) {
       currentData = generateDemoData();
     } else {
-      const [overview, ediscovery, labels, dlp, irm, audit, governance, trend, actions] = await Promise.all([
+      const [overview, ediscovery, labels, dlp, irm, subjectRights, commCompliance, infoBarriers, audit, governance, trend, actions] = await Promise.all([
         api("overview", body),
         api("ediscovery", body),
         api("labels", body),
         api("dlp", body),
         api("irm", body),
+        api("subject-rights", body),
+        api("comm-compliance", body),
+        api("info-barriers", body),
         api("audit", body),
         api("governance", body),
         api("trend", body),
         api("actions", body),
       ]);
-      currentData = { overview, ediscovery, labels, dlp, irm, audit, governance, trend, actions };
+      currentData = { overview, ediscovery, labels, dlp, irm, subjectRights, commCompliance, infoBarriers, audit, governance, trend, actions };
     }
 
     renderAll();
@@ -224,6 +246,9 @@ function renderAll() {
   renderRetentionLabels();
   renderDLPAlerts();
   renderIRMAlerts();
+  renderSubjectRights();
+  renderCommCompliance();
+  renderInfoBarriers();
   renderAuditRecords();
   renderGovernance();
   renderImprovementActions();
@@ -528,6 +553,59 @@ function clearIRMFilters() {
   if (sevSel) sevSel.value = "";
   if (stSel) stSel.value = "";
   applyIRMFilters();
+}
+
+function renderSubjectRights() {
+  const requests = currentData.subjectRights?.requests || [];
+  const tbody = $("#srr-table tbody");
+  if (requests.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="placeholder-text">No subject rights requests</td></tr>';
+    return;
+  }
+  tbody.innerHTML = requests.map(r => `
+    <tr>
+      <td>${esc(r.display_name)}</td>
+      <td>${esc(r.request_type)}</td>
+      <td>${statusBadge(r.status)}</td>
+      <td>${esc(r.created?.slice(0, 10) || "")}</td>
+      <td>${esc(r.tenant_name)}</td>
+    </tr>
+  `).join("");
+}
+
+function renderCommCompliance() {
+  const policies = currentData.commCompliance?.policies || [];
+  const tbody = $("#comm-compliance-table tbody");
+  if (policies.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="placeholder-text">No communication compliance policies</td></tr>';
+    return;
+  }
+  tbody.innerHTML = policies.map(p => `
+    <tr>
+      <td>${esc(p.display_name)}</td>
+      <td>${esc(p.policy_type)}</td>
+      <td>${statusBadge(p.status)}</td>
+      <td>${p.review_pending_count || 0}</td>
+      <td>${esc(p.tenant_name)}</td>
+    </tr>
+  `).join("");
+}
+
+function renderInfoBarriers() {
+  const policies = currentData.infoBarriers?.policies || [];
+  const tbody = $("#info-barriers-table tbody");
+  if (policies.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="placeholder-text">No information barrier policies</td></tr>';
+    return;
+  }
+  tbody.innerHTML = policies.map(p => `
+    <tr>
+      <td>${esc(p.display_name)}</td>
+      <td>${statusBadge(p.state)}</td>
+      <td>${esc(p.segments_applied)}</td>
+      <td>${esc(p.tenant_name)}</td>
+    </tr>
+  `).join("");
 }
 
 function renderAuditRecords() {

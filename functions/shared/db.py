@@ -315,6 +315,82 @@ def upsert_irm_alert(
     )
 
 
+def upsert_subject_rights_request(
+    tenant_id: str,
+    request_id: str,
+    display_name: str,
+    request_type: str,
+    status: str,
+    created: str,
+    closed: str,
+    data_subject_type: str,
+    snapshot_date: str,
+) -> None:
+    execute(
+        """
+        INSERT INTO subject_rights_requests
+            (tenant_id, request_id, display_name, request_type, status,
+             created, closed, data_subject_type, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (tenant_id, request_id, snapshot_date) DO UPDATE SET
+            display_name = EXCLUDED.display_name,
+            request_type = EXCLUDED.request_type,
+            status = EXCLUDED.status,
+            created = EXCLUDED.created,
+            closed = EXCLUDED.closed,
+            data_subject_type = EXCLUDED.data_subject_type
+        """,
+        (tenant_id, request_id, display_name, request_type, status, created, closed, data_subject_type, snapshot_date),
+    )
+
+
+def upsert_comm_compliance_policy(
+    tenant_id: str,
+    policy_id: str,
+    display_name: str,
+    status: str,
+    policy_type: str,
+    review_pending_count: int,
+    snapshot_date: str,
+) -> None:
+    execute(
+        """
+        INSERT INTO comm_compliance_policies
+            (tenant_id, policy_id, display_name, status, policy_type,
+             review_pending_count, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (tenant_id, policy_id, snapshot_date) DO UPDATE SET
+            display_name = EXCLUDED.display_name,
+            status = EXCLUDED.status,
+            policy_type = EXCLUDED.policy_type,
+            review_pending_count = EXCLUDED.review_pending_count
+        """,
+        (tenant_id, policy_id, display_name, status, policy_type, review_pending_count, snapshot_date),
+    )
+
+
+def upsert_info_barrier_policy(
+    tenant_id: str,
+    policy_id: str,
+    display_name: str,
+    state: str,
+    segments_applied: str,
+    snapshot_date: str,
+) -> None:
+    execute(
+        """
+        INSERT INTO info_barrier_policies
+            (tenant_id, policy_id, display_name, state, segments_applied, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        ON CONFLICT (tenant_id, policy_id, snapshot_date) DO UPDATE SET
+            display_name = EXCLUDED.display_name,
+            state = EXCLUDED.state,
+            segments_applied = EXCLUDED.segments_applied
+        """,
+        (tenant_id, policy_id, display_name, state, segments_applied, snapshot_date),
+    )
+
+
 def upsert_trend(
     snapshot_date: str,
     department: str | None,

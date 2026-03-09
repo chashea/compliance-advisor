@@ -161,6 +161,46 @@ CREATE TABLE IF NOT EXISTS improvement_actions (
     UNIQUE (tenant_id, control_id, snapshot_date)
 );
 
+-- Subject Rights Requests
+CREATE TABLE IF NOT EXISTS subject_rights_requests (
+    id              SERIAL PRIMARY KEY,
+    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
+    request_id      TEXT NOT NULL,
+    display_name    TEXT,
+    request_type    TEXT,
+    status          TEXT,
+    created         TEXT,
+    closed          TEXT,
+    data_subject_type TEXT,
+    snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+    UNIQUE (tenant_id, request_id, snapshot_date)
+);
+
+-- Communication Compliance policies
+CREATE TABLE IF NOT EXISTS comm_compliance_policies (
+    id              SERIAL PRIMARY KEY,
+    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
+    policy_id       TEXT NOT NULL,
+    display_name    TEXT,
+    status          TEXT,
+    policy_type     TEXT,
+    review_pending_count INT DEFAULT 0,
+    snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+    UNIQUE (tenant_id, policy_id, snapshot_date)
+);
+
+-- Information Barrier policies
+CREATE TABLE IF NOT EXISTS info_barrier_policies (
+    id              SERIAL PRIMARY KEY,
+    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
+    policy_id       TEXT NOT NULL,
+    display_name    TEXT,
+    state           TEXT,
+    segments_applied TEXT,
+    snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+    UNIQUE (tenant_id, policy_id, snapshot_date)
+);
+
 -- Daily compliance trend (computed by timer trigger)
 CREATE TABLE IF NOT EXISTS compliance_trend (
     id                  SERIAL PRIMARY KEY,
@@ -220,3 +260,12 @@ CREATE INDEX IF NOT EXISTS idx_irm_alerts_tenant
 
 CREATE INDEX IF NOT EXISTS idx_irm_alerts_severity
     ON irm_alerts(severity);
+
+CREATE INDEX IF NOT EXISTS idx_subject_rights_requests_tenant
+    ON subject_rights_requests(tenant_id, snapshot_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_comm_compliance_policies_tenant
+    ON comm_compliance_policies(tenant_id, snapshot_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_info_barrier_policies_tenant
+    ON info_barrier_policies(tenant_id, snapshot_date DESC);

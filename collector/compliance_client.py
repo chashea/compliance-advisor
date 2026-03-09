@@ -518,3 +518,101 @@ def get_improvement_actions(token: str) -> list[dict[str, Any]]:
 
     log.info("Retrieved %d improvement actions", len(actions))
     return actions
+
+
+# ── Subject Rights Requests ───────────────────────────────────────
+
+
+def get_subject_rights_requests(token: str) -> list[dict[str, Any]]:
+    """Return Subject Rights Requests from Graph beta API."""
+    sess = _session(token)
+    url = f"{GRAPH_BETA}/privacy/subjectRightsRequests"
+
+    try:
+        items = _paginate(sess, url, max_pages=10)
+    except requests.HTTPError as e:
+        log.warning("subjectRightsRequests failed: %s", e)
+        return []
+
+    results = []
+    for item in items:
+        results.append(
+            {
+                "request_id": item.get("id", ""),
+                "display_name": item.get("displayName", ""),
+                "request_type": item.get("type", ""),
+                "status": item.get("status", ""),
+                "created": item.get("createdDateTime", ""),
+                "closed": item.get("closedDateTime", ""),
+                "data_subject_type": item.get("dataSubjectType", ""),
+            }
+        )
+
+    log.info("Retrieved %d subject rights requests", len(results))
+    return results
+
+
+# ── Communication Compliance ──────────────────────────────────────
+
+
+def get_comm_compliance_policies(token: str) -> list[dict[str, Any]]:
+    """Return Communication Compliance policies from Graph beta API."""
+    sess = _session(token)
+    url = f"{GRAPH_BETA}/security/communicationCompliance/policies"
+
+    try:
+        items = _paginate(sess, url, max_pages=10)
+    except requests.HTTPError as e:
+        log.warning("communicationCompliance policies failed: %s", e)
+        return []
+
+    results = []
+    for item in items:
+        results.append(
+            {
+                "policy_id": item.get("id", ""),
+                "display_name": item.get("displayName", ""),
+                "status": item.get("status", ""),
+                "policy_type": item.get("policyType", ""),
+                "review_pending_count": item.get("pendingReviewCount", 0),
+            }
+        )
+
+    log.info("Retrieved %d communication compliance policies", len(results))
+    return results
+
+
+# ── Information Barriers ──────────────────────────────────────────
+
+
+def get_info_barrier_policies(token: str) -> list[dict[str, Any]]:
+    """Return Information Barrier policies from Graph beta API."""
+    sess = _session(token)
+    url = f"{GRAPH_BETA}/identityGovernance/informationBarriers/policies"
+
+    try:
+        items = _paginate(sess, url, max_pages=10)
+    except requests.HTTPError as e:
+        log.warning("informationBarriers policies failed: %s", e)
+        return []
+
+    results = []
+    for item in items:
+        segments = item.get("segments", [])
+        segments_str = (
+            ", ".join(s.get("displayName", "") for s in segments)
+            if isinstance(segments, list)
+            else str(segments or "")
+        )
+
+        results.append(
+            {
+                "policy_id": item.get("id", ""),
+                "display_name": item.get("displayName", ""),
+                "state": item.get("state", ""),
+                "segments_applied": segments_str,
+            }
+        )
+
+    log.info("Retrieved %d information barrier policies", len(results))
+    return results

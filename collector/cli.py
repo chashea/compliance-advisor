@@ -15,15 +15,18 @@ import click
 from collector.auth import get_graph_token
 from collector.compliance_client import (
     get_audit_log_records,
+    get_comm_compliance_policies,
     get_dlp_alerts,
     get_ediscovery_cases,
     get_improvement_actions,
+    get_info_barrier_policies,
     get_irm_alerts,
     get_protection_scopes,
     get_retention_events,
     get_retention_labels,
     get_secure_scores,
     get_sensitivity_labels,
+    get_subject_rights_requests,
 )
 from collector.config import CollectorSettings
 from collector.payload import CompliancePayload
@@ -104,6 +107,15 @@ def main(
     click.echo("  IRM Alerts...")
     irm_alerts = get_irm_alerts(token)
 
+    click.echo("  Subject Rights Requests...")
+    subject_rights_requests = get_subject_rights_requests(token)
+
+    click.echo("  Communication Compliance Policies...")
+    comm_compliance_policies = get_comm_compliance_policies(token)
+
+    click.echo("  Information Barrier Policies...")
+    info_barrier_policies = get_info_barrier_policies(token)
+
     click.echo("  Protection Scopes...")
     protection_scopes = get_protection_scopes(token)
 
@@ -118,6 +130,8 @@ def main(
         f"| Retention: {len(retention_labels)} labels, {len(retention_events)} events "
         f"| Audit: {len(audit_records)} | DLP: {len(dlp_alerts)} "
         f"| IRM: {len(irm_alerts)} "
+        f"| SRR: {len(subject_rights_requests)} | CommCompliance: {len(comm_compliance_policies)} "
+        f"| InfoBarriers: {len(info_barrier_policies)} "
         f"| Scopes: {len(protection_scopes)} | Secure Score: {len(secure_scores)} "
         f"| Improvement Actions: {len(improvement_actions)}"
     )
@@ -136,6 +150,9 @@ def main(
         audit_records=audit_records,
         dlp_alerts=dlp_alerts,
         irm_alerts=irm_alerts,
+        subject_rights_requests=subject_rights_requests,
+        comm_compliance_policies=comm_compliance_policies,
+        info_barrier_policies=info_barrier_policies,
         protection_scopes=protection_scopes,
         secure_scores=secure_scores,
         improvement_actions=improvement_actions,

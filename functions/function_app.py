@@ -20,28 +20,34 @@ try:
     from shared.ai_agent import AdvisorAIError, ask_advisor
     from shared.dashboard_queries import (
         get_audit,
+        get_comm_compliance,
         get_dlp,
         get_ediscovery,
         get_governance,
         get_improvement_actions,
+        get_info_barriers,
         get_irm,
         get_labels,
         get_overview,
         get_status,
+        get_subject_rights,
         get_trend,
     )
     from shared.db import (
         query,
         upsert_audit_record,
+        upsert_comm_compliance_policy,
         upsert_dlp_alert,
         upsert_ediscovery_case,
         upsert_improvement_action,
+        upsert_info_barrier_policy,
         upsert_irm_alert,
         upsert_protection_scope,
         upsert_retention_event,
         upsert_retention_label,
         upsert_secure_score,
         upsert_sensitivity_label,
+        upsert_subject_rights_request,
         upsert_tenant,
         upsert_trend,
     )
@@ -162,6 +168,42 @@ def advisor_irm(req: func.HttpRequest) -> func.HttpResponse:
         return _json_response(get_irm(department=body.get("department")))
     except Exception as e:
         log.exception("advisor/irm error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+@app.function_name("advisor_subject_rights")
+@app.route(route="advisor/subject-rights", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_subject_rights(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        _ensure_dependencies_loaded()
+        body = _get_body(req)
+        return _json_response(get_subject_rights(department=body.get("department")))
+    except Exception as e:
+        log.exception("advisor/subject-rights error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+@app.function_name("advisor_comm_compliance")
+@app.route(route="advisor/comm-compliance", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_comm_compliance(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        _ensure_dependencies_loaded()
+        body = _get_body(req)
+        return _json_response(get_comm_compliance(department=body.get("department")))
+    except Exception as e:
+        log.exception("advisor/comm-compliance error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+@app.function_name("advisor_info_barriers")
+@app.route(route="advisor/info-barriers", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_info_barriers(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        _ensure_dependencies_loaded()
+        body = _get_body(req)
+        return _json_response(get_info_barriers(department=body.get("department")))
+    except Exception as e:
+        log.exception("advisor/info-barriers error: %s", e)
         return _json_response({"error": str(e)}, 500)
 
 
@@ -383,6 +425,43 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 snapshot_date=snapshot_date,
             )
 
+        # Upsert subject rights requests
+        for sr in payload.get("subject_rights_requests", []):
+            upsert_subject_rights_request(
+                tenant_id=tenant_id,
+                request_id=sr.get("request_id", ""),
+                display_name=sr.get("display_name", ""),
+                request_type=sr.get("request_type", ""),
+                status=sr.get("status", ""),
+                created=sr.get("created", ""),
+                closed=sr.get("closed", ""),
+                data_subject_type=sr.get("data_subject_type", ""),
+                snapshot_date=snapshot_date,
+            )
+
+        # Upsert communication compliance policies
+        for cc in payload.get("comm_compliance_policies", []):
+            upsert_comm_compliance_policy(
+                tenant_id=tenant_id,
+                policy_id=cc.get("policy_id", ""),
+                display_name=cc.get("display_name", ""),
+                status=cc.get("status", ""),
+                policy_type=cc.get("policy_type", ""),
+                review_pending_count=cc.get("review_pending_count", 0),
+                snapshot_date=snapshot_date,
+            )
+
+        # Upsert information barrier policies
+        for ib in payload.get("info_barrier_policies", []):
+            upsert_info_barrier_policy(
+                tenant_id=tenant_id,
+                policy_id=ib.get("policy_id", ""),
+                display_name=ib.get("display_name", ""),
+                state=ib.get("state", ""),
+                segments_applied=ib.get("segments_applied", ""),
+                snapshot_date=snapshot_date,
+            )
+
         # Upsert secure scores
         for ss in payload.get("secure_scores", []):
             upsert_secure_score(
@@ -415,8 +494,8 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
             )
 
         log.info(
-            "Ingested: tenant=%s dept=%s ediscovery=%d labels=%d retention=%d audit=%d dlp=%d scopes=%d "
-            "scores=%d actions=%d",
+            "Ingested: tenant=%s dept=%s ediscovery=%d labels=%d retention=%d audit=%d dlp=%d "
+            "irm=%d srr=%d comm_compliance=%d info_barriers=%d scopes=%d scores=%d actions=%d",
             tenant_id,
             payload["department"],
             len(payload.get("ediscovery_cases", [])),
@@ -424,6 +503,10 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
             len(payload.get("retention_labels", [])),
             len(payload.get("audit_records", [])),
             len(payload.get("dlp_alerts", [])),
+            len(payload.get("irm_alerts", [])),
+            len(payload.get("subject_rights_requests", [])),
+            len(payload.get("comm_compliance_policies", [])),
+            len(payload.get("info_barrier_policies", [])),
             len(payload.get("protection_scopes", [])),
             len(payload.get("secure_scores", [])),
             len(payload.get("improvement_actions", [])),
@@ -437,6 +520,10 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 "retention_labels": len(payload.get("retention_labels", [])),
                 "audit_records": len(payload.get("audit_records", [])),
                 "dlp_alerts": len(payload.get("dlp_alerts", [])),
+                "irm_alerts": len(payload.get("irm_alerts", [])),
+                "subject_rights_requests": len(payload.get("subject_rights_requests", [])),
+                "comm_compliance_policies": len(payload.get("comm_compliance_policies", [])),
+                "info_barrier_policies": len(payload.get("info_barrier_policies", [])),
                 "protection_scopes": len(payload.get("protection_scopes", [])),
             }
         )

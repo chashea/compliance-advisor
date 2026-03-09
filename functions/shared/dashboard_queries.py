@@ -442,6 +442,92 @@ def get_irm(department: str | None = None) -> dict:
     return {"alerts": alerts, "severity_breakdown": severity_breakdown}
 
 
+def get_subject_rights(department: str | None = None) -> dict:
+    """POST /api/advisor/subject-rights — Subject Rights Requests."""
+    dept_filter = ""
+    params: dict = {}
+    if department:
+        dept_filter = "AND t.department = %(dept)s"
+        params["dept"] = department
+
+    requests = query(
+        f"""
+        SELECT sr.request_id, sr.display_name, sr.request_type, sr.status,
+               sr.created, sr.closed, sr.data_subject_type,
+               t.display_name AS tenant_name
+        FROM subject_rights_requests sr
+        JOIN tenants t ON t.tenant_id = sr.tenant_id
+        WHERE sr.snapshot_date = (SELECT MAX(snapshot_date) FROM subject_rights_requests)
+          {dept_filter}
+        ORDER BY sr.created DESC
+        """,
+        params,
+    )
+
+    status_breakdown = query(
+        f"""
+        SELECT sr.status, COUNT(*)::int AS total
+        FROM subject_rights_requests sr
+        JOIN tenants t ON t.tenant_id = sr.tenant_id
+        WHERE sr.snapshot_date = (SELECT MAX(snapshot_date) FROM subject_rights_requests)
+          {dept_filter}
+        GROUP BY sr.status
+        ORDER BY total DESC
+        """,
+        params,
+    )
+
+    return {"requests": requests, "status_breakdown": status_breakdown}
+
+
+def get_comm_compliance(department: str | None = None) -> dict:
+    """POST /api/advisor/comm-compliance — Communication Compliance policies."""
+    dept_filter = ""
+    params: dict = {}
+    if department:
+        dept_filter = "AND t.department = %(dept)s"
+        params["dept"] = department
+
+    policies = query(
+        f"""
+        SELECT cc.policy_id, cc.display_name, cc.status, cc.policy_type,
+               cc.review_pending_count, t.display_name AS tenant_name
+        FROM comm_compliance_policies cc
+        JOIN tenants t ON t.tenant_id = cc.tenant_id
+        WHERE cc.snapshot_date = (SELECT MAX(snapshot_date) FROM comm_compliance_policies)
+          {dept_filter}
+        ORDER BY cc.display_name
+        """,
+        params,
+    )
+
+    return {"policies": policies}
+
+
+def get_info_barriers(department: str | None = None) -> dict:
+    """POST /api/advisor/info-barriers — Information Barrier policies."""
+    dept_filter = ""
+    params: dict = {}
+    if department:
+        dept_filter = "AND t.department = %(dept)s"
+        params["dept"] = department
+
+    policies = query(
+        f"""
+        SELECT ib.policy_id, ib.display_name, ib.state, ib.segments_applied,
+               t.display_name AS tenant_name
+        FROM info_barrier_policies ib
+        JOIN tenants t ON t.tenant_id = ib.tenant_id
+        WHERE ib.snapshot_date = (SELECT MAX(snapshot_date) FROM info_barrier_policies)
+          {dept_filter}
+        ORDER BY ib.display_name
+        """,
+        params,
+    )
+
+    return {"policies": policies}
+
+
 def get_improvement_actions(department: str | None = None) -> dict:
     """POST /api/advisor/actions — Secure Score and improvement actions."""
     dept_filter = ""
