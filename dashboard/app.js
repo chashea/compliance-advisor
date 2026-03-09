@@ -269,6 +269,7 @@ function renderDLPChart() {
 
   const labels = breakdown.map(b => b.severity);
   const totals = breakdown.map(b => b.total);
+  const grand = totals.reduce((a, b) => a + b, 0);
   const colors = labels.map(l => {
     if (l === "high") return CHART_COLORS.red;
     if (l === "medium") return CHART_COLORS.yellow;
@@ -279,13 +280,27 @@ function renderDLPChart() {
   charts.dlp = new Chart($("#dlp-chart"), {
     type: "doughnut",
     data: {
-      labels,
+      labels: labels.map((l, i) => {
+        const pct = grand > 0 ? Math.round((totals[i] / grand) * 100) : 0;
+        return `${l} ${pct}%`;
+      }),
       datasets: [{ data: totals, backgroundColor: colors }],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { position: "bottom" } },
+      plugins: {
+        legend: { position: "bottom" },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const val = ctx.parsed;
+              const pct = grand > 0 ? Math.round((val / grand) * 100) : 0;
+              return ` ${ctx.label}: ${val} (${pct}%)`;
+            },
+          },
+        },
+      },
     },
   });
 }
