@@ -11,12 +11,11 @@ GCC Tenant C ──┘  (ROPC, service account)  ──▶  POST /api/ingest
                   Microsoft Graph API              │
                                                    ▼
                                              PostgreSQL
-                                             (ediscovery_cases,
-                                              sensitivity_labels,
-                                              retention_labels,
-                                              dlp_alerts, ...)
+                                             (15 tables: tenants,
+                                              ediscovery, labels, dlp,
+                                              irm, audit, scores, ...)
                                                    │
-                  Dashboard (browser)  ◀──── /api/advisor/* (10 endpoints)
+                  Dashboard (browser)  ◀──── /api/advisor/* (16 endpoints)
                   Entra ID SSO                     │
                                                    ▼
                                              Azure OpenAI (GPT-4o)
@@ -28,20 +27,30 @@ GCC Tenant C ──┘  (ROPC, service account)  ──▶  POST /api/ingest
 | Workload | Data Source | API |
 |---|---|---|
 | eDiscovery | Cases, custodians, holds | `/security/cases/ediscoveryCases` |
-| Information Protection | Sensitivity labels | `/security/informationProtection/sensitivityLabels` |
+| Information Protection | Sensitivity labels | `/beta/security/informationProtection/sensitivityLabels` |
 | Records Management | Retention labels & events | `/security/labels/retentionLabels`, `/security/triggers/retentionEvents` |
 | Audit Log | Compliance activity records | `/security/auditLog/queries` (async) |
 | DLP (Data Security) | DLP alerts | `/security/alerts_v2` (filtered to DLP) |
+| Insider Risk Management | IRM alerts | `/security/alerts_v2` (filtered to IRM) |
 | Data Security & Governance | Protection scopes | `/dataSecurityAndGovernance/protectionScopes/compute` |
+| Secure Score | Tenant security posture score | `/security/secureScores` |
+| Improvement Actions | Secure Score control profiles | `/security/secureScoreControlProfiles` |
+| Subject Rights Requests | Privacy/DSAR requests | `/beta/privacy/subjectRightsRequests` |
+| Communication Compliance | Policy monitoring | `/beta/security/communicationCompliance/policies` |
+| Information Barriers | Segment policies | `/beta/identityGovernance/informationBarriers/policies` |
 
 ## Features
 
 - Cross-tenant compliance workload dashboard with KPI cards and charts
-- Agency/department dropdown filter for single-pane view
-- Active filter state summary with clear reset action
+- Agency/department dropdown filter with active filter state summary and clear reset
+- Improvement Actions card with Secure Score badge and category/cost/tier filters
+- DLP alert monitoring with inline severity chart and severity/status/tenant filters
+- Insider Risk Management alert monitoring with severity/status filters
 - eDiscovery case tracking with custodian counts
 - Sensitivity and retention label inventory
-- DLP alert monitoring with severity breakdown
+- Subject Rights Request tracking
+- Communication Compliance policy monitoring
+- Information Barriers policy visibility
 - Audit log activity summaries by service and operation
 - Data governance protection scope visibility
 - Compliance trend tracking over time
@@ -65,8 +74,11 @@ GCC Tenant C ──┘  (ROPC, service account)  ──▶  POST /api/ingest
 | `InformationProtectionPolicy.Read.All` | Sensitivity labels |
 | `RecordsManagement.Read.All` | Retention labels & events |
 | `AuditLogsQuery.Read.All` | Audit log queries |
-| `SecurityAlert.Read.All` | DLP alerts |
+| `SecurityAlert.Read.All` | DLP alerts, IRM alerts |
+| `SecurityEvents.Read.All` | Secure Score, Improvement Actions |
 | `Content.Process.All` | Data security & governance |
+| `SubjectRightsRequest.Read.All` | Subject rights requests |
+| `InformationBarriersPolicy.Read.All` | Information barriers |
 
 ## Local Development
 
@@ -110,7 +122,7 @@ func start
 python3 -m http.server 8080 --directory dashboard/
 ```
 
-Open http://localhost:8080. Toggle "Demo data" checkbox for sample data, or point `env.js` at the local Function App.  
+Open http://localhost:8080. Toggle "Demo data" checkbox for sample data, or point `env.js` at the local Function App.
 Use the **Clear filters** button to reset Department and Trend period back to the default dashboard view.
 
 ## Collector Usage
@@ -139,8 +151,13 @@ All endpoints are `POST` to `/api/advisor/*`.
 | `/api/advisor/labels` | `{department?}` | Sensitivity labels, retention labels, events |
 | `/api/advisor/audit` | `{department?}` | Audit log records, service/operation breakdown |
 | `/api/advisor/dlp` | `{department?}` | DLP alerts, severity/policy breakdown |
+| `/api/advisor/irm` | `{department?}` | Insider Risk Management alerts |
 | `/api/advisor/governance` | `{department?}` | Protection scopes |
 | `/api/advisor/trend` | `{department?, days?}` | Compliance workload counts over time |
+| `/api/advisor/actions` | `{department?}` | Secure Score + improvement actions |
+| `/api/advisor/subject-rights` | `{department?}` | Subject rights requests |
+| `/api/advisor/comm-compliance` | `{department?}` | Communication compliance policies |
+| `/api/advisor/info-barriers` | `{department?}` | Information barrier policies |
 | `/api/advisor/briefing` | `{department?}` | AI-generated executive briefing |
 | `/api/advisor/ask` | `{question}` | AI Q&A about compliance data |
 | `/api/ingest` | Collector payload | Ingestion (function key auth) |
@@ -188,7 +205,8 @@ compliance-advisor/
 ├── dashboard/          Static HTML/CSS/JS dashboard
 ├── collector/          Per-tenant data collector (Python CLI)
 ├── functions/          Azure Functions v2 API backend
-├── sql/                PostgreSQL schema
+├── sql/                PostgreSQL schema (15 tables)
 ├── infra/              Bicep IaC templates
+├── tests/              pytest test suite
 └── .github/workflows/  CI/CD
 ```
