@@ -16,7 +16,7 @@ GCC Tenant C ──┘  (ROPC, service account)  ──▶  POST /api/ingest
                                               irm, audit, scores, ...)
                                                    │
                   Dashboard (browser)  ◀──── /api/advisor/* (16 endpoints)
-                  Entra ID SSO                     │
+                                                   │
                                                    ▼
                                              Azure OpenAI (GPT-4o)
                                              (briefing + Q&A)
@@ -30,20 +30,23 @@ GCC Tenant C ──┘  (ROPC, service account)  ──▶  POST /api/ingest
 | Information Protection | Sensitivity labels | `/beta/security/informationProtection/sensitivityLabels` |
 | Records Management | Retention labels & events | `/security/labels/retentionLabels`, `/security/triggers/retentionEvents` |
 | Audit Log | Compliance activity records | `/security/auditLog/queries` (async) |
-| DLP (Data Security) | DLP alerts | `/security/alerts_v2` (filtered to DLP) |
-| Insider Risk Management | IRM alerts | `/security/alerts_v2` (filtered to IRM) |
+| DLP | DLP alerts from Defender | `/security/alerts` filtered by `vendorInformation/provider eq 'Microsoft Data Loss Prevention'` |
+| Insider Risk Management | IRM alerts from Defender | `/security/alerts` filtered by `vendorInformation/provider eq 'Microsoft Insider Risk Management'` |
 | Data Security & Governance | Protection scopes | `/dataSecurityAndGovernance/protectionScopes/compute` |
-| Secure Score | Tenant security posture score | `/security/secureScores` |
-| Improvement Actions | Secure Score control profiles | `/security/secureScoreControlProfiles` |
+| Secure Score | Overall + Data category score | `/security/secureScores` + `/security/secureScoreControlProfiles` |
+| Improvement Actions | Secure Score control profiles (Data category) | `/security/secureScoreControlProfiles?$filter=controlCategory eq 'Data'` |
 | Subject Rights Requests | Privacy/DSAR requests | `/beta/privacy/subjectRightsRequests` |
 | Communication Compliance | Policy monitoring | `/beta/security/communicationCompliance/policies` |
 | Information Barriers | Segment policies | `/beta/identityGovernance/informationBarriers/policies` |
 
+> **Note:** DLP and IRM alerts use the legacy `/v1.0/security/alerts` endpoint (not `alerts_v2`) because IRM alerts have no valid `serviceSource` enum in `alerts_v2` and DLP alerts surface more reliably via the Defender product name filter.
+
 ## Features
 
-- Cross-tenant compliance workload dashboard with KPI cards and charts
+- Cross-tenant compliance workload dashboard with KPI cards (Tenants, Secure Score Data, DLP Alerts, IRM Alerts)
+- Secure Score Data category KPI showing `current / max` points and percentage
+- Improvement Actions filtered to Data category by default with category/cost/tier filters
 - Agency/department dropdown filter with active filter state summary and clear reset
-- Improvement Actions card with Secure Score badge and category/cost/tier filters
 - DLP alert monitoring with inline severity chart and severity/status/tenant filters
 - Insider Risk Management alert monitoring with severity/status filters
 - eDiscovery case tracking with custodian counts
@@ -53,10 +56,9 @@ GCC Tenant C ──┘  (ROPC, service account)  ──▶  POST /api/ingest
 - Information Barriers policy visibility
 - Audit log activity summaries by service and operation
 - Data governance protection scope visibility
-- Compliance trend tracking over time
 - AI-powered "Ask the Advisor" Q&A sidebar
 - Executive briefing generator for leadership consumption
-- Built-in demo data mode for demos without live data
+- Built-in demo data mode with 5 sample departments (IT, Legal, HR, Finance, Compliance)
 
 ## Prerequisites
 
@@ -123,21 +125,39 @@ python3 -m http.server 8080 --directory dashboard/
 ```
 
 Open http://localhost:8080. Toggle "Demo data" checkbox for sample data, or point `env.js` at the local Function App.
-Use the **Clear filters** button to reset Department and Trend period back to the default dashboard view.
 
 ## Collector Usage
 
 ```bash
-# Collect from a single tenant
+# Collect from a single tenant (Improvement Actions default to Data category)
 compliance-collect \
   --tenant-id 00000000-0000-0000-0000-000000000000 \
   --agency-id dept-of-finance \
   --department Finance \
   --display-name "Dept of Finance"
 
+# Override Improvement Actions category
+compliance-collect --tenant-id <GUID> --agency-id <NAME> --department <DEPT> \
+  --actions-category Identity
+
+# Collect all Improvement Action categories
+compliance-collect --tenant-id <GUID> --agency-id <NAME> --department <DEPT> \
+  --actions-category ""
+
 # Dry run (print payload, don't submit)
 compliance-collect --tenant-id <GUID> --agency-id <NAME> --department <DEPT> --dry-run -v
 ```
+
+### Collector Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `TENANT_ID` | — | Target tenant GUID |
+| `AGENCY_ID` | — | Logical agency identifier |
+| `DEPARTMENT` | — | Department name |
+| `DISPLAY_NAME` | — | Human-readable tenant name |
+| `ACTIONS_CATEGORY` | `Data` | Secure Score control category filter |
+| `AUDIT_LOG_DAYS` | `1` | Audit log lookback window (days) |
 
 ## API Reference
 
@@ -152,7 +172,7 @@ All endpoints are `POST` to `/api/advisor/*`.
 | `/api/advisor/audit` | `{department?}` | Audit log records, service/operation breakdown |
 | `/api/advisor/dlp` | `{department?}` | DLP alerts, severity/policy breakdown |
 | `/api/advisor/irm` | `{department?}` | Insider Risk Management alerts |
-| `/api/advisor/governance` | `{department?}` | Protection scopes |
+| `/api/advisor/governance` | `{department?}` | Protection scopes, Secure Score (overall + Data category) |
 | `/api/advisor/trend` | `{department?, days?}` | Compliance workload counts over time |
 | `/api/advisor/actions` | `{department?}` | Secure Score + improvement actions |
 | `/api/advisor/subject-rights` | `{department?}` | Subject rights requests |
@@ -161,6 +181,20 @@ All endpoints are `POST` to `/api/advisor/*`.
 | `/api/advisor/briefing` | `{department?}` | AI-generated executive briefing |
 | `/api/advisor/ask` | `{question}` | AI Q&A about compliance data |
 | `/api/ingest` | Collector payload | Ingestion (function key auth) |
+
+### `/api/advisor/governance` response shape (secure_score)
+
+```json
+{
+  "secure_score": {
+    "current_score": 142.0,
+    "max_score": 500.0,
+    "score_date": "2026-03-08",
+    "data_current_score": 38.0,
+    "data_max_score": 85.0
+  }
+}
+```
 
 ## Infrastructure Deployment
 
@@ -180,8 +214,7 @@ az deployment group create \
                allowedTenantIds='<GUID1>,<GUID2>'
 
 # Run schema migration
-psql "$(az deployment group show -g rg-compliance-advisor -n main --query properties.outputs.postgresConnectionString.value -o tsv)" \
-  -f sql/schema.sql
+psql "<CONNECTION_STRING>" -f sql/schema.sql
 ```
 
 ## Onboarding a New GCC Tenant
@@ -207,6 +240,6 @@ compliance-advisor/
 ├── functions/          Azure Functions v2 API backend
 ├── sql/                PostgreSQL schema (15 tables)
 ├── infra/              Bicep IaC templates
-├── tests/              pytest test suite
+├── tests/              pytest test suite (42 tests)
 └── .github/workflows/  CI/CD
 ```

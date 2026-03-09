@@ -6,7 +6,7 @@ Project-specific guidance. Global conventions (communication style, git workflow
 
 - **Repo:** `github.com/chashea/compliance-advisor`, branch `main`
 - **Resource group:** `rg-compliance-advisor`
-- **Current version:** v0.11.0
+- **Current version:** v0.20.1
 
 ## Build & Run Commands
 
@@ -47,7 +47,7 @@ Run tests with `python3.12 -m pytest tests/` (42 tests covering validation, dash
 
 Multi-tenant GCC compliance workload dashboard. Three independent components share a PostgreSQL database:
 
-1. **Collector** (`collector/`) — Python CLI (`compliance-collect`) that authenticates to GCC tenants via MSAL ROPC, pulls compliance workload data from Microsoft Graph API (eDiscovery, sensitivity labels, retention labels/events, audit log, DLP alerts, IRM alerts, protection scopes, Secure Score, improvement actions, subject rights requests, communication compliance, information barriers), and POSTs a payload to the Function App's `/api/ingest` endpoint.
+1. **Collector** (`collector/`) — Python CLI (`compliance-collect`) that authenticates to GCC tenants via MSAL ROPC, pulls compliance workload data from Microsoft Graph API (eDiscovery, sensitivity labels, retention labels/events, audit log, DLP alerts, IRM alerts, protection scopes, Secure Score with Data category breakdown, improvement actions filtered to Data category by default, subject rights requests, communication compliance, information barriers), and POSTs a payload to the Function App's `/api/ingest` endpoint. DLP and IRM alerts use the legacy `/security/alerts` endpoint filtered by `vendorInformation/provider`. Use `--actions-category` (env: `ACTIONS_CATEGORY`, default: `Data`) to control which Secure Score category is collected.
 
 2. **Function App** (`functions/`) — Azure Functions v2 Python (decorator-based, no `function.json` files). All routes defined in `function_app.py`. Two categories:
    - **Ingest** (`/api/ingest`) — FUNCTION-level auth, validates payload via JSON schema (`shared/validation.py`), upserts to PostgreSQL (`shared/db.py`).
@@ -56,7 +56,7 @@ Multi-tenant GCC compliance workload dashboard. Three independent components sha
 
 3. **Dashboard** (`dashboard/`) — Static HTML/CSS/JS SPA. Config in `env.js` (`window.COMPLIANCE_API_BASE`, `window.COMPLIANCE_API_KEY`). No build step. Has built-in demo data mode toggled by checkbox.
 
-**Database**: PostgreSQL with 15 tables: `tenants`, `ediscovery_cases`, `sensitivity_labels`, `retention_labels`, `retention_events`, `audit_records`, `dlp_alerts`, `irm_alerts`, `protection_scopes`, `secure_scores`, `improvement_actions`, `subject_rights_requests`, `comm_compliance_policies`, `info_barrier_policies`, `compliance_trend`. Schema in `sql/schema.sql`. Connection pool via psycopg2 `ThreadedConnectionPool` in `shared/db.py`.
+**Database**: PostgreSQL with 15 tables: `tenants`, `ediscovery_cases`, `sensitivity_labels`, `retention_labels`, `retention_events`, `audit_records`, `dlp_alerts`, `irm_alerts`, `protection_scopes`, `secure_scores` (includes `data_current_score`, `data_max_score`), `improvement_actions`, `subject_rights_requests`, `comm_compliance_policies`, `info_barrier_policies`, `user_content_policies`, `compliance_trend`. Schema in `sql/schema.sql`. Connection pool via psycopg2 `ThreadedConnectionPool` in `shared/db.py`.
 
 **Infrastructure** (`infra/`): Bicep modules for PostgreSQL Flexible Server, Function App + App Service Plan, Key Vault, Azure OpenAI, Log Analytics + App Insights. Function App uses SystemAssigned managed identity with RBAC for Key Vault and OpenAI. `azuredeploy.json` at repo root is the compiled ARM template for the "Deploy to Azure" button.
 
