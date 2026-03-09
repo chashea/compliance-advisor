@@ -204,7 +204,7 @@ CREATE TABLE IF NOT EXISTS info_barrier_policies (
 -- User content policies (userDataSecurityAndGovernance processContent probe)
 CREATE TABLE IF NOT EXISTS user_content_policies (
     id              SERIAL PRIMARY KEY,
-    tenant_id       UUID NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
+    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
     snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
     user_id         TEXT NOT NULL,
     user_upn        TEXT NOT NULL,
