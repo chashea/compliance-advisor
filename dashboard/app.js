@@ -112,20 +112,6 @@ function generateDemoData() {
     { display_name: "Litigation Hold - Project X", status: "active", custodian_count: 12, created: "2026-01-10", tenant_name: "Demo Tenant" },
   ];
 
-  const sensitivityLabels = [
-    { name: "Public", priority: 0, is_active: true, color: "#00cc00", tenant_name: "Demo Tenant" },
-    { name: "Internal", priority: 1, is_active: true, color: "#ffcc00", tenant_name: "Demo Tenant" },
-    { name: "Confidential", priority: 2, is_active: true, color: "#ff6600", tenant_name: "Demo Tenant" },
-    { name: "Highly Confidential", priority: 3, is_active: true, color: "#cc0000", tenant_name: "Demo Tenant" },
-    { name: "Restricted (Legacy)", priority: 4, is_active: false, color: "#990000", tenant_name: "Demo Tenant" },
-  ];
-
-  const retentionLabels = [
-    { display_name: "7-Year Retention", retention_duration: "P2555D", is_in_use: true, status: "active" },
-    { display_name: "3-Year Retention", retention_duration: "P1095D", is_in_use: true, status: "active" },
-    { display_name: "Permanent Hold", retention_duration: "unlimited", is_in_use: false, status: "active" },
-  ];
-
   const dlpAlerts = [
     { title: "SSN detected in email", severity: "high", status: "new", policy_name: "PII Protection", created: "2026-03-07", tenant_name: "Demo Tenant" },
     { title: "Credit card in Teams message", severity: "medium", status: "inProgress", policy_name: "Financial Data", created: "2026-03-06", tenant_name: "Demo Tenant" },
@@ -138,30 +124,14 @@ function generateDemoData() {
     { severity: "low", total: 1, active: 0 },
   ];
 
-  const auditRecords = [
-    { operation: "SensitivityLabelApplied", service: "SharePoint", user_id: "admin@demo.onmicrosoft.com", created: "2026-03-07T14:22:00Z" },
-    { operation: "DLPRuleMatch", service: "Exchange", user_id: "user1@demo.onmicrosoft.com", created: "2026-03-07T12:05:00Z" },
-    { operation: "RetentionLabelApplied", service: "OneDrive", user_id: "admin@demo.onmicrosoft.com", created: "2026-03-07T09:30:00Z" },
-  ];
-
-  const governanceScopes = [
-    { scope_type: "dlpPolicy", execution_mode: "enforce", locations: "Exchange, SharePoint, OneDrive" },
-    { scope_type: "retentionPolicy", execution_mode: "enforce", locations: "Exchange, SharePoint" },
-  ];
-
   return {
     overview: {
       tenants: [{ tenant_id: "demo-tenant-1", display_name: "Demo Tenant", department: "IT" }],
       ediscovery_summary: { total_cases: 3, active_cases: 2 },
-      labels_summary: { sensitivity_labels: 5, retention_labels: 3 },
       dlp_summary: { total_dlp_alerts: 3, high_alerts: 1, medium_alerts: 1, active_alerts: 2 },
-      audit_summary: { total_records: 3 },
     },
     ediscovery: { cases: ediscoveryCases, status_breakdown: [{ status: "active", total: 2 }, { status: "closed", total: 1 }] },
-    labels: { sensitivity_labels: sensitivityLabels, retention_labels: retentionLabels, retention_events: [] },
     dlp: { alerts: dlpAlerts, severity_breakdown: dlpSeverityBreakdown, policy_breakdown: [{ policy_name: "PII Protection", total: 2 }, { policy_name: "Financial Data", total: 1 }] },
-    audit: { records: auditRecords, service_breakdown: [{ service: "SharePoint", total: 1 }, { service: "Exchange", total: 1 }, { service: "OneDrive", total: 1 }], operation_breakdown: [] },
-    governance: { scopes: governanceScopes },
     irm: {
       alerts: [
         { title: "Unusual file download volume", severity: "high", status: "new", policy_name: "Data Theft", created: "2026-03-07", tenant_name: "Demo Tenant" },
@@ -185,12 +155,6 @@ function generateDemoData() {
       policies: [
         { display_name: "Offensive Language Policy", policy_type: "offensive_language", status: "active", review_pending_count: 5, tenant_name: "Demo Tenant" },
         { display_name: "Regulatory Compliance", policy_type: "regulatory", status: "active", review_pending_count: 0, tenant_name: "Demo Tenant" },
-      ],
-    },
-    infoBarriers: {
-      policies: [
-        { display_name: "Research - Trading Wall", state: "active", segments_applied: "Research, Trading", tenant_name: "Demo Tenant" },
-        { display_name: "HR - Finance Barrier", state: "active", segments_applied: "HR, Finance", tenant_name: "Demo Tenant" },
       ],
     },
     trend: { trend: [
@@ -233,21 +197,17 @@ async function loadData() {
     if (demoMode) {
       currentData = generateDemoData();
     } else {
-      const [overview, ediscovery, labels, dlp, irm, subjectRights, commCompliance, infoBarriers, audit, governance, trend, actions] = await Promise.all([
+      const [overview, ediscovery, dlp, irm, subjectRights, commCompliance, trend, actions] = await Promise.all([
         api("overview", body),
         api("ediscovery", body),
-        api("labels", body),
         api("dlp", body),
         api("irm", body),
         api("subject-rights", body),
         api("comm-compliance", body),
-        api("info-barriers", body),
-        api("audit", body),
-        api("governance", body),
         api("trend", body),
         api("actions", body),
       ]);
-      currentData = { overview, ediscovery, labels, dlp, irm, subjectRights, commCompliance, infoBarriers, audit, governance, trend, actions };
+      currentData = { overview, ediscovery, dlp, irm, subjectRights, commCompliance, trend, actions };
     }
 
     renderAll();
@@ -270,15 +230,10 @@ function renderAll() {
   renderTrendChart();
   renderDLPChart();
   renderEdiscovery();
-  renderSensitivityLabels();
-  renderRetentionLabels();
   renderDLPAlerts();
   renderIRMAlerts();
   renderSubjectRights();
   renderCommCompliance();
-  renderInfoBarriers();
-  renderAuditRecords();
-  renderGovernance();
   renderImprovementActions();
   populateDepartments();
 }
@@ -312,9 +267,6 @@ function renderTrendChart() {
       datasets: [
         { label: "eDiscovery", data: trend.map(d => d.ediscovery_cases), borderColor: CHART_COLORS.blue, tension: 0.3 },
         { label: "DLP Alerts", data: trend.map(d => d.dlp_alerts), borderColor: CHART_COLORS.red, tension: 0.3 },
-        { label: "Audit Records", data: trend.map(d => d.audit_records), borderColor: CHART_COLORS.green, tension: 0.3 },
-        { label: "Sensitivity Labels", data: trend.map(d => d.sensitivity_labels), borderColor: CHART_COLORS.purple, tension: 0.3 },
-        { label: "Retention Labels", data: trend.map(d => d.retention_labels), borderColor: CHART_COLORS.orange, tension: 0.3 },
       ],
     },
     options: {
@@ -382,40 +334,6 @@ function renderEdiscovery() {
       <td>${c.custodian_count || 0}</td>
       <td>${esc(c.created?.slice(0, 10) || "")}</td>
       <td>${esc(c.tenant_name)}</td>
-    </tr>
-  `).join("");
-}
-
-function renderSensitivityLabels() {
-  const labels = currentData.labels?.sensitivity_labels || [];
-  const tbody = $("#sensitivity-table tbody");
-  if (labels.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" class="placeholder-text">No sensitivity labels</td></tr>';
-    return;
-  }
-  tbody.innerHTML = labels.map(l => `
-    <tr>
-      <td>${l.color ? `<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:${esc(l.color)};margin-right:6px;vertical-align:middle"></span>` : ""}${esc(l.name)}</td>
-      <td>${l.priority}</td>
-      <td>${l.is_active ? '<span class="badge badge--green">Active</span>' : '<span class="badge badge--red">Inactive</span>'}</td>
-      <td>${esc(l.tenant_name)}</td>
-    </tr>
-  `).join("");
-}
-
-function renderRetentionLabels() {
-  const labels = currentData.labels?.retention_labels || [];
-  const tbody = $("#retention-table tbody");
-  if (labels.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" class="placeholder-text">No retention labels</td></tr>';
-    return;
-  }
-  tbody.innerHTML = labels.map(l => `
-    <tr>
-      <td>${esc(l.display_name)}</td>
-      <td>${esc(l.retention_duration)}</td>
-      <td>${l.is_in_use ? '<span class="badge badge--green">Yes</span>' : '<span class="badge badge--yellow">No</span>'}</td>
-      <td>${statusBadge(l.status)}</td>
     </tr>
   `).join("");
 }
@@ -617,56 +535,6 @@ function renderCommCompliance() {
       <td>${statusBadge(p.status)}</td>
       <td>${p.review_pending_count || 0}</td>
       <td>${esc(p.tenant_name)}</td>
-    </tr>
-  `).join("");
-}
-
-function renderInfoBarriers() {
-  const policies = currentData.infoBarriers?.policies || [];
-  const tbody = $("#info-barriers-table tbody");
-  if (policies.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" class="placeholder-text">No information barrier policies</td></tr>';
-    return;
-  }
-  tbody.innerHTML = policies.map(p => `
-    <tr>
-      <td>${esc(p.display_name)}</td>
-      <td>${statusBadge(p.state)}</td>
-      <td>${esc(p.segments_applied)}</td>
-      <td>${esc(p.tenant_name)}</td>
-    </tr>
-  `).join("");
-}
-
-function renderAuditRecords() {
-  const records = currentData.audit?.records || [];
-  const tbody = $("#audit-table tbody");
-  if (records.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" class="placeholder-text">No audit records</td></tr>';
-    return;
-  }
-  tbody.innerHTML = records.slice(0, 100).map(r => `
-    <tr>
-      <td>${esc(r.operation)}</td>
-      <td>${esc(r.service)}</td>
-      <td>${esc(r.user_id)}</td>
-      <td>${esc(r.created?.slice(0, 16)?.replace("T", " ") || "")}</td>
-    </tr>
-  `).join("");
-}
-
-function renderGovernance() {
-  const scopes = currentData.governance?.scopes || [];
-  const tbody = $("#governance-table tbody");
-  if (scopes.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3" class="placeholder-text">No protection scopes</td></tr>';
-    return;
-  }
-  tbody.innerHTML = scopes.map(s => `
-    <tr>
-      <td>${esc(s.scope_type)}</td>
-      <td>${esc(s.execution_mode)}</td>
-      <td>${esc(s.locations)}</td>
     </tr>
   `).join("");
 }
