@@ -126,7 +126,13 @@ function generateDemoData() {
 
   return {
     overview: {
-      tenants: [{ tenant_id: "demo-tenant-1", display_name: "Demo Tenant", department: "IT" }],
+      tenants: [
+        { tenant_id: "demo-tenant-1", display_name: "Demo Agency — IT", department: "IT" },
+        { tenant_id: "demo-tenant-2", display_name: "Demo Agency — Legal", department: "Legal" },
+        { tenant_id: "demo-tenant-3", display_name: "Demo Agency — HR", department: "HR" },
+        { tenant_id: "demo-tenant-4", display_name: "Demo Agency — Finance", department: "Finance" },
+        { tenant_id: "demo-tenant-5", display_name: "Demo Agency — Compliance", department: "Compliance" },
+      ],
       ediscovery_summary: { total_cases: 3, active_cases: 2 },
       dlp_summary: { total_dlp_alerts: 3, high_alerts: 1, medium_alerts: 1, active_alerts: 2 },
     },
