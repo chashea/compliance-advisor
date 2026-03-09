@@ -157,13 +157,6 @@ function generateDemoData() {
         { display_name: "Regulatory Compliance", policy_type: "regulatory", status: "active", review_pending_count: 0, tenant_name: "Demo Tenant" },
       ],
     },
-    trend: { trend: [
-      { snapshot_date: "2026-02-07", ediscovery_cases: 2, dlp_alerts: 1, audit_records: 8, sensitivity_labels: 4, retention_labels: 2, tenant_count: 1 },
-      { snapshot_date: "2026-02-14", ediscovery_cases: 2, dlp_alerts: 2, audit_records: 12, sensitivity_labels: 4, retention_labels: 3, tenant_count: 1 },
-      { snapshot_date: "2026-02-21", ediscovery_cases: 3, dlp_alerts: 1, audit_records: 15, sensitivity_labels: 5, retention_labels: 3, tenant_count: 1 },
-      { snapshot_date: "2026-02-28", ediscovery_cases: 3, dlp_alerts: 3, audit_records: 10, sensitivity_labels: 5, retention_labels: 3, tenant_count: 1 },
-      { snapshot_date: "2026-03-07", ediscovery_cases: 3, dlp_alerts: 3, audit_records: 3, sensitivity_labels: 5, retention_labels: 3, tenant_count: 1 },
-    ] },
     actions: {
       secure_score: { current_score: 62.5, max_score: 100, score_date: "2026-03-08" },
       actions: [
@@ -197,17 +190,16 @@ async function loadData() {
     if (demoMode) {
       currentData = generateDemoData();
     } else {
-      const [overview, ediscovery, dlp, irm, subjectRights, commCompliance, trend, actions] = await Promise.all([
+      const [overview, ediscovery, dlp, irm, subjectRights, commCompliance, actions] = await Promise.all([
         api("overview", body),
         api("ediscovery", body),
         api("dlp", body),
         api("irm", body),
         api("subject-rights", body),
         api("comm-compliance", body),
-        api("trend", body),
         api("actions", body),
       ]);
-      currentData = { overview, ediscovery, dlp, irm, subjectRights, commCompliance, trend, actions };
+      currentData = { overview, ediscovery, dlp, irm, subjectRights, commCompliance, actions };
     }
 
     renderAll();
@@ -227,7 +219,6 @@ async function loadData() {
 
 function renderAll() {
   renderKPIs();
-  renderTrendChart();
   renderDLPChart();
   renderEdiscovery();
   renderDLPAlerts();
@@ -250,32 +241,6 @@ function renderKPIs() {
   const irmAlerts = currentData.irm?.alerts || [];
   const irmActive = irmAlerts.filter(a => (a.status || "").toLowerCase() !== "resolved").length;
   $("#kpi-irm").textContent = `${irmActive} active`;
-}
-
-function renderTrendChart() {
-  const data = currentData.trend || {};
-  const trend = data.trend || [];
-
-  if (charts.trend) charts.trend.destroy();
-
-  const labels = trend.map(d => d.snapshot_date);
-
-  charts.trend = new Chart($("#trend-chart"), {
-    type: "line",
-    data: {
-      labels,
-      datasets: [
-        { label: "eDiscovery", data: trend.map(d => d.ediscovery_cases), borderColor: CHART_COLORS.blue, tension: 0.3 },
-        { label: "DLP Alerts", data: trend.map(d => d.dlp_alerts), borderColor: CHART_COLORS.red, tension: 0.3 },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: { y: { min: 0 } },
-      plugins: { legend: { position: "bottom" } },
-    },
-  });
 }
 
 function renderDLPChart() {
