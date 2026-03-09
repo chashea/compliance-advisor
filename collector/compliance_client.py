@@ -430,10 +430,18 @@ def get_secure_scores(token: str) -> list[dict[str, Any]]:
 # ── Improvement Actions (Secure Score Control Profiles) ───────────
 
 
-def get_improvement_actions(token: str) -> list[dict[str, Any]]:
-    """Return Secure Score control profiles (improvement actions)."""
+def get_improvement_actions(token: str, category: str | None = None) -> list[dict[str, Any]]:
+    """Return Secure Score control profiles (improvement actions).
+
+    Args:
+        category: Optional controlCategory filter (e.g. 'Data', 'Identity', 'Device').
+                  If None, all categories are returned.
+    """
     sess = _session(token)
-    url = f"{GRAPH_BASE}/security/secureScoreControlProfiles"
+    if category:
+        url = f"{GRAPH_BASE}/security/secureScoreControlProfiles" f"?$filter=controlCategory eq '{category}'"
+    else:
+        url = f"{GRAPH_BASE}/security/secureScoreControlProfiles"
 
     try:
         items = _paginate(sess, url, max_pages=5)

@@ -43,6 +43,12 @@ log = logging.getLogger("collector")
 @click.option("--display-name", envvar="DISPLAY_NAME", default="", help="Human-readable tenant name")
 @click.option("--dry-run", is_flag=True, help="Collect and print payload without submitting")
 @click.option("--verbose", "-v", is_flag=True, help="Enable debug logging")
+@click.option(
+    "--actions-category",
+    envvar="ACTIONS_CATEGORY",
+    default=None,
+    help="Filter improvement actions by controlCategory (e.g. Data, Identity, Device). Default: all.",
+)
 def main(
     tenant_id: str,
     agency_id: str,
@@ -50,6 +56,7 @@ def main(
     display_name: str,
     dry_run: bool,
     verbose: bool,
+    actions_category: str | None,
 ):
     """Collect compliance workload data from a tenant via Microsoft Graph."""
     logging.basicConfig(
@@ -124,7 +131,7 @@ def main(
     secure_scores = get_secure_scores(token)
 
     click.echo("  Improvement Actions...")
-    improvement_actions = get_improvement_actions(token)
+    improvement_actions = get_improvement_actions(token, category=actions_category)
 
     click.echo("  User Content Policies...")
     user_content_policies = get_user_content_policies(token)
