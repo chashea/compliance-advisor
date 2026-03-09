@@ -30,6 +30,7 @@ class CompliancePayload:
     retention_events: list[dict[str, Any]]
     audit_records: list[dict[str, Any]]
     dlp_alerts: list[dict[str, Any]]
+    irm_alerts: list[dict[str, Any]]
     subject_rights_requests: list[dict[str, Any]]
     comm_compliance_policies: list[dict[str, Any]]
     info_barrier_policies: list[dict[str, Any]]
@@ -37,7 +38,7 @@ class CompliancePayload:
     secure_scores: list[dict[str, Any]]
     improvement_actions: list[dict[str, Any]]
     user_content_policies: list[dict[str, Any]]
-    collector_version: str = "4.1.0"
+    collector_version: str = "4.2.0"
 
     @staticmethod
     def now_iso() -> str:

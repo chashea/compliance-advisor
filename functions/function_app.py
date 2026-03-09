@@ -41,6 +41,7 @@ try:
         upsert_ediscovery_case,
         upsert_improvement_action,
         upsert_info_barrier_policy,
+        upsert_irm_alert,
         upsert_protection_scope,
         upsert_retention_event,
         upsert_retention_label,
@@ -408,6 +409,21 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 snapshot_date=snapshot_date,
             )
 
+        # Upsert IRM alerts
+        for ia in payload.get("irm_alerts", []):
+            upsert_irm_alert(
+                tenant_id=tenant_id,
+                alert_id=ia.get("alert_id", ""),
+                title=ia.get("title", ""),
+                severity=ia.get("severity", ""),
+                status=ia.get("status", ""),
+                category=ia.get("category", ""),
+                policy_name=ia.get("policy_name", ""),
+                created=ia.get("created", ""),
+                resolved=ia.get("resolved", ""),
+                snapshot_date=snapshot_date,
+            )
+
         # Upsert subject rights requests
         for sr in payload.get("subject_rights_requests", []):
             upsert_subject_rights_request(
@@ -485,7 +501,7 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
 
         log.info(
             "Ingested: tenant=%s dept=%s ediscovery=%d labels=%d retention=%d audit=%d dlp=%d "
-            "srr=%d comm_compliance=%d info_barriers=%d scopes=%d scores=%d actions=%d",
+            "irm=%d srr=%d comm_compliance=%d info_barriers=%d scopes=%d scores=%d actions=%d",
             tenant_id,
             payload["department"],
             len(payload.get("ediscovery_cases", [])),
@@ -493,6 +509,7 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
             len(payload.get("retention_labels", [])),
             len(payload.get("audit_records", [])),
             len(payload.get("dlp_alerts", [])),
+            len(payload.get("irm_alerts", [])),
             len(payload.get("subject_rights_requests", [])),
             len(payload.get("comm_compliance_policies", [])),
             len(payload.get("info_barrier_policies", [])),
@@ -509,6 +526,7 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 "retention_labels": len(payload.get("retention_labels", [])),
                 "audit_records": len(payload.get("audit_records", [])),
                 "dlp_alerts": len(payload.get("dlp_alerts", [])),
+                "irm_alerts": len(payload.get("irm_alerts", [])),
                 "subject_rights_requests": len(payload.get("subject_rights_requests", [])),
                 "comm_compliance_policies": len(payload.get("comm_compliance_policies", [])),
                 "info_barrier_policies": len(payload.get("info_barrier_policies", [])),

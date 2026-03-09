@@ -112,6 +112,22 @@ CREATE TABLE IF NOT EXISTS protection_scopes (
     UNIQUE (tenant_id, scope_type, snapshot_date)
 );
 
+-- Insider Risk Management alerts (from Defender legacy alerts API)
+CREATE TABLE IF NOT EXISTS irm_alerts (
+    id              SERIAL PRIMARY KEY,
+    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
+    alert_id        TEXT NOT NULL,
+    title           TEXT,
+    severity        TEXT,
+    status          TEXT,
+    category        TEXT,
+    policy_name     TEXT,
+    created         TEXT,
+    resolved        TEXT,
+    snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+    UNIQUE (tenant_id, alert_id, snapshot_date)
+);
+
 -- Secure Score snapshots
 CREATE TABLE IF NOT EXISTS secure_scores (
     id              SERIAL PRIMARY KEY,
@@ -254,6 +270,12 @@ CREATE INDEX IF NOT EXISTS idx_improvement_actions_tenant
 
 CREATE INDEX IF NOT EXISTS idx_improvement_actions_category
     ON improvement_actions(control_category);
+
+CREATE INDEX IF NOT EXISTS idx_irm_alerts_tenant
+    ON irm_alerts(tenant_id, snapshot_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_irm_alerts_severity
+    ON irm_alerts(severity);
 
 CREATE INDEX IF NOT EXISTS idx_subject_rights_requests_tenant
     ON subject_rights_requests(tenant_id, snapshot_date DESC);

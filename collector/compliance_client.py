@@ -7,7 +7,7 @@ Pulls data from:
 - GET  /v1.0/security/labels/retentionLabels                     — retention labels
 - GET  /v1.0/security/triggers/retentionEvents                   — retention events
 - POST /v1.0/security/auditLog/queries + GET records             — audit log (async)
-- GET  /v1.0/security/alerts_v2?$filter=...DLP                  — DLP alerts
+- GET  /v1.0/security/alerts?$filter=vendorInformation/provider — DLP + IRM alerts
 - POST /v1.0/dataSecurityAndGovernance/protectionScopes/compute  — protection scopes
 - POST /v1.0/users/{id}/dataSecurityAndGovernance/processContent — user content policies
 """
@@ -311,31 +311,23 @@ def get_audit_log_records(token: str, days: int = 1) -> list[dict[str, Any]]:
 # ── DLP Alerts ────────────────────────────────────────────────────
 
 
-def get_dlp_alerts(token: str) -> list[dict[str, Any]]:
-    """Return DLP alerts from alerts_v2 filtered to DLP source."""
+def _legacy_alerts(token: str, provider: str, label: str) -> list[dict[str, Any]]:
+    """Return alerts from the legacy /security/alerts endpoint filtered by vendorInformation/provider."""
     sess = _session(token)
     url = (
-        f"{GRAPH_BASE}/security/alerts_v2"
-        "?$filter=serviceSource eq 'dataLossPrevention'"
+        f"{GRAPH_BASE}/security/alerts"
+        f"?$filter=vendorInformation/provider eq '{provider}'"
         "&$top=100&$orderby=createdDateTime desc"
     )
 
     try:
         items = _paginate(sess, url, max_pages=5)
     except requests.HTTPError as e:
-        log.warning("DLP alerts failed: %s", e)
+        log.warning("%s alerts failed: %s", label, e)
         return []
 
     alerts = []
     for item in items:
-        policy_name = ""
-        evidence = item.get("evidence", [])
-        if isinstance(evidence, list):
-            for ev in evidence:
-                if isinstance(ev, dict) and ev.get("@odata.type", "").endswith("dlpPolicyEvidence"):
-                    policy_name = ev.get("policyName", "")
-                    break
-
         alerts.append(
             {
                 "alert_id": item.get("id", ""),
@@ -344,13 +336,26 @@ def get_dlp_alerts(token: str) -> list[dict[str, Any]]:
                 "status": item.get("status", ""),
                 "category": item.get("category", ""),
                 "created": item.get("createdDateTime", ""),
-                "resolved": item.get("resolvedDateTime", ""),
-                "policy_name": policy_name,
+                "resolved": item.get("closedDateTime", ""),
+                "policy_name": "",
             }
         )
 
-    log.info("Retrieved %d DLP alerts", len(alerts))
+    log.info("Retrieved %d %s alerts", len(alerts), label)
     return alerts
+
+
+def get_dlp_alerts(token: str) -> list[dict[str, Any]]:
+    """Return DLP alerts from Defender (legacy alerts API, provider=Microsoft Data Loss Prevention)."""
+    return _legacy_alerts(token, "Microsoft Data Loss Prevention", "DLP")
+
+
+# ── Insider Risk Management alerts ────────────────────────────────
+
+
+def get_irm_alerts(token: str) -> list[dict[str, Any]]:
+    """Return IRM alerts from Defender (legacy alerts API, provider=Microsoft Insider Risk Management)."""
+    return _legacy_alerts(token, "Microsoft Insider Risk Management", "IRM")
 
 
 # ── Data Security & Governance (protection scopes) ────────────────
