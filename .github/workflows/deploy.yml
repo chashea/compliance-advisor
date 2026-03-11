@@ -64,6 +64,7 @@ jobs:
 
       - name: Run schema migration
         if: env.DATABASE_URL != ''
+        continue-on-error: true
         run: psql "$DATABASE_URL" -f sql/schema.sql
 
       - name: Deploy Azure Functions
