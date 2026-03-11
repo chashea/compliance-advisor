@@ -39,7 +39,7 @@ az deployment group create --resource-group rg-compliance-advisor --template-fil
 
 ## Tests
 
-Run tests with `python3.12 -m pytest tests/` (42 tests covering validation, dashboard queries, payload serialization, AI agent, and AI routes).
+Run tests with `python3.12 -m pytest tests/` (49 tests covering validation, dashboard queries, payload serialization, AI agent, and AI routes).
 
 ## Code Style Overrides
 
