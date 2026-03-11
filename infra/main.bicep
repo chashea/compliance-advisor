@@ -26,6 +26,9 @@ param openAiDeploymentModel string = 'gpt-4o'
 @description('Azure AI Foundry project name')
 param foundryProjectName string = 'compliance-advisor'
 
+@description('Azure AI Foundry account region (must support Foundry Agents capability host)')
+param foundryLocation string = 'eastus2'
+
 @description('Azure AI Foundry agent ID used by advisor endpoints')
 param foundryAgentId string = ''
 
@@ -50,6 +53,8 @@ var foundryAccountEndpointNormalized = endsWith(foundry.outputs.foundryAccountEn
 var foundryProjectEndpoint = '${foundryAccountEndpointNormalized}api/projects/${foundry.outputs.foundryProjectName}'
 var appInsightsName = '${prefix}-ai-${environmentName}'
 var logAnalyticsName = '${prefix}-la-${environmentName}'
+var grafanaName = '${prefix}-grafana-${environmentName}'
+var diagnosticSettingName = 'send-to-cadvisor-law'
 var appServicePlanName = '${prefix}-asp-${environmentName}'
 var postgresServerName = '${prefix}-pg-${uniqueSuffix}'
 
@@ -115,7 +120,7 @@ module foundry 'modules/foundry.bicep' = {
   params: {
     foundryAccountName: foundryAccountName
     foundryProjectName: foundryProjectName
-    location: location
+    location: foundryLocation
   }
 }
 
@@ -140,6 +145,15 @@ module functionApp 'modules/function-app.bicep' = {
     foundryAgentId: foundryAgentId
     allowedTenantIds: allowedTenantIds
     entraClientId: entraClientId
+  }
+}
+
+// ── Managed Grafana ────────────────────────────────────────────────
+module grafana 'modules/grafana.bicep' = {
+  name: 'grafana'
+  params: {
+    grafanaName: grafanaName
+    location: location
   }
 }
 
@@ -182,6 +196,120 @@ resource foundryRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-
   }
 }
 
+// Grafana managed identity can read Azure Monitor and Log Analytics data
+resource grafanaMonitoringReaderRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, grafanaName, '43d0d8ad-25c7-4714-9337-8ba259a9fe05')
+  scope: resourceGroup()
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '43d0d8ad-25c7-4714-9337-8ba259a9fe05')
+    principalId: grafana.outputs.grafanaPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource grafanaLogAnalyticsReaderRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, grafanaName, '73c42c96-874c-492b-b04d-ab87d138a893')
+  scope: resourceGroup()
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '73c42c96-874c-492b-b04d-ab87d138a893')
+    principalId: grafana.outputs.grafanaPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// ── Diagnostic settings for Grafana data sources ───────────────────
+resource functionAppResource 'Microsoft.Web/sites@2023-01-01' existing = {
+  name: functionAppName
+}
+
+resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-06-01-preview' existing = {
+  name: postgresServerName
+}
+
+resource openAiAccount 'Microsoft.CognitiveServices/accounts@2024-04-01-preview' existing = {
+  name: openAiName
+}
+
+resource functionAppDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+  scope: functionAppResource
+  name: diagnosticSettingName
+  properties: {
+    workspaceId: monitoring.outputs.logAnalyticsId
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+      }
+    ]
+  }
+}
+
+resource postgresDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+  scope: postgresServer
+  name: diagnosticSettingName
+  properties: {
+    workspaceId: monitoring.outputs.logAnalyticsId
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+      }
+    ]
+  }
+}
+
+resource openAiDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+  scope: openAiAccount
+  name: diagnosticSettingName
+  properties: {
+    workspaceId: monitoring.outputs.logAnalyticsId
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+      }
+    ]
+  }
+}
+
+resource foundryDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+  scope: foundryAccount
+  name: diagnosticSettingName
+  properties: {
+    workspaceId: monitoring.outputs.logAnalyticsId
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+      }
+    ]
+  }
+}
+
 // ── Outputs ─────────────────────────────────────────────────────
 output functionAppUrl string = functionApp.outputs.functionAppUrl
 output functionAppName string = functionAppName
@@ -191,5 +319,7 @@ output openAiEndpoint string = openai.outputs.openAiEndpoint
 output foundryAccountName string = foundry.outputs.foundryAccountName
 output foundryProjectName string = foundry.outputs.foundryProjectName
 output foundryProjectEndpoint string = foundryProjectEndpoint
+output grafanaName string = grafana.outputs.grafanaName
+output grafanaEndpoint string = grafana.outputs.grafanaEndpoint
 output postgresServerFqdn string = postgres.outputs.serverFqdn
 output appInsightsName string = appInsightsName

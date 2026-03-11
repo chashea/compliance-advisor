@@ -107,3 +107,4 @@ resource authSettings 'Microsoft.Web/sites/config@2023-01-01' = if (!empty(entra
 output functionAppUrl string = 'https://${functionApp.properties.defaultHostName}'
 output functionAppPrincipalId string = functionApp.identity.principalId
 output functionAppName string = functionApp.name
+output functionAppId string = functionApp.id
