@@ -248,6 +248,6 @@ compliance-advisor/
 ├── functions/          Azure Functions v2 API backend
 ├── sql/                PostgreSQL schema (16 tables)
 ├── infra/              Bicep IaC templates
-├── tests/              pytest test suite (42 tests)
+├── tests/              pytest test suite (49 tests)
 └── .github/workflows/  CI/CD
 ```
