@@ -31,6 +31,9 @@ resource foundryProject 'Microsoft.CognitiveServices/accounts/projects@2025-06-0
   parent: foundryAccount
   name: foundryProjectName
   location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     displayName: foundryProjectDisplayName
     description: foundryProjectDescription

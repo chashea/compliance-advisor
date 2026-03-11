@@ -49,8 +49,7 @@ var functionAppName = '${prefix}-func-${environmentName}'
 var keyVaultName = '${prefix}-kv-${take(uniqueSuffix, 10)}'
 var openAiName = '${prefix}-oai-${uniqueSuffix}'
 var foundryAccountName = '${prefix}-fde2-${uniqueSuffix}'
-var foundryAccountEndpointNormalized = endsWith(foundry.outputs.foundryAccountEndpoint, '/') ? foundry.outputs.foundryAccountEndpoint : '${foundry.outputs.foundryAccountEndpoint}/'
-var foundryProjectEndpoint = '${foundryAccountEndpointNormalized}api/projects/${foundry.outputs.foundryProjectName}'
+var foundryProjectEndpoint = 'https://${foundry.outputs.foundryAccountName}.services.ai.azure.com/api/projects/${foundry.outputs.foundryProjectName}'
 var appInsightsName = '${prefix}-ai-${environmentName}'
 var logAnalyticsName = '${prefix}-la-${environmentName}'
 var grafanaName = '${prefix}-grafana-${environmentName}'
@@ -233,6 +232,9 @@ resource openAiAccount 'Microsoft.CognitiveServices/accounts@2024-04-01-preview'
 resource functionAppDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   scope: functionAppResource
   name: diagnosticSettingName
+  dependsOn: [
+    functionApp
+  ]
   properties: {
     workspaceId: monitoring.outputs.logAnalyticsId
     logs: [
@@ -253,6 +255,9 @@ resource functionAppDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-0
 resource postgresDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   scope: postgresServer
   name: diagnosticSettingName
+  dependsOn: [
+    postgres
+  ]
   properties: {
     workspaceId: monitoring.outputs.logAnalyticsId
     logs: [
@@ -273,6 +278,9 @@ resource postgresDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-p
 resource openAiDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   scope: openAiAccount
   name: diagnosticSettingName
+  dependsOn: [
+    openai
+  ]
   properties: {
     workspaceId: monitoring.outputs.logAnalyticsId
     logs: [
@@ -293,6 +301,9 @@ resource openAiDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-pre
 resource foundryDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   scope: foundryAccount
   name: diagnosticSettingName
+  dependsOn: [
+    foundry
+  ]
   properties: {
     workspaceId: monitoring.outputs.logAnalyticsId
     logs: [
