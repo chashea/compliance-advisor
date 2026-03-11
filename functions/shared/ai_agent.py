@@ -1,8 +1,8 @@
 """
-AI Compliance Advisor Agent — Azure OpenAI (GPT-4o).
+AI Compliance Advisor Agent — Azure AI Foundry Agent Service.
 
-Reads compliance workload metadata from PostgreSQL and uses Azure OpenAI to
-generate executive summaries and answer compliance questions.
+Reads compliance workload metadata from PostgreSQL and uses Azure AI Foundry
+agents to generate executive summaries and answer compliance questions.
 
 Reads only metadata (counts, statuses, labels) — never PII or content.
 """
@@ -11,7 +11,7 @@ import json
 import logging
 from typing import Any
 
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+from azure.identity import DefaultAzureCredential
 
 from shared.config import get_settings
 from shared.db import query
@@ -59,27 +59,27 @@ Guidelines:
 """
 
 
-def _get_openai_client() -> Any:
+def _get_foundry_client() -> Any:
     try:
-        from openai import AzureOpenAI
+        from azure.ai.projects import AIProjectClient
     except ImportError as e:
         raise AdvisorAIError(
             "ai_configuration_error",
-            "OpenAI SDK dependency is missing in the Function App environment.",
+            "Azure AI Foundry SDK dependency is missing in the Function App environment.",
             status_code=500,
         ) from e
 
     settings = get_settings()
-    token_provider = get_bearer_token_provider(
-        DefaultAzureCredential(),
-        "https://cognitiveservices.azure.com/.default",
-    )
-    return AzureOpenAI(
-        azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
-        azure_ad_token_provider=token_provider,
-        api_version=settings.AZURE_OPENAI_API_VERSION,
-        max_retries=3,
-        timeout=30.0,
+    if not settings.AZURE_FOUNDRY_PROJECT_ENDPOINT:
+        raise AdvisorAIError(
+            "ai_configuration_error",
+            "AI advisor is not configured correctly. Missing Foundry project endpoint.",
+            status_code=500,
+        )
+
+    return AIProjectClient(
+        endpoint=settings.AZURE_FOUNDRY_PROJECT_ENDPOINT,
+        credential=DefaultAzureCredential(),
     )
 
 
@@ -195,25 +195,53 @@ def _build_context(department: str | None = None) -> str:
     return "\n\n".join(parts)
 
 
-def _extract_text_content(response) -> str:
-    choices = getattr(response, "choices", None) or []
-    if not choices:
-        raise AdvisorAIError("ai_invalid_response", "AI service returned no choices.", status_code=502)
-
-    message = getattr(choices[0], "message", None)
-    content = getattr(message, "content", None) if message else None
-
+def _extract_message_text(content: Any) -> str:
     if isinstance(content, str) and content.strip():
         return content.strip()
 
-    if isinstance(content, list):
-        text_parts: list[str] = []
-        for part in content:
-            if isinstance(part, dict) and part.get("type") == "text" and part.get("text"):
-                text_parts.append(str(part["text"]))
-        merged = "\n".join(text_parts).strip()
-        if merged:
-            return merged
+    if not isinstance(content, list):
+        raise AdvisorAIError("ai_invalid_response", "AI service returned an empty answer.", status_code=502)
+
+    text_parts: list[str] = []
+    for part in content:
+        part_type = part.get("type") if isinstance(part, dict) else getattr(part, "type", None)
+        if part_type != "text":
+            continue
+
+        text_obj = part.get("text") if isinstance(part, dict) else getattr(part, "text", None)
+        text_value: str | None = None
+        if isinstance(text_obj, str):
+            text_value = text_obj
+        elif isinstance(text_obj, dict):
+            value = text_obj.get("value")
+            if isinstance(value, str):
+                text_value = value
+        else:
+            value = getattr(text_obj, "value", None)
+            if isinstance(value, str):
+                text_value = value
+
+        if text_value and text_value.strip():
+            text_parts.append(text_value.strip())
+
+    merged = "\n".join(text_parts).strip()
+    if merged:
+        return merged
+
+    raise AdvisorAIError("ai_invalid_response", "AI service returned an empty answer.", status_code=502)
+
+
+def _extract_assistant_text(messages: Any) -> str:
+    for message in messages:
+        role = message.get("role") if isinstance(message, dict) else getattr(message, "role", None)
+        if role != "assistant":
+            continue
+
+        content = message.get("content") if isinstance(message, dict) else getattr(message, "content", None)
+        try:
+            return _extract_message_text(content)
+        except AdvisorAIError:
+            continue
 
     raise AdvisorAIError("ai_invalid_response", "AI service returned an empty answer.", status_code=502)
 
@@ -242,29 +270,57 @@ def ask_advisor(question: str, department: str | None = None) -> dict:
         )
 
     try:
-        client = _get_openai_client()
+        client = _get_foundry_client()
         settings = get_settings()
+        if not settings.AZURE_FOUNDRY_AGENT_ID:
+            raise AdvisorAIError(
+                "ai_configuration_error",
+                "AI advisor is not configured correctly. Missing Foundry agent ID.",
+                status_code=500,
+            )
     except Exception as e:
         log.exception("Failed to initialize AI advisor client: %s", e)
         raise AdvisorAIError(
             "ai_configuration_error",
-            "AI advisor is not configured correctly. Check Azure OpenAI settings.",
+            "AI advisor is not configured correctly. Check Azure AI Foundry settings.",
             status_code=500,
         ) from e
 
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": f"DATA CONTEXT:\n{context}\n\nQUESTION: {question}"},
-    ]
+    thread_id: str | None = None
+    prompt = f"{SYSTEM_PROMPT}\n\nDATA CONTEXT:\n{context}\n\nQUESTION: {question}"
 
     try:
-        response = client.chat.completions.create(
-            model=settings.AZURE_OPENAI_DEPLOYMENT,
-            messages=messages,
-            temperature=0.2,
-            max_tokens=2048,
+        thread = client.agents.threads.create()
+        thread_id = thread.id
+        client.agents.messages.create(
+            thread_id=thread_id,
+            role="user",
+            content=prompt,
         )
-        answer = _extract_text_content(response)
+
+        run = client.agents.runs.create_and_process(
+            thread_id=thread_id,
+            agent_id=settings.AZURE_FOUNDRY_AGENT_ID,
+            temperature=0.2,
+        )
+
+        run_status = str(getattr(run, "status", "")).lower()
+        if run_status != "completed":
+            last_error = getattr(run, "last_error", None)
+            error_message = None
+            if isinstance(last_error, dict):
+                error_message = last_error.get("message")
+            else:
+                error_message = getattr(last_error, "message", None)
+            log.error("Foundry run did not complete (status=%s, error=%s)", run_status, error_message)
+            raise AdvisorAIError(
+                "ai_service_error",
+                "AI service is unavailable right now. Please try again shortly.",
+                status_code=502,
+            )
+
+        messages = client.agents.messages.list(thread_id=thread_id, order="desc")
+        answer = _extract_assistant_text(messages)
     except AdvisorAIError:
         raise
     except Exception as e:
@@ -274,11 +330,17 @@ def ask_advisor(question: str, department: str | None = None) -> dict:
             "AI service is unavailable right now. Please try again shortly.",
             status_code=502,
         ) from e
+    finally:
+        if thread_id:
+            try:
+                client.agents.threads.delete(thread_id)
+            except Exception as cleanup_error:
+                log.warning("Failed to delete Foundry thread %s: %s", thread_id, cleanup_error)
 
-    usage = getattr(response, "usage", None)
+    usage = getattr(run, "usage", None)
     prompt_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
     completion_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
-    model = getattr(response, "model", settings.AZURE_OPENAI_DEPLOYMENT)
+    model = getattr(run, "model", settings.AZURE_FOUNDRY_MODEL_DEPLOYMENT)
 
     return {
         "answer": answer,

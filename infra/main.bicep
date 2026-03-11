@@ -1,7 +1,7 @@
 // ──────────────────────────────────────────────────────────────────
 // Compliance Advisor — Azure Commercial Infrastructure
 //
-// Deploys: PostgreSQL, Function App, Key Vault, OpenAI, Monitoring
+// Deploys: PostgreSQL, Function App, Key Vault, OpenAI, Foundry, Monitoring
 //
 // Usage:
 //   az deployment group create \
@@ -23,6 +23,12 @@ param allowedTenantIds string = ''
 @description('Azure OpenAI model deployment name')
 param openAiDeploymentModel string = 'gpt-4o'
 
+@description('Azure AI Foundry project name')
+param foundryProjectName string = 'compliance-advisor'
+
+@description('Azure AI Foundry agent ID used by advisor endpoints')
+param foundryAgentId string = ''
+
 @description('Object ID of the deployer for Key Vault access policies')
 param deployerObjectId string = ''
 
@@ -39,6 +45,9 @@ var storageName = '${prefix}st${take(uniqueSuffix, 11)}'
 var functionAppName = '${prefix}-func-${environmentName}'
 var keyVaultName = '${prefix}-kv-${take(uniqueSuffix, 10)}'
 var openAiName = '${prefix}-oai-${uniqueSuffix}'
+var foundryAccountName = '${prefix}-fd-${uniqueSuffix}'
+var foundryAccountEndpointNormalized = endsWith(foundry.outputs.foundryAccountEndpoint, '/') ? foundry.outputs.foundryAccountEndpoint : '${foundry.outputs.foundryAccountEndpoint}/'
+var foundryProjectEndpoint = '${foundryAccountEndpointNormalized}api/projects/${foundry.outputs.foundryProjectName}'
 var appInsightsName = '${prefix}-ai-${environmentName}'
 var logAnalyticsName = '${prefix}-la-${environmentName}'
 var appServicePlanName = '${prefix}-asp-${environmentName}'
@@ -100,6 +109,16 @@ module openai 'modules/openai.bicep' = {
   }
 }
 
+// ── Azure AI Foundry ────────────────────────────────────────────
+module foundry 'modules/foundry.bicep' = {
+  name: 'foundry'
+  params: {
+    foundryAccountName: foundryAccountName
+    foundryProjectName: foundryProjectName
+    location: location
+  }
+}
+
 // ── Function App ────────────────────────────────────────────────
 module functionApp 'modules/function-app.bicep' = {
   name: 'functionApp'
@@ -114,6 +133,11 @@ module functionApp 'modules/function-app.bicep' = {
     keyVaultUri: keyVault.outputs.keyVaultUri
     openAiEndpoint: openai.outputs.openAiEndpoint
     openAiDeployment: openAiDeploymentModel
+    foundryAccountEndpoint: foundry.outputs.foundryAccountEndpoint
+    foundryProjectEndpoint: foundryProjectEndpoint
+    foundryProjectName: foundry.outputs.foundryProjectName
+    foundryProjectId: foundry.outputs.foundryProjectId
+    foundryAgentId: foundryAgentId
     allowedTenantIds: allowedTenantIds
     entraClientId: entraClientId
   }
@@ -143,11 +167,29 @@ resource oaiRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' 
   }
 }
 
+resource foundryAccount 'Microsoft.CognitiveServices/accounts@2025-06-01' existing = {
+  name: foundryAccountName
+}
+
+// Cognitive Services OpenAI User scoped to Foundry account
+resource foundryRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, foundryAccountName, functionAppName, '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
+  scope: foundryAccount
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
+    principalId: functionApp.outputs.functionAppPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // ── Outputs ─────────────────────────────────────────────────────
 output functionAppUrl string = functionApp.outputs.functionAppUrl
 output functionAppName string = functionAppName
 output keyVaultUri string = keyVault.outputs.keyVaultUri
 output keyVaultName string = keyVault.outputs.keyVaultName
 output openAiEndpoint string = openai.outputs.openAiEndpoint
+output foundryAccountName string = foundry.outputs.foundryAccountName
+output foundryProjectName string = foundry.outputs.foundryProjectName
+output foundryProjectEndpoint string = foundryProjectEndpoint
 output postgresServerFqdn string = postgres.outputs.serverFqdn
 output appInsightsName string = appInsightsName

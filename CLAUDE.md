@@ -54,7 +54,7 @@ Multi-tenant GCC compliance workload dashboard. Three independent components sha
 
 2. **Function App** (`functions/`) — Azure Functions v2 Python (decorator-based, no `function.json` files). All routes defined in `function_app.py`. Two categories:
    - **Ingest** (`/api/ingest`) — FUNCTION-level auth, validates payload via JSON schema (`shared/validation.py`), upserts to PostgreSQL (`shared/db.py`).
-   - **Dashboard APIs** (`/api/advisor/*`, 16 endpoints) — ANONYMOUS auth, all POST with optional `{department}` filter. SQL queries in `shared/dashboard_queries.py`. Two AI endpoints (`briefing`, `ask`) use `shared/ai_agent.py` → Azure OpenAI GPT-4o.
+   - **Dashboard APIs** (`/api/advisor/*`, 16 endpoints) — ANONYMOUS auth, all POST with optional `{department}` filter. SQL queries in `shared/dashboard_queries.py`. Two AI endpoints (`briefing`, `ask`) use `shared/ai_agent.py` → Azure AI Foundry Agent Service.
    - **Timer** (`compute_aggregates`) — daily 6am UTC, rolls up workload counts → `compliance_trend`.
 
 3. **Dashboard** (`dashboard/`) — Static HTML/CSS/JS SPA. Config in `env.js` (`window.COMPLIANCE_API_BASE`, `window.COMPLIANCE_API_KEY`). No build step. Has built-in demo data mode toggled by checkbox.
@@ -70,7 +70,7 @@ Multi-tenant GCC compliance workload dashboard. Three independent components sha
 | Function App | `functions/function_app.py` | All route definitions |
 | DB layer | `functions/shared/db.py` | PostgreSQL connection pool + upserts |
 | Dashboard queries | `functions/shared/dashboard_queries.py` | SQL for all dashboard endpoints |
-| AI agent | `functions/shared/ai_agent.py` | Azure OpenAI GPT-4o integration |
+| AI agent | `functions/shared/ai_agent.py` | Azure AI Foundry Agent Service integration |
 | Validation | `functions/shared/validation.py` | JSON schema validation for ingest |
 | Function config | `functions/shared/config.py` | `FunctionSettings` (pydantic-settings) |
 | Collector client | `collector/compliance_client.py` | Graph API calls for 14 compliance workloads |

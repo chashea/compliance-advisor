@@ -6,18 +6,24 @@ from shared.ai_agent import AdvisorAIError, ask_advisor
 
 
 def test_ask_advisor_returns_structured_answer():
-    response = SimpleNamespace(
-        choices=[SimpleNamespace(message=SimpleNamespace(content="Executive summary"))],
+    mock_client = MagicMock()
+    mock_client.agents.threads.create.return_value = SimpleNamespace(id="thread-1")
+    mock_client.agents.runs.create_and_process.return_value = SimpleNamespace(
+        status="completed",
         model="gpt-4o",
         usage=SimpleNamespace(prompt_tokens=123, completion_tokens=45),
     )
-    mock_client = MagicMock()
-    mock_client.chat.completions.create.return_value = response
-    settings = SimpleNamespace(AZURE_OPENAI_DEPLOYMENT="gpt-4o")
+    mock_client.agents.messages.list.return_value = [
+        SimpleNamespace(
+            role="assistant",
+            content=[SimpleNamespace(type="text", text=SimpleNamespace(value="Executive summary"))],
+        )
+    ]
+    settings = SimpleNamespace(AZURE_FOUNDRY_AGENT_ID="agent-1", AZURE_FOUNDRY_MODEL_DEPLOYMENT="gpt-4o")
 
     with (
         patch("shared.ai_agent._build_context", return_value="context"),
-        patch("shared.ai_agent._get_openai_client", return_value=mock_client),
+        patch("shared.ai_agent._get_foundry_client", return_value=mock_client),
         patch("shared.ai_agent.get_settings", return_value=settings),
     ):
         result = ask_advisor("Generate briefing")
@@ -45,14 +51,15 @@ def test_ask_advisor_raises_on_context_build_failure():
     assert exc.value.status_code == 500
 
 
-def test_ask_advisor_raises_on_openai_exception():
+def test_ask_advisor_raises_on_foundry_exception():
     mock_client = MagicMock()
-    mock_client.chat.completions.create.side_effect = Exception("upstream timeout")
-    settings = SimpleNamespace(AZURE_OPENAI_DEPLOYMENT="gpt-4o")
+    mock_client.agents.threads.create.return_value = SimpleNamespace(id="thread-1")
+    mock_client.agents.runs.create_and_process.side_effect = Exception("upstream timeout")
+    settings = SimpleNamespace(AZURE_FOUNDRY_AGENT_ID="agent-1", AZURE_FOUNDRY_MODEL_DEPLOYMENT="gpt-4o")
 
     with (
         patch("shared.ai_agent._build_context", return_value="context"),
-        patch("shared.ai_agent._get_openai_client", return_value=mock_client),
+        patch("shared.ai_agent._get_foundry_client", return_value=mock_client),
         patch("shared.ai_agent.get_settings", return_value=settings),
     ):
         with pytest.raises(AdvisorAIError) as exc:
@@ -63,18 +70,19 @@ def test_ask_advisor_raises_on_openai_exception():
 
 
 def test_ask_advisor_raises_on_empty_ai_answer():
-    response = SimpleNamespace(
-        choices=[SimpleNamespace(message=SimpleNamespace(content=None))],
+    mock_client = MagicMock()
+    mock_client.agents.threads.create.return_value = SimpleNamespace(id="thread-1")
+    mock_client.agents.runs.create_and_process.return_value = SimpleNamespace(
+        status="completed",
         model="gpt-4o",
         usage=SimpleNamespace(prompt_tokens=10, completion_tokens=5),
     )
-    mock_client = MagicMock()
-    mock_client.chat.completions.create.return_value = response
-    settings = SimpleNamespace(AZURE_OPENAI_DEPLOYMENT="gpt-4o")
+    mock_client.agents.messages.list.return_value = [SimpleNamespace(role="assistant", content=None)]
+    settings = SimpleNamespace(AZURE_FOUNDRY_AGENT_ID="agent-1", AZURE_FOUNDRY_MODEL_DEPLOYMENT="gpt-4o")
 
     with (
         patch("shared.ai_agent._build_context", return_value="context"),
-        patch("shared.ai_agent._get_openai_client", return_value=mock_client),
+        patch("shared.ai_agent._get_foundry_client", return_value=mock_client),
         patch("shared.ai_agent.get_settings", return_value=settings),
     ):
         with pytest.raises(AdvisorAIError) as exc:
