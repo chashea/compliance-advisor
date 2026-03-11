@@ -32,8 +32,63 @@ jobs:
       - name: Test
         run: pytest tests/
 
-  deploy-functions:
+  deploy-infra:
     needs: test
+    runs-on: ubuntu-latest
+    env:
+      AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+      POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+      DEPLOYER_OBJECT_ID: ${{ secrets.DEPLOYER_OBJECT_ID }}
+      ENTRA_CLIENT_ID: ${{ secrets.ENTRA_CLIENT_ID }}
+      ALLOWED_TENANT_IDS: ${{ secrets.ALLOWED_TENANT_IDS }}
+      FOUNDRY_AGENT_ID: ${{ secrets.FOUNDRY_AGENT_ID != '' && secrets.FOUNDRY_AGENT_ID || 'compliance-advisor-agent' }}
+      FOUNDRY_LOCATION: ${{ secrets.FOUNDRY_LOCATION != '' && secrets.FOUNDRY_LOCATION || 'eastus2' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build Bicep
+        if: env.AZURE_RESOURCE_GROUP != '' && env.POSTGRES_ADMIN_PASSWORD != ''
+        run: az bicep build --file infra/main.bicep --outfile /tmp/azuredeploy.json
+
+      - name: Infrastructure what-if
+        if: env.AZURE_RESOURCE_GROUP != '' && env.POSTGRES_ADMIN_PASSWORD != ''
+        run: |
+          az deployment group what-if \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --template-file infra/main.bicep \
+            --parameters postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD" \
+                         deployerObjectId="$DEPLOYER_OBJECT_ID" \
+                         entraClientId="$ENTRA_CLIENT_ID" \
+                         allowedTenantIds="$ALLOWED_TENANT_IDS" \
+                         foundryAgentId="$FOUNDRY_AGENT_ID" \
+                         foundryLocation="$FOUNDRY_LOCATION"
+
+      - name: Deploy infrastructure
+        if: env.AZURE_RESOURCE_GROUP != '' && env.POSTGRES_ADMIN_PASSWORD != ''
+        run: |
+          az deployment group create \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --template-file infra/main.bicep \
+            --parameters postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD" \
+                         deployerObjectId="$DEPLOYER_OBJECT_ID" \
+                         entraClientId="$ENTRA_CLIENT_ID" \
+                         allowedTenantIds="$ALLOWED_TENANT_IDS" \
+                         foundryAgentId="$FOUNDRY_AGENT_ID" \
+                         foundryLocation="$FOUNDRY_LOCATION"
+
+      - name: Skip infra deployment (missing secrets)
+        if: env.AZURE_RESOURCE_GROUP == '' || env.POSTGRES_ADMIN_PASSWORD == ''
+        run: echo "Skipping infra deployment; AZURE_RESOURCE_GROUP or POSTGRES_ADMIN_PASSWORD is not set."
+
+  deploy-functions:
+    needs: [test, deploy-infra]
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}

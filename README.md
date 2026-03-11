@@ -15,10 +15,10 @@ GCC Tenant C ──┘  (client credentials)     ──▶  POST /api/ingest
                                               ediscovery, labels, dlp,
                                               irm, audit, scores, ...)
                                                    │
-                  Dashboard (browser)  ◀──── /api/advisor/* (16 endpoints)
-                                                   │
+                  Grafana dashboards     ◀──── PostgreSQL + Azure Monitor
+                  + optional legacy SPA          │
                                                    ▼
-                                             Azure OpenAI (GPT-4o)
+                                             Azure AI Foundry Agent
                                              (briefing + Q&A)
 ```
 
@@ -43,7 +43,7 @@ GCC Tenant C ──┘  (client credentials)     ──▶  POST /api/ingest
 
 ## Features
 
-- Cross-tenant compliance workload dashboard with KPI cards (Tenants, Secure Score Data, DLP Alerts, IRM Alerts)
+- Grafana-ready compliance dashboards with KPI cards (Tenants, Secure Score Data, DLP Alerts, IRM Alerts)
 - Secure Score Data category KPI showing `current / max` points and percentage
 - Improvement Actions filtered to Data category by default with category/cost/tier filters
 - Agency/department dropdown filter with active filter state summary and clear reset
@@ -227,6 +227,32 @@ az deployment group create \
 psql "<CONNECTION_STRING>" -f sql/schema.sql
 ```
 
+### Grafana Dashboard Artifacts
+
+Provisioned Managed Grafana should import dashboard JSON files from:
+
+- `grafana/dashboards/compliance-executive-overview.json`
+- `grafana/dashboards/compliance-workload-drilldown.json`
+
+Both dashboards expect a PostgreSQL datasource and prompt for `DS_POSTGRES` on import.
+
+## CI/CD Deployment
+
+GitHub Actions workflow `.github/workflows/deploy.yml` now supports infra deployment (Bicep what-if + apply) before function deployment.
+
+Required secrets for infra deployment:
+
+- `AZURE_RESOURCE_GROUP`
+- `POSTGRES_ADMIN_PASSWORD`
+
+Optional secrets:
+
+- `DEPLOYER_OBJECT_ID`
+- `ENTRA_CLIENT_ID`
+- `ALLOWED_TENANT_IDS`
+- `FOUNDRY_AGENT_ID` (defaults to `compliance-advisor-agent`)
+- `FOUNDRY_LOCATION` (defaults to `eastus2`)
+
 ## Onboarding a New GCC Tenant
 
 1. Grant admin consent for the `compliance-advisor-collector` app in the target tenant:
@@ -244,6 +270,7 @@ psql "<CONNECTION_STRING>" -f sql/schema.sql
 ```
 compliance-advisor/
 ├── dashboard/          Static HTML/CSS/JS dashboard
+├── grafana/            Managed Grafana dashboard JSON artifacts
 ├── collector/          Per-tenant data collector (Python CLI)
 ├── functions/          Azure Functions v2 API backend
 ├── sql/                PostgreSQL schema (16 tables)
