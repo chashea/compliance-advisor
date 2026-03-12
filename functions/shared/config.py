@@ -4,7 +4,6 @@ Compliance Advisor — Azure Function App configuration.
 All endpoints are Azure Commercial:
 - PostgreSQL:    *.postgres.database.azure.com
 - Key Vault:     *.vault.azure.net
-- Azure AI Foundry: *.services.ai.azure.com
 """
 
 from functools import lru_cache
@@ -21,14 +20,6 @@ class FunctionSettings(BaseSettings):
 
     # Key Vault (Azure Commercial)
     KEY_VAULT_URL: str = Field(..., description="https://<vault>.vault.azure.net/")
-
-    # Azure AI Foundry Agent Service (Azure Commercial)
-    AZURE_FOUNDRY_PROJECT_ENDPOINT: str = Field(
-        default="",
-        description="https://<resource>.services.ai.azure.com/api/projects/<project>",
-    )
-    AZURE_FOUNDRY_AGENT_ID: str = Field(default="")
-    AZURE_FOUNDRY_MODEL_DEPLOYMENT: str = Field(default="gpt-4o")
 
     # Tenant allow-list (comma-separated GUIDs)
     ALLOWED_TENANT_IDS: str = Field(default="")

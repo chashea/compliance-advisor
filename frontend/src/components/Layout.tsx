@@ -14,7 +14,6 @@ const NAV = [
   { to: "/governance", label: "Governance" },
   { to: "/trend", label: "Trend" },
   { to: "/actions", label: "Actions" },
-  { to: "/ai", label: "AI Advisor" },
 ];
 
 export default function Layout() {

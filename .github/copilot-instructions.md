@@ -48,7 +48,7 @@ Compliance Advisor is a multi-tenant ingestion + analytics platform with three r
 2. **Function App API** (`functions/function_app.py`)
    - Azure Functions v2 decorator model; all routes are defined in one file.
    - `/api/ingest` (FUNCTION auth) validates payload and upserts to PostgreSQL.
-   - `/api/advisor/*` endpoints (ANONYMOUS auth) serve dashboard and AI responses.
+   - `/api/advisor/*` endpoints (ANONYMOUS auth) serve dashboard responses.
    - `compute_aggregates` timer runs daily at `0 0 6 * * *` (6 AM UTC) and writes rollups to `compliance_trend`.
 
 3. **Frontend SPA** (`frontend/`)
@@ -62,7 +62,7 @@ Compliance Advisor is a multi-tenant ingestion + analytics platform with three r
    - Ingestion dedupes via SHA256 payload hash in `ingestion_log`.
 
 5. **Infrastructure + CI/CD**
-   - `infra/main.bicep` provisions PostgreSQL Flexible Server, Function App, Key Vault, Azure AI Foundry/OpenAI resources, and monitoring.
+   - `infra/main.bicep` provisions PostgreSQL Flexible Server, Function App, Key Vault, Azure OpenAI resources, and monitoring.
    - `.github/workflows/deploy.yml` runs lint/tests first, then OIDC-based infra/function/frontend deployment.
 
 ## Key Conventions

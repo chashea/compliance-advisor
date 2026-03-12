@@ -36,7 +36,7 @@ az deployment group create --resource-group rg-compliance-advisor --template-fil
 
 ## Tests
 
-Run tests with `python3.12 -m pytest tests/` (49 tests covering validation, dashboard queries, payload serialization, AI agent, and AI routes).
+Run tests with `python3.12 -m pytest tests/` (covers validation, dashboard queries, and payload serialization).
 
 ## Code Style Overrides
 
@@ -51,7 +51,7 @@ Multi-tenant compliance workload platform. Two core runtime components share a P
 
 2. **Function App** (`functions/`) — Azure Functions v2 Python (decorator-based, no `function.json` files). All routes defined in `function_app.py`. Two categories:
    - **Ingest** (`/api/ingest`) — FUNCTION-level auth, validates payload via JSON schema (`shared/validation.py`), upserts to PostgreSQL (`shared/db.py`).
-   - **Dashboard APIs** (`/api/advisor/*`, 16 endpoints) — ANONYMOUS auth, all POST with optional `{department}` filter. SQL queries in `shared/dashboard_queries.py`. Two AI endpoints (`briefing`, `ask`) use `shared/ai_agent.py` → Azure AI Foundry Agent Service.
+   - **Dashboard APIs** (`/api/advisor/*`, 14 endpoints) — ANONYMOUS auth, all POST with optional `{department}` filter. SQL queries in `shared/dashboard_queries.py`.
    - **Timer** (`compute_aggregates`) — daily 6am UTC, rolls up workload counts → `compliance_trend`.
 
 **Database**: PostgreSQL with 16 tables: `tenants`, `ediscovery_cases`, `sensitivity_labels`, `retention_labels`, `retention_events`, `audit_records`, `dlp_alerts`, `irm_alerts`, `protection_scopes`, `secure_scores` (includes `data_current_score`, `data_max_score`), `improvement_actions`, `subject_rights_requests`, `comm_compliance_policies`, `info_barrier_policies`, `user_content_policies`, `compliance_trend`. Schema in `sql/schema.sql`. Connection pool via psycopg2 `ThreadedConnectionPool` in `shared/db.py`.
@@ -65,7 +65,6 @@ Multi-tenant compliance workload platform. Two core runtime components share a P
 | Function App | `functions/function_app.py` | All route definitions |
 | DB layer | `functions/shared/db.py` | PostgreSQL connection pool + upserts |
 | Dashboard queries | `functions/shared/dashboard_queries.py` | SQL for all dashboard endpoints |
-| AI agent | `functions/shared/ai_agent.py` | Azure AI Foundry Agent Service integration |
 | Validation | `functions/shared/validation.py` | JSON schema validation for ingest |
 | Function config | `functions/shared/config.py` | `FunctionSettings` (pydantic-settings) |
 | Collector client | `collector/compliance_client.py` | Graph API calls for 14 compliance workloads |

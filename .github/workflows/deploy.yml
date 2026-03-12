@@ -41,8 +41,6 @@ jobs:
       DEPLOYER_OBJECT_ID: ${{ secrets.DEPLOYER_OBJECT_ID }}
       ENTRA_CLIENT_ID: ${{ secrets.ENTRA_CLIENT_ID }}
       ALLOWED_TENANT_IDS: ${{ secrets.ALLOWED_TENANT_IDS }}
-      FOUNDRY_AGENT_ID: ${{ secrets.FOUNDRY_AGENT_ID != '' && secrets.FOUNDRY_AGENT_ID || 'compliance-advisor-agent' }}
-      FOUNDRY_LOCATION: ${{ secrets.FOUNDRY_LOCATION != '' && secrets.FOUNDRY_LOCATION || 'eastus2' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -62,26 +60,22 @@ jobs:
         run: |
           az deployment group what-if \
             --resource-group "$AZURE_RESOURCE_GROUP" \
-            --template-file infra/main.bicep \
-            --parameters postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD" \
-                         deployerObjectId="$DEPLOYER_OBJECT_ID" \
-                         entraClientId="$ENTRA_CLIENT_ID" \
-                         allowedTenantIds="$ALLOWED_TENANT_IDS" \
-                         foundryAgentId="$FOUNDRY_AGENT_ID" \
-                         foundryLocation="$FOUNDRY_LOCATION"
+             --template-file infra/main.bicep \
+             --parameters postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD" \
+                          deployerObjectId="$DEPLOYER_OBJECT_ID" \
+                          entraClientId="$ENTRA_CLIENT_ID" \
+                         allowedTenantIds="$ALLOWED_TENANT_IDS"
 
       - name: Deploy infrastructure
         if: env.AZURE_RESOURCE_GROUP != '' && env.POSTGRES_ADMIN_PASSWORD != ''
         run: |
           az deployment group create \
             --resource-group "$AZURE_RESOURCE_GROUP" \
-            --template-file infra/main.bicep \
-            --parameters postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD" \
-                         deployerObjectId="$DEPLOYER_OBJECT_ID" \
-                         entraClientId="$ENTRA_CLIENT_ID" \
-                         allowedTenantIds="$ALLOWED_TENANT_IDS" \
-                         foundryAgentId="$FOUNDRY_AGENT_ID" \
-                         foundryLocation="$FOUNDRY_LOCATION"
+             --template-file infra/main.bicep \
+             --parameters postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD" \
+                          deployerObjectId="$DEPLOYER_OBJECT_ID" \
+                          entraClientId="$ENTRA_CLIENT_ID" \
+                         allowedTenantIds="$ALLOWED_TENANT_IDS"
 
       - name: Skip infra deployment (missing secrets)
         if: env.AZURE_RESOURCE_GROUP == '' || env.POSTGRES_ADMIN_PASSWORD == ''

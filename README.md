@@ -16,10 +16,7 @@ Tenant C ──┘      (client credentials)     ──▶  POST /api/ingest
                                               irm, audit, scores, ...)
                                                    │
                   React SPA frontend     ◀──── POST /api/advisor/*
-                  (cadvisor-web-prod)          (16 dashboard endpoints)
-                                                   ▼
-                                             Azure AI Foundry Agent
-                                             (briefing + Q&A)
+                  (cadvisor-web-prod)          (14 dashboard endpoints)
 ```
 
 ## Compliance Workloads
@@ -43,7 +40,7 @@ Tenant C ──┘      (client credentials)     ──▶  POST /api/ingest
 
 ## Features
 
-- **React SPA frontend** with 13 pages: Overview, eDiscovery, Labels, Audit, DLP, IRM, Subject Rights, Comm Compliance, Info Barriers, Governance, Trend, Actions, AI Advisor
+- **React SPA frontend** with 12 pages: Overview, eDiscovery, Labels, Audit, DLP, IRM, Subject Rights, Comm Compliance, Info Barriers, Governance, Trend, Actions
 - Secure Score Data category KPI showing `current / max` points and percentage
 - Improvement Actions filtered to Data category by default with category/cost/tier filters
 - Agency/department dropdown filter with active filter state summary and clear reset
@@ -56,8 +53,6 @@ Tenant C ──┘      (client credentials)     ──▶  POST /api/ingest
 - Information Barriers policy visibility
 - Audit log activity summaries by service and operation
 - Data governance protection scope visibility
-- AI-powered "Ask the Advisor" Q&A sidebar
-- Executive briefing generator for leadership consumption
 
 ## Prerequisites
 
@@ -189,8 +184,6 @@ All endpoints are `POST` to `/api/advisor/*`.
 | `/api/advisor/subject-rights` | `{department?}` | Subject rights requests |
 | `/api/advisor/comm-compliance` | `{department?}` | Communication compliance policies |
 | `/api/advisor/info-barriers` | `{department?}` | Information barrier policies |
-| `/api/advisor/briefing` | `{department?}` | AI-generated executive briefing |
-| `/api/advisor/ask` | `{question}` | AI Q&A about compliance data |
 | `/api/ingest` | Collector payload | Ingestion (function key auth) |
 
 ### `/api/advisor/governance` response shape (secure_score)
@@ -242,8 +235,6 @@ Optional secrets:
 - `DEPLOYER_OBJECT_ID`
 - `ENTRA_CLIENT_ID`
 - `ALLOWED_TENANT_IDS`
-- `FOUNDRY_AGENT_ID` (defaults to `compliance-advisor-agent`)
-- `FOUNDRY_LOCATION` (defaults to `eastus2`)
 
 Frontend deployment secrets:
 
@@ -271,6 +262,6 @@ compliance-advisor/
 ├── functions/          Azure Functions v2 API backend
 ├── sql/                PostgreSQL schema (16 tables)
 ├── infra/              Bicep IaC templates (+ webapp.bicep)
-├── tests/              pytest test suite (49 tests)
+├── tests/              pytest test suite
 └── .github/workflows/  CI/CD (Functions + Frontend deploy)
 ```

@@ -2,7 +2,7 @@
 Compliance Advisor — Azure Function App
 
 Functions:
-- 8x advisor/* routes:  Dashboard API endpoints
+- advisor/* routes:     Dashboard API endpoints
 - ingest:               HTTP POST — receive compliance payloads from collector
 - compute_aggregates:   Timer     — daily compliance trend computation
 """
@@ -18,7 +18,6 @@ log = logging.getLogger(__name__)
 _DEPENDENCY_IMPORT_ERROR: Exception | None = None
 
 try:
-    from shared.ai_agent import AdvisorAIError, ask_advisor
     from shared.dashboard_queries import (
         get_audit,
         get_comm_compliance,
@@ -59,10 +58,6 @@ try:
 except Exception as e:
     _DEPENDENCY_IMPORT_ERROR = e
     log.exception("Function dependency import failed at startup: %s", e)
-
-    class AdvisorAIError(RuntimeError):
-        code = "ai_service_error"
-        status_code = 500
 
 
 def _ensure_dependencies_loaded() -> None:
@@ -253,48 +248,6 @@ def advisor_actions(req: func.HttpRequest) -> func.HttpResponse:
         return _json_response(get_improvement_actions(department=body.get("department")))
     except Exception as e:
         log.exception("advisor/actions error: %s", e)
-        return _json_response({"error": str(e)}, 500)
-
-
-@app.function_name("advisor_briefing")
-@app.route(route="advisor/briefing", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
-def advisor_briefing(req: func.HttpRequest) -> func.HttpResponse:
-    try:
-        _ensure_dependencies_loaded()
-        body = _get_body(req)
-        department = body.get("department")
-        result = ask_advisor(
-            question="Generate a concise executive briefing summarizing the current "
-            "compliance posture across all workloads: eDiscovery cases, information "
-            "protection labels, records management, audit activity, DLP alerts, and "
-            "data governance scopes. Highlight key risks and recommended actions.",
-            department=department,
-        )
-        return _json_response({"briefing": result["answer"]})
-    except AdvisorAIError as e:
-        log.warning("advisor/briefing AI error [%s]: %s", e.code, e)
-        return _json_response({"error": str(e), "code": e.code}, e.status_code)
-    except Exception as e:
-        log.exception("advisor/briefing error: %s", e)
-        return _json_response({"error": str(e)}, 500)
-
-
-@app.function_name("advisor_ask")
-@app.route(route="advisor/ask", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
-def advisor_ask(req: func.HttpRequest) -> func.HttpResponse:
-    try:
-        _ensure_dependencies_loaded()
-        body = _get_body(req)
-        question = body.get("question", "")
-        if not question:
-            return _json_response({"error": "Missing 'question' field"}, 400)
-        result = ask_advisor(question=question, department=body.get("department"))
-        return _json_response({"answer": result["answer"]})
-    except AdvisorAIError as e:
-        log.warning("advisor/ask AI error [%s]: %s", e.code, e)
-        return _json_response({"error": str(e), "code": e.code}, e.status_code)
-    except Exception as e:
-        log.exception("advisor/ask error: %s", e)
         return _json_response({"error": str(e)}, 500)
 
 
