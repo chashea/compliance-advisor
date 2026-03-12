@@ -29,7 +29,7 @@ resource webApp 'Microsoft.Web/sites@2023-01-01' = {
       linuxFxVersion: 'NODE|20-lts'
       minTlsVersion: '1.2'
       ftpsState: 'Disabled'
-      appCommandLine: 'pm2 serve /home/site/wwwroot/dist --no-daemon --spa'
+      appCommandLine: 'pm2 serve /home/site/wwwroot --no-daemon --spa'
       appSettings: [
         { name: 'VITE_API_BASE_URL', value: functionAppUrl }
       ]
