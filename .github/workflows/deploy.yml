@@ -123,7 +123,7 @@ jobs:
         run: psql "$DATABASE_URL" -f sql/schema.sql
 
       - name: Clear WEBSITE_RUN_FROM_PACKAGE URL
-        if: env.FUNCTION_APP_NAME != '' && env.AZURE_RESOURCE_GROUP != ''
+        if: env.FUNCTION_APP_NAME != '' && secrets.AZURE_RESOURCE_GROUP != ''
         env:
           AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
         run: |
