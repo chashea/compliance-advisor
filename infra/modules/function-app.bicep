@@ -1,5 +1,5 @@
 // Azure Function App (Python v2, Linux, Consumption)
-// With Entra ID SSO (EasyAuth) and CORS for dashboard
+// With Entra ID SSO (EasyAuth) for API consumers
 
 param functionAppName string
 param appServicePlanName string

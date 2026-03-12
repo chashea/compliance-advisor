@@ -23,9 +23,6 @@ compliance-collect --tenant-id <GUID> --agency-id <ID> --department <DEPT> --act
 # Run Function App locally
 cd functions && pip install -r requirements.txt && func start
 
-# Serve dashboard
-python3 -m http.server 8080 --directory dashboard/
-
 # Lint
 ruff check .
 
@@ -48,7 +45,7 @@ Run tests with `python3.12 -m pytest tests/` (49 tests covering validation, dash
 
 ## Architecture
 
-Multi-tenant GCC compliance workload dashboard. Three independent components share a PostgreSQL database:
+Multi-tenant GCC compliance workload platform. Two core runtime components share a PostgreSQL database:
 
 1. **Collector** (`collector/`) — Python CLI (`compliance-collect`) that authenticates to GCC tenants via MSAL client credentials (app-only), pulls compliance workload data from Microsoft Graph API (eDiscovery, sensitivity labels, retention labels/events, audit log, DLP alerts, IRM alerts, protection scopes, Secure Score with Data category breakdown, improvement actions filtered to Data category by default, subject rights requests, communication compliance, information barriers), and POSTs a payload to the Function App's `/api/ingest` endpoint. DLP and IRM alerts use the legacy `/security/alerts` endpoint filtered by `vendorInformation/provider`. Use `--actions-category` (env: `ACTIONS_CATEGORY`, default: `Data`) to control which Secure Score category is collected.
 
@@ -56,8 +53,6 @@ Multi-tenant GCC compliance workload dashboard. Three independent components sha
    - **Ingest** (`/api/ingest`) — FUNCTION-level auth, validates payload via JSON schema (`shared/validation.py`), upserts to PostgreSQL (`shared/db.py`).
    - **Dashboard APIs** (`/api/advisor/*`, 16 endpoints) — ANONYMOUS auth, all POST with optional `{department}` filter. SQL queries in `shared/dashboard_queries.py`. Two AI endpoints (`briefing`, `ask`) use `shared/ai_agent.py` → Azure AI Foundry Agent Service.
    - **Timer** (`compute_aggregates`) — daily 6am UTC, rolls up workload counts → `compliance_trend`.
-
-3. **Dashboard** (`dashboard/`) — Static HTML/CSS/JS SPA. Config in `env.js` (`window.COMPLIANCE_API_BASE`, `window.COMPLIANCE_API_KEY`). No build step. Has built-in demo data mode toggled by checkbox.
 
 **Database**: PostgreSQL with 16 tables: `tenants`, `ediscovery_cases`, `sensitivity_labels`, `retention_labels`, `retention_events`, `audit_records`, `dlp_alerts`, `irm_alerts`, `protection_scopes`, `secure_scores` (includes `data_current_score`, `data_max_score`), `improvement_actions`, `subject_rights_requests`, `comm_compliance_policies`, `info_barrier_policies`, `user_content_policies`, `compliance_trend`. Schema in `sql/schema.sql`. Connection pool via psycopg2 `ThreadedConnectionPool` in `shared/db.py`.
 
@@ -79,7 +74,6 @@ Multi-tenant GCC compliance workload dashboard. Three independent components sha
 | DB schema | `sql/schema.sql` | PostgreSQL table definitions |
 | Infra entry | `infra/main.bicep` | Bicep entry point |
 | CI/CD | `.github/workflows/deploy.yml` | OIDC deploy to Azure Functions |
-| Dashboard config | `dashboard/env.js` | `COMPLIANCE_API_BASE`, `COMPLIANCE_API_KEY` |
 
 ## Key Design Decisions
 

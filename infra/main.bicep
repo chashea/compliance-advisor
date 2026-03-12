@@ -35,7 +35,7 @@ param foundryAgentId string = ''
 @description('Object ID of the deployer for Key Vault access policies')
 param deployerObjectId string = ''
 
-@description('Entra ID client ID for dashboard SSO (leave empty to skip EasyAuth)')
+@description('Entra ID client ID for API SSO (leave empty to skip EasyAuth)')
 param entraClientId string = ''
 
 @secure()

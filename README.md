@@ -1,6 +1,6 @@
 # Compliance Advisor
 
-Multi-tenant GCC compliance workload dashboard that aggregates Microsoft 365 compliance data across agencies into a single executive view.
+Multi-tenant GCC compliance workload platform that aggregates Microsoft 365 compliance data across agencies into a single executive view.
 
 ## Architecture
 
@@ -16,7 +16,6 @@ GCC Tenant C ──┘  (client credentials)     ──▶  POST /api/ingest
                                               irm, audit, scores, ...)
                                                    │
                   Grafana dashboards     ◀──── PostgreSQL + Azure Monitor
-                  + optional legacy SPA          │
                                                    ▼
                                              Azure AI Foundry Agent
                                              (briefing + Q&A)
@@ -58,7 +57,6 @@ GCC Tenant C ──┘  (client credentials)     ──▶  POST /api/ingest
 - Data governance protection scope visibility
 - AI-powered "Ask the Advisor" Q&A sidebar
 - Executive briefing generator for leadership consumption
-- Built-in demo data mode with 5 sample departments (IT, Legal, HR, Finance, Compliance)
 
 ## Prerequisites
 
@@ -123,14 +121,6 @@ cd functions
 pip install -r requirements.txt
 func start
 ```
-
-### 5. Serve the dashboard
-
-```bash
-python3 -m http.server 8080 --directory dashboard/
-```
-
-Open http://localhost:8080. Toggle "Demo data" checkbox for sample data, or point `env.js` at the local Function App.
 
 ## Collector Usage
 
@@ -269,7 +259,6 @@ Optional secrets:
 
 ```
 compliance-advisor/
-├── dashboard/          Static HTML/CSS/JS dashboard
 ├── grafana/            Managed Grafana dashboard JSON artifacts
 ├── collector/          Per-tenant data collector (Python CLI)
 ├── functions/          Azure Functions v2 API backend
