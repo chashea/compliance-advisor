@@ -1,13 +1,13 @@
 # Compliance Advisor
 
-Multi-tenant GCC compliance workload platform that aggregates Microsoft 365 compliance data across agencies into a single executive view.
+Multi-tenant compliance workload platform that aggregates Microsoft 365 compliance data across agencies into a single executive view.
 
 ## Architecture
 
 ```
-GCC Tenant A ──┐
-GCC Tenant B ──┤  collector/cli.py              Azure Function App
-GCC Tenant C ──┘  (client credentials)     ──▶  POST /api/ingest
+Tenant A ──┐
+Tenant B ──┤      collector/cli.py              Azure Function App
+Tenant C ──┘      (client credentials)     ──▶  POST /api/ingest
                   Microsoft Graph API              │
                                                    ▼
                                              PostgreSQL
@@ -63,7 +63,7 @@ GCC Tenant C ──┘  (client credentials)     ──▶  POST /api/ingest
 
 - Python 3.11+
 - Azure subscription (Commercial)
-- Access to GCC tenant(s) with Microsoft 365 compliance workloads
+- Access to Microsoft 365 tenant(s) with compliance workloads
 - Multi-tenant Entra app registration with client credentials (client secret)
 - App service principal added to eDiscovery Manager and Compliance Administrator role groups in Microsoft Purview
 - Azure CLI (`az`)
@@ -250,7 +250,7 @@ Frontend deployment secrets:
 - `WEB_APP_NAME` — Azure Web App name (e.g., `cadvisor-web-prod`)
 - `VITE_API_BASE_URL` — Function App URL (e.g., `https://cadvisor-func-prod.azurewebsites.net`)
 
-## Onboarding a New GCC Tenant
+## Onboarding a New Tenant
 
 1. Grant admin consent for the `compliance-advisor-collector` app in the target tenant:
    - Navigate to `https://login.microsoftonline.com/<TENANT_ID>/adminconsent?client_id=<CLIENT_ID>`

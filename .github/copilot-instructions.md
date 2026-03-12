@@ -30,9 +30,9 @@ az bicep build --file infra/main.bicep --outfile azuredeploy.json
 
 ## Architecture
 
-Multi-tenant GCC compliance platform. Two core runtime components share a PostgreSQL database (16 tables, schema in `sql/schema.sql`):
+Multi-tenant compliance platform. Two core runtime components share a PostgreSQL database (16 tables, schema in `sql/schema.sql`):
 
-1. **Collector** (`collector/`) — Python CLI (`compliance-collect`) that authenticates to GCC tenants via MSAL client credentials, pulls 14 compliance workloads from Microsoft Graph API, and POSTs a JSON payload to the Function App's `/api/ingest` endpoint.
+1. **Collector** (`collector/`) — Python CLI (`compliance-collect`) that authenticates to tenants via MSAL client credentials, pulls 14 compliance workloads from Microsoft Graph API, and POSTs a JSON payload to the Function App's `/api/ingest` endpoint.
 
 2. **Function App** (`functions/`) — Azure Functions v2 Python using decorator-based routing (no `function.json` files). All routes defined in `function_app.py`. Three categories:
    - **Ingest** (`/api/ingest`) — function-key auth, validates payload via JSON schema (`shared/validation.py`), upserts to PostgreSQL (`shared/db.py`).

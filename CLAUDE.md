@@ -6,7 +6,7 @@ Project-specific guidance. Global conventions (communication style, git workflow
 
 - **Repo:** `github.com/chashea/compliance-advisor`, branch `main`
 - **Resource group:** `rg-compliance-advisor`
-- **Current version:** v0.28.0
+- **Current version:** v0.29.0
 
 ## Build & Run Commands
 
@@ -45,9 +45,9 @@ Run tests with `python3.12 -m pytest tests/` (49 tests covering validation, dash
 
 ## Architecture
 
-Multi-tenant GCC compliance workload platform. Two core runtime components share a PostgreSQL database:
+Multi-tenant compliance workload platform. Two core runtime components share a PostgreSQL database:
 
-1. **Collector** (`collector/`) — Python CLI (`compliance-collect`) that authenticates to GCC tenants via MSAL client credentials (app-only), pulls compliance workload data from Microsoft Graph API (eDiscovery, sensitivity labels, retention labels/events, audit log, DLP alerts, IRM alerts, protection scopes, Secure Score with Data category breakdown, improvement actions filtered to Data category by default, subject rights requests, communication compliance, information barriers), and POSTs a payload to the Function App's `/api/ingest` endpoint. DLP and IRM alerts use the legacy `/security/alerts` endpoint filtered by `vendorInformation/provider`. Use `--actions-category` (env: `ACTIONS_CATEGORY`, default: `Data`) to control which Secure Score category is collected.
+1. **Collector** (`collector/`) — Python CLI (`compliance-collect`) that authenticates to tenants via MSAL client credentials (app-only), pulls compliance workload data from Microsoft Graph API (eDiscovery, sensitivity labels, retention labels/events, audit log, DLP alerts, IRM alerts, protection scopes, Secure Score with Data category breakdown, improvement actions filtered to Data category by default, subject rights requests, communication compliance, information barriers), and POSTs a payload to the Function App's `/api/ingest` endpoint. DLP and IRM alerts use the legacy `/security/alerts` endpoint filtered by `vendorInformation/provider`. Use `--actions-category` (env: `ACTIONS_CATEGORY`, default: `Data`) to control which Secure Score category is collected.
 
 2. **Function App** (`functions/`) — Azure Functions v2 Python (decorator-based, no `function.json` files). All routes defined in `function_app.py`. Two categories:
    - **Ingest** (`/api/ingest`) — FUNCTION-level auth, validates payload via JSON schema (`shared/validation.py`), upserts to PostgreSQL (`shared/db.py`).

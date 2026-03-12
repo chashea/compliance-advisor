@@ -3,7 +3,7 @@ Collector configuration using Pydantic Settings.
 
 Uses client credentials flow to authenticate to the Microsoft Graph compliance APIs.
 
-GCC (standard) uses:
+Commercial / GCC standard uses:
   - login.microsoftonline.com
   - graph.microsoft.com
 """

@@ -2,7 +2,7 @@
 -- Compliance Advisor — PostgreSQL Schema (v3: Compliance Workload APIs)
 -- ══════════════════════════════════════════════════════════════════
 
--- Tenant registry (one row per GCC tenant)
+-- Tenant registry (one row per tenant)
 CREATE TABLE IF NOT EXISTS tenants (
     tenant_id       TEXT PRIMARY KEY,
     display_name    TEXT NOT NULL,
