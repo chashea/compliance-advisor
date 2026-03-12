@@ -52,7 +52,6 @@ var foundryAccountName = '${prefix}-fde2-${uniqueSuffix}'
 var foundryProjectEndpoint = 'https://${foundry.outputs.foundryAccountName}.services.ai.azure.com/api/projects/${foundry.outputs.foundryProjectName}'
 var appInsightsName = '${prefix}-ai-${environmentName}'
 var logAnalyticsName = '${prefix}-la-${environmentName}'
-var grafanaName = '${prefix}-grafana-${environmentName}'
 var diagnosticSettingName = 'send-to-cadvisor-law'
 var appServicePlanName = '${prefix}-asp-${environmentName}'
 var postgresServerName = '${prefix}-pg-${uniqueSuffix}'
@@ -149,15 +148,6 @@ module functionApp 'modules/function-app.bicep' = {
   }
 }
 
-// ── Managed Grafana ────────────────────────────────────────────────
-module grafana 'modules/grafana.bicep' = {
-  name: 'grafana'
-  params: {
-    grafanaName: grafanaName
-    location: location
-  }
-}
-
 // ── Web App (React SPA frontend) ──────────────────────────────────
 module webApp 'modules/webapp.bicep' = {
   name: 'webApp'
@@ -208,28 +198,7 @@ resource foundryRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-
   }
 }
 
-// Grafana managed identity can read Azure Monitor and Log Analytics data
-resource grafanaMonitoringReaderRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(resourceGroup().id, grafanaName, '43d0d8ad-25c7-4714-9337-8ba259a9fe05')
-  scope: resourceGroup()
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '43d0d8ad-25c7-4714-9337-8ba259a9fe05')
-    principalId: grafana.outputs.grafanaPrincipalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-resource grafanaLogAnalyticsReaderRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(resourceGroup().id, grafanaName, '73c42c96-874c-492b-b04d-ab87d138a893')
-  scope: resourceGroup()
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '73c42c96-874c-492b-b04d-ab87d138a893')
-    principalId: grafana.outputs.grafanaPrincipalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-// ── Diagnostic settings for Grafana data sources ───────────────────
+// ── Diagnostic settings ────────────────────────────────────────────
 resource functionAppResource 'Microsoft.Web/sites@2023-01-01' existing = {
   name: functionAppName
 }
@@ -343,8 +312,6 @@ output openAiEndpoint string = openai.outputs.openAiEndpoint
 output foundryAccountName string = foundry.outputs.foundryAccountName
 output foundryProjectName string = foundry.outputs.foundryProjectName
 output foundryProjectEndpoint string = foundryProjectEndpoint
-output grafanaName string = grafana.outputs.grafanaName
-output grafanaEndpoint string = grafana.outputs.grafanaEndpoint
 output postgresServerFqdn string = postgres.outputs.serverFqdn
 output appInsightsName string = appInsightsName
 output webAppUrl string = webApp.outputs.webAppUrl

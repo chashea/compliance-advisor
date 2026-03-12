@@ -15,8 +15,6 @@ GCC Tenant C ──┘  (client credentials)     ──▶  POST /api/ingest
                                               ediscovery, labels, dlp,
                                               irm, audit, scores, ...)
                                                    │
-                  Grafana dashboards     ◀──── PostgreSQL + Azure Monitor
-                                                   │
                   React SPA frontend     ◀──── POST /api/advisor/*
                   (cadvisor-web-prod)          (16 dashboard endpoints)
                                                    ▼
@@ -46,7 +44,6 @@ GCC Tenant C ──┘  (client credentials)     ──▶  POST /api/ingest
 ## Features
 
 - **React SPA frontend** with 13 pages: Overview, eDiscovery, Labels, Audit, DLP, IRM, Subject Rights, Comm Compliance, Info Barriers, Governance, Trend, Actions, AI Advisor
-- Grafana-ready compliance dashboards with KPI cards (Tenants, Secure Score Data, DLP Alerts, IRM Alerts)
 - Secure Score Data category KPI showing `current / max` points and percentage
 - Improvement Actions filtered to Data category by default with category/cost/tier filters
 - Agency/department dropdown filter with active filter state summary and clear reset
@@ -231,15 +228,6 @@ az deployment group create \
 psql "<CONNECTION_STRING>" -f sql/schema.sql
 ```
 
-### Grafana Dashboard Artifacts
-
-Provisioned Managed Grafana should import dashboard JSON files from:
-
-- `grafana/dashboards/compliance-executive-overview.json`
-- `grafana/dashboards/compliance-workload-drilldown.json`
-
-Both dashboards expect a PostgreSQL datasource and prompt for `DS_POSTGRES` on import.
-
 ## CI/CD Deployment
 
 GitHub Actions workflow `.github/workflows/deploy.yml` now supports infra deployment (Bicep what-if + apply) before function deployment.
@@ -279,7 +267,6 @@ Frontend deployment secrets:
 ```
 compliance-advisor/
 ├── frontend/          React 18 + TypeScript + Vite SPA
-├── grafana/            Managed Grafana dashboard JSON artifacts
 ├── collector/          Per-tenant data collector (Python CLI)
 ├── functions/          Azure Functions v2 API backend
 ├── sql/                PostgreSQL schema (16 tables)
