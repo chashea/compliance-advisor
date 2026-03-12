@@ -73,6 +73,7 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         { name: 'AZURE_FOUNDRY_PROJECT_NAME', value: foundryProjectName }
         { name: 'AZURE_FOUNDRY_PROJECT_ID', value: foundryProjectId }
         { name: 'AZURE_FOUNDRY_AGENT_ID', value: foundryAgentId }
+        { name: 'WEBSITE_RUN_FROM_PACKAGE', value: '1' }
         { name: 'ALLOWED_TENANT_IDS', value: allowedTenantIds }
       ]
     }

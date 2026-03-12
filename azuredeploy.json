@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "7339968584444780646"
+      "templateHash": "6558294752921183632"
     }
   },
   "parameters": {
@@ -870,7 +870,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "9882470204641905817"
+              "templateHash": "6698592353182942369"
             }
           },
           "parameters": {
@@ -1046,6 +1046,10 @@
                     {
                       "name": "AZURE_FOUNDRY_AGENT_ID",
                       "value": "[parameters('foundryAgentId')]"
+                    },
+                    {
+                      "name": "WEBSITE_RUN_FROM_PACKAGE",
+                      "value": "1"
                     },
                     {
                       "name": "ALLOWED_TENANT_IDS",

@@ -122,6 +122,14 @@ jobs:
         continue-on-error: true
         run: psql "$DATABASE_URL" -f sql/schema.sql
 
+      - name: Clear WEBSITE_RUN_FROM_PACKAGE URL
+        if: env.FUNCTION_APP_NAME != ''
+        run: |
+          az functionapp config appsettings set \
+            --name "$FUNCTION_APP_NAME" \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --settings WEBSITE_RUN_FROM_PACKAGE=1
+
       - name: Deploy Azure Functions
         if: env.FUNCTION_APP_NAME != ''
         uses: Azure/functions-action@v1
