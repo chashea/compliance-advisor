@@ -1,0 +1,55 @@
+import { useDepartment } from "../components/DepartmentContext";
+import BarChart from "../components/BarChart";
+import DataTable from "../components/DataTable";
+import ErrorBanner from "../components/ErrorBanner";
+import Loading from "../components/Loading";
+import { useApi } from "../hooks/useApi";
+import type { DLPAlert, DLPResponse } from "../types";
+
+const SEVERITY_COLORS: Record<string, string> = { high: "text-red-600", medium: "text-amber-600", low: "text-slate-500" };
+
+export default function DLP() {
+  const { department } = useDepartment();
+  const { data, loading, error } = useApi<DLPResponse>("dlp", department ? { department } : {}, [department]);
+
+  if (loading) return <Loading />;
+  if (error) return <ErrorBanner message={error} />;
+  if (!data) return null;
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-semibold text-slate-800">DLP Alerts ({data.alerts.length})</h2>
+
+      {data.severity_breakdown.length > 0 && (
+        <div>
+          <h3 className="mb-2 text-sm font-medium text-slate-600">By Severity</h3>
+          <BarChart data={data.severity_breakdown} xKey="severity" yKey="total" color="#ef4444" height={250} />
+        </div>
+      )}
+
+      {data.policy_breakdown.length > 0 && (
+        <div>
+          <h3 className="mb-2 text-sm font-medium text-slate-600">By Policy</h3>
+          <BarChart data={data.policy_breakdown} xKey="policy_name" yKey="total" color="#f59e0b" height={250} />
+        </div>
+      )}
+
+      <DataTable<DLPAlert & Record<string, unknown>>
+        columns={[
+          { key: "title", label: "Title" },
+          {
+            key: "severity",
+            label: "Severity",
+            render: (v) => <span className={`font-medium ${SEVERITY_COLORS[String(v)] ?? ""}`}>{String(v)}</span>,
+          },
+          { key: "status", label: "Status" },
+          { key: "policy_name", label: "Policy" },
+          { key: "created", label: "Created" },
+          { key: "tenant_name", label: "Tenant" },
+        ]}
+        data={data.alerts as (DLPAlert & Record<string, unknown>)[]}
+        keyField="alert_id"
+      />
+    </div>
+  );
+}

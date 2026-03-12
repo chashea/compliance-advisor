@@ -16,6 +16,9 @@ GCC Tenant C ──┘  (client credentials)     ──▶  POST /api/ingest
                                               irm, audit, scores, ...)
                                                    │
                   Grafana dashboards     ◀──── PostgreSQL + Azure Monitor
+                                                   │
+                  React SPA frontend     ◀──── POST /api/advisor/*
+                  (cadvisor-web-prod)          (16 dashboard endpoints)
                                                    ▼
                                              Azure AI Foundry Agent
                                              (briefing + Q&A)
@@ -42,6 +45,7 @@ GCC Tenant C ──┘  (client credentials)     ──▶  POST /api/ingest
 
 ## Features
 
+- **React SPA frontend** with 13 pages: Overview, eDiscovery, Labels, Audit, DLP, IRM, Subject Rights, Comm Compliance, Info Barriers, Governance, Trend, Actions, AI Advisor
 - Grafana-ready compliance dashboards with KPI cards (Tenants, Secure Score Data, DLP Alerts, IRM Alerts)
 - Secure Score Data category KPI showing `current / max` points and percentage
 - Improvement Actions filtered to Data category by default with category/cost/tier filters
@@ -121,6 +125,16 @@ cd functions
 pip install -r requirements.txt
 func start
 ```
+
+### 5. Run the React frontend locally
+
+```bash
+cd frontend
+npm install --legacy-peer-deps
+npm run dev
+```
+
+The dev server proxies `/api` requests to `cadvisor-func-prod.azurewebsites.net`. To use a local Function App, set `VITE_API_BASE_URL=http://localhost:7071` in a `frontend/.env` file.
 
 ## Collector Usage
 
@@ -243,6 +257,11 @@ Optional secrets:
 - `FOUNDRY_AGENT_ID` (defaults to `compliance-advisor-agent`)
 - `FOUNDRY_LOCATION` (defaults to `eastus2`)
 
+Frontend deployment secrets:
+
+- `WEB_APP_NAME` — Azure Web App name (e.g., `cadvisor-web-prod`)
+- `VITE_API_BASE_URL` — Function App URL (e.g., `https://cadvisor-func-prod.azurewebsites.net`)
+
 ## Onboarding a New GCC Tenant
 
 1. Grant admin consent for the `compliance-advisor-collector` app in the target tenant:
@@ -259,11 +278,12 @@ Optional secrets:
 
 ```
 compliance-advisor/
+├── frontend/          React 18 + TypeScript + Vite SPA
 ├── grafana/            Managed Grafana dashboard JSON artifacts
 ├── collector/          Per-tenant data collector (Python CLI)
 ├── functions/          Azure Functions v2 API backend
 ├── sql/                PostgreSQL schema (16 tables)
-├── infra/              Bicep IaC templates
+├── infra/              Bicep IaC templates (+ webapp.bicep)
 ├── tests/              pytest test suite (49 tests)
-└── .github/workflows/  CI/CD
+└── .github/workflows/  CI/CD (Functions + Frontend deploy)
 ```

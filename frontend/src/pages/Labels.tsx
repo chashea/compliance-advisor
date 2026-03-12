@@ -1,0 +1,67 @@
+import { useDepartment } from "../components/DepartmentContext";
+import DataTable from "../components/DataTable";
+import ErrorBanner from "../components/ErrorBanner";
+import Loading from "../components/Loading";
+import { useApi } from "../hooks/useApi";
+import type { LabelsResponse, SensitivityLabel, RetentionLabel, RetentionEvent } from "../types";
+
+export default function Labels() {
+  const { department } = useDepartment();
+  const { data, loading, error } = useApi<LabelsResponse>("labels", department ? { department } : {}, [department]);
+
+  if (loading) return <Loading />;
+  if (error) return <ErrorBanner message={error} />;
+  if (!data) return null;
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-semibold text-slate-800">Information Protection Labels</h2>
+
+      <div>
+        <h3 className="mb-2 text-sm font-medium text-slate-600">Sensitivity Labels ({data.sensitivity_labels.length})</h3>
+        <DataTable<SensitivityLabel & Record<string, unknown>>
+          columns={[
+            { key: "name", label: "Name" },
+            { key: "description", label: "Description" },
+            { key: "priority", label: "Priority" },
+            { key: "is_active", label: "Active", render: (v) => (v ? "Yes" : "No") },
+            { key: "tenant_name", label: "Tenant" },
+          ]}
+          data={data.sensitivity_labels as (SensitivityLabel & Record<string, unknown>)[]}
+          keyField="label_id"
+        />
+      </div>
+
+      <div>
+        <h3 className="mb-2 text-sm font-medium text-slate-600">Retention Labels ({data.retention_labels.length})</h3>
+        <DataTable<RetentionLabel & Record<string, unknown>>
+          columns={[
+            { key: "display_name", label: "Name" },
+            { key: "retention_duration", label: "Duration" },
+            { key: "retention_trigger", label: "Trigger" },
+            { key: "action_after_retention", label: "Action" },
+            { key: "status", label: "Status" },
+            { key: "tenant_name", label: "Tenant" },
+          ]}
+          data={data.retention_labels as (RetentionLabel & Record<string, unknown>)[]}
+          keyField="label_id"
+        />
+      </div>
+
+      <div>
+        <h3 className="mb-2 text-sm font-medium text-slate-600">Retention Events ({data.retention_events.length})</h3>
+        <DataTable<RetentionEvent & Record<string, unknown>>
+          columns={[
+            { key: "display_name", label: "Name" },
+            { key: "event_type", label: "Type" },
+            { key: "event_status", label: "Status" },
+            { key: "created", label: "Created" },
+            { key: "tenant_name", label: "Tenant" },
+          ]}
+          data={data.retention_events as (RetentionEvent & Record<string, unknown>)[]}
+          keyField="event_id"
+        />
+      </div>
+    </div>
+  );
+}

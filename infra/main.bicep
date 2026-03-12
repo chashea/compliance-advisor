@@ -56,6 +56,8 @@ var grafanaName = '${prefix}-grafana-${environmentName}'
 var diagnosticSettingName = 'send-to-cadvisor-law'
 var appServicePlanName = '${prefix}-asp-${environmentName}'
 var postgresServerName = '${prefix}-pg-${uniqueSuffix}'
+var webAppName = '${prefix}-web-${environmentName}'
+var webAppPlanName = '${prefix}-wasp-${environmentName}'
 
 // ── Storage Account (for Azure Functions runtime) ───────────────
 // Functions runtime requires a storage account for triggers/bindings
@@ -153,6 +155,17 @@ module grafana 'modules/grafana.bicep' = {
   params: {
     grafanaName: grafanaName
     location: location
+  }
+}
+
+// ── Web App (React SPA frontend) ──────────────────────────────────
+module webApp 'modules/webapp.bicep' = {
+  name: 'webApp'
+  params: {
+    webAppName: webAppName
+    webAppPlanName: webAppPlanName
+    location: location
+    functionAppUrl: functionApp.outputs.functionAppUrl
   }
 }
 
@@ -334,3 +347,5 @@ output grafanaName string = grafana.outputs.grafanaName
 output grafanaEndpoint string = grafana.outputs.grafanaEndpoint
 output postgresServerFqdn string = postgres.outputs.serverFqdn
 output appInsightsName string = appInsightsName
+output webAppUrl string = webApp.outputs.webAppUrl
+output webAppName string = webApp.outputs.webAppName
