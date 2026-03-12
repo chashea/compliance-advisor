@@ -54,7 +54,7 @@ Multi-tenant compliance workload platform. Two core runtime components share a P
    - **Dashboard APIs** (`/api/advisor/*`, 14 endpoints) — ANONYMOUS auth, all POST with optional `{department}` filter. SQL queries in `shared/dashboard_queries.py`.
    - **Timer** (`compute_aggregates`) — daily 6am UTC, rolls up workload counts → `compliance_trend`.
 
-**Database**: PostgreSQL with 16 tables: `tenants`, `ediscovery_cases`, `sensitivity_labels`, `retention_labels`, `retention_events`, `audit_records`, `dlp_alerts`, `irm_alerts`, `protection_scopes`, `secure_scores` (includes `data_current_score`, `data_max_score`), `improvement_actions`, `subject_rights_requests`, `comm_compliance_policies`, `info_barrier_policies`, `user_content_policies`, `compliance_trend`. Schema in `sql/schema.sql`. Connection pool via psycopg2 `ThreadedConnectionPool` in `shared/db.py`.
+**Database**: PostgreSQL with 17 tables: `tenants`, `ediscovery_cases`, `sensitivity_labels`, `retention_labels`, `retention_events`, `audit_records`, `dlp_alerts`, `irm_alerts`, `protection_scopes`, `secure_scores` (includes `data_current_score`, `data_max_score`), `improvement_actions`, `subject_rights_requests`, `comm_compliance_policies`, `info_barrier_policies`, `user_content_policies`, `compliance_trend`, `ingestion_log`. Schema in `sql/schema.sql`. Connection pool via psycopg2 `ThreadedConnectionPool` in `shared/db.py`.
 
 **Infrastructure** (`infra/`): Bicep modules for PostgreSQL Flexible Server, Function App + App Service Plan, Key Vault, Azure OpenAI, Log Analytics + App Insights. Function App uses SystemAssigned managed identity with RBAC for Key Vault and OpenAI. `azuredeploy.json` at repo root is the compiled ARM template for the "Deploy to Azure" button.
 

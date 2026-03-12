@@ -11,7 +11,7 @@ Tenant C ──┘      (client credentials)     ──▶  POST /api/ingest
                   Microsoft Graph API              │
                                                    ▼
                                              PostgreSQL
-                                             (16 tables: tenants,
+                                             (17 tables: tenants,
                                               ediscovery, labels, dlp,
                                               irm, audit, scores, ...)
                                                    │
@@ -260,7 +260,7 @@ compliance-advisor/
 ├── frontend/          React 18 + TypeScript + Vite SPA
 ├── collector/          Per-tenant data collector (Python CLI)
 ├── functions/          Azure Functions v2 API backend
-├── sql/                PostgreSQL schema (16 tables)
+├── sql/                PostgreSQL schema (17 tables)
 ├── infra/              Bicep IaC templates (+ webapp.bicep)
 ├── tests/              pytest test suite
 └── .github/workflows/  CI/CD (Functions + Frontend deploy)
