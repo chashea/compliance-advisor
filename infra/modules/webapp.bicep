@@ -1,4 +1,4 @@
-// Azure Web App (Node 20 LTS, Linux, B1) — SPA frontend for Compliance Advisor
+// Azure Web App (Node 20 LTS, Linux, P1v3) — SPA frontend for Compliance Advisor
 
 param webAppName string
 param webAppPlanName string
@@ -10,8 +10,8 @@ resource webAppPlan 'Microsoft.Web/serverfarms@2023-01-01' = {
   location: location
   kind: 'linux'
   sku: {
-    name: 'B1'
-    tier: 'Basic'
+    name: 'P1v3'
+    tier: 'PremiumV3'
   }
   properties: {
     reserved: true
@@ -26,6 +26,7 @@ resource webApp 'Microsoft.Web/sites@2023-01-01' = {
     serverFarmId: webAppPlan.id
     httpsOnly: true
     siteConfig: {
+      alwaysOn: true
       linuxFxVersion: 'NODE|20-lts'
       minTlsVersion: '1.2'
       ftpsState: 'Disabled'

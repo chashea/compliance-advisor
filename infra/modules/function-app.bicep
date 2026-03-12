@@ -1,4 +1,4 @@
-// Azure Function App (Python v2, Linux, Consumption)
+// Azure Function App (Python v2, Linux, P1v3 Premium)
 // With Entra ID SSO (EasyAuth) for API consumers
 
 param functionAppName string
@@ -27,8 +27,8 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
   location: location
   kind: 'linux'
   sku: {
-    name: 'Y1'
-    tier: 'Dynamic'
+    name: 'P1v3'
+    tier: 'PremiumV3'
   }
   properties: {
     reserved: true
@@ -46,6 +46,7 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
     serverFarmId: appServicePlan.id
     httpsOnly: true
     siteConfig: {
+      alwaysOn: true
       pythonVersion: '3.11'
       linuxFxVersion: 'PYTHON|3.11'
       minTlsVersion: '1.2'

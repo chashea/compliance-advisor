@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "3734644446864667878"
+      "templateHash": "6399246061635153848"
     }
   },
   "parameters": {
@@ -35,6 +35,27 @@
         "description": "Azure OpenAI model deployment name"
       }
     },
+    "foundryProjectName": {
+      "type": "string",
+      "defaultValue": "compliance-advisor",
+      "metadata": {
+        "description": "Azure AI Foundry project name"
+      }
+    },
+    "foundryLocation": {
+      "type": "string",
+      "defaultValue": "eastus2",
+      "metadata": {
+        "description": "Azure AI Foundry account region (must support Foundry Agents capability host)"
+      }
+    },
+    "foundryAgentId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Azure AI Foundry agent ID used by advisor endpoints"
+      }
+    },
     "deployerObjectId": {
       "type": "string",
       "defaultValue": "",
@@ -46,7 +67,7 @@
       "type": "string",
       "defaultValue": "",
       "metadata": {
-        "description": "Entra ID client ID for dashboard SSO (leave empty to skip EasyAuth)"
+        "description": "Entra ID client ID for API SSO (leave empty to skip EasyAuth)"
       }
     },
     "postgresAdminPassword": {
@@ -63,10 +84,15 @@
     "functionAppName": "[format('{0}-func-{1}', variables('prefix'), parameters('environmentName'))]",
     "keyVaultName": "[format('{0}-kv-{1}', variables('prefix'), take(variables('uniqueSuffix'), 10))]",
     "openAiName": "[format('{0}-oai-{1}', variables('prefix'), variables('uniqueSuffix'))]",
+    "foundryAccountName": "[format('{0}-fde2-{1}', variables('prefix'), variables('uniqueSuffix'))]",
     "appInsightsName": "[format('{0}-ai-{1}', variables('prefix'), parameters('environmentName'))]",
     "logAnalyticsName": "[format('{0}-la-{1}', variables('prefix'), parameters('environmentName'))]",
+    "grafanaName": "[format('{0}-grafana-{1}', variables('prefix'), parameters('environmentName'))]",
+    "diagnosticSettingName": "send-to-cadvisor-law",
     "appServicePlanName": "[format('{0}-asp-{1}', variables('prefix'), parameters('environmentName'))]",
-    "postgresServerName": "[format('{0}-pg-{1}', variables('prefix'), variables('uniqueSuffix'))]"
+    "postgresServerName": "[format('{0}-pg-{1}', variables('prefix'), variables('uniqueSuffix'))]",
+    "webAppName": "[format('{0}-web-{1}', variables('prefix'), parameters('environmentName'))]",
+    "webAppPlanName": "[format('{0}-wasp-{1}', variables('prefix'), parameters('environmentName'))]"
   },
   "resources": [
     {
@@ -109,6 +135,146 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.Resources/deployments', 'functionApp')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[format('Microsoft.CognitiveServices/accounts/{0}', variables('foundryAccountName'))]",
+      "name": "[guid(resourceGroup().id, variables('foundryAccountName'), variables('functionAppName'), '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')]",
+        "principalId": "[reference(resourceId('Microsoft.Resources/deployments', 'functionApp'), '2025-04-01').outputs.functionAppPrincipalId.value]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'functionApp')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(resourceGroup().id, variables('grafanaName'), '43d0d8ad-25c7-4714-9337-8ba259a9fe05')]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '43d0d8ad-25c7-4714-9337-8ba259a9fe05')]",
+        "principalId": "[reference(resourceId('Microsoft.Resources/deployments', 'grafana'), '2025-04-01').outputs.grafanaPrincipalId.value]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'grafana')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(resourceGroup().id, variables('grafanaName'), '73c42c96-874c-492b-b04d-ab87d138a893')]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '73c42c96-874c-492b-b04d-ab87d138a893')]",
+        "principalId": "[reference(resourceId('Microsoft.Resources/deployments', 'grafana'), '2025-04-01').outputs.grafanaPrincipalId.value]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'grafana')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Insights/diagnosticSettings",
+      "apiVersion": "2021-05-01-preview",
+      "scope": "[format('Microsoft.Web/sites/{0}', variables('functionAppName'))]",
+      "name": "[variables('diagnosticSettingName')]",
+      "properties": {
+        "workspaceId": "[reference(resourceId('Microsoft.Resources/deployments', 'monitoring'), '2025-04-01').outputs.logAnalyticsId.value]",
+        "logs": [
+          {
+            "categoryGroup": "allLogs",
+            "enabled": true
+          }
+        ],
+        "metrics": [
+          {
+            "category": "AllMetrics",
+            "enabled": true
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'functionApp')]",
+        "[resourceId('Microsoft.Resources/deployments', 'monitoring')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Insights/diagnosticSettings",
+      "apiVersion": "2021-05-01-preview",
+      "scope": "[format('Microsoft.DBforPostgreSQL/flexibleServers/{0}', variables('postgresServerName'))]",
+      "name": "[variables('diagnosticSettingName')]",
+      "properties": {
+        "workspaceId": "[reference(resourceId('Microsoft.Resources/deployments', 'monitoring'), '2025-04-01').outputs.logAnalyticsId.value]",
+        "logs": [
+          {
+            "categoryGroup": "allLogs",
+            "enabled": true
+          }
+        ],
+        "metrics": [
+          {
+            "category": "AllMetrics",
+            "enabled": true
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'monitoring')]",
+        "[resourceId('Microsoft.Resources/deployments', 'postgres')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Insights/diagnosticSettings",
+      "apiVersion": "2021-05-01-preview",
+      "scope": "[format('Microsoft.CognitiveServices/accounts/{0}', variables('openAiName'))]",
+      "name": "[variables('diagnosticSettingName')]",
+      "properties": {
+        "workspaceId": "[reference(resourceId('Microsoft.Resources/deployments', 'monitoring'), '2025-04-01').outputs.logAnalyticsId.value]",
+        "logs": [
+          {
+            "categoryGroup": "allLogs",
+            "enabled": true
+          }
+        ],
+        "metrics": [
+          {
+            "category": "AllMetrics",
+            "enabled": true
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'monitoring')]",
+        "[resourceId('Microsoft.Resources/deployments', 'openai')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Insights/diagnosticSettings",
+      "apiVersion": "2021-05-01-preview",
+      "scope": "[format('Microsoft.CognitiveServices/accounts/{0}', variables('foundryAccountName'))]",
+      "name": "[variables('diagnosticSettingName')]",
+      "properties": {
+        "workspaceId": "[reference(resourceId('Microsoft.Resources/deployments', 'monitoring'), '2025-04-01').outputs.logAnalyticsId.value]",
+        "logs": [
+          {
+            "categoryGroup": "allLogs",
+            "enabled": true
+          }
+        ],
+        "metrics": [
+          {
+            "category": "AllMetrics",
+            "enabled": true
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'foundry')]",
+        "[resourceId('Microsoft.Resources/deployments', 'monitoring')]"
       ]
     },
     {
@@ -551,6 +717,120 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
+      "name": "foundry",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "foundryAccountName": {
+            "value": "[variables('foundryAccountName')]"
+          },
+          "foundryProjectName": {
+            "value": "[parameters('foundryProjectName')]"
+          },
+          "location": {
+            "value": "[parameters('foundryLocation')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.39.26.7824",
+              "templateHash": "2738035598412649415"
+            }
+          },
+          "parameters": {
+            "foundryAccountName": {
+              "type": "string"
+            },
+            "foundryProjectName": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "foundryProjectDisplayName": {
+              "type": "string",
+              "defaultValue": "Compliance Advisor"
+            },
+            "foundryProjectDescription": {
+              "type": "string",
+              "defaultValue": "Compliance Advisor Foundry project"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.CognitiveServices/accounts",
+              "apiVersion": "2025-06-01",
+              "name": "[parameters('foundryAccountName')]",
+              "location": "[parameters('location')]",
+              "kind": "AIServices",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "sku": {
+                "name": "S0"
+              },
+              "properties": {
+                "customSubDomainName": "[parameters('foundryAccountName')]",
+                "publicNetworkAccess": "Enabled",
+                "networkAcls": {
+                  "defaultAction": "Allow"
+                },
+                "allowProjectManagement": true,
+                "defaultProject": "[parameters('foundryProjectName')]"
+              }
+            },
+            {
+              "type": "Microsoft.CognitiveServices/accounts/projects",
+              "apiVersion": "2025-06-01",
+              "name": "[format('{0}/{1}', parameters('foundryAccountName'), parameters('foundryProjectName'))]",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "displayName": "[parameters('foundryProjectDisplayName')]",
+                "description": "[parameters('foundryProjectDescription')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('foundryAccountName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "foundryAccountId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.CognitiveServices/accounts', parameters('foundryAccountName'))]"
+            },
+            "foundryAccountName": {
+              "type": "string",
+              "value": "[parameters('foundryAccountName')]"
+            },
+            "foundryAccountEndpoint": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', parameters('foundryAccountName')), '2025-06-01').endpoint]"
+            },
+            "foundryProjectId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.CognitiveServices/accounts/projects', parameters('foundryAccountName'), parameters('foundryProjectName'))]"
+            },
+            "foundryProjectName": {
+              "type": "string",
+              "value": "[parameters('foundryProjectName')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
       "name": "functionApp",
       "properties": {
         "expressionEvaluationOptions": {
@@ -588,6 +868,21 @@
           "openAiDeployment": {
             "value": "[parameters('openAiDeploymentModel')]"
           },
+          "foundryAccountEndpoint": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'foundry'), '2025-04-01').outputs.foundryAccountEndpoint.value]"
+          },
+          "foundryProjectEndpoint": {
+            "value": "[format('https://{0}.services.ai.azure.com/api/projects/{1}', reference(resourceId('Microsoft.Resources/deployments', 'foundry'), '2025-04-01').outputs.foundryAccountName.value, reference(resourceId('Microsoft.Resources/deployments', 'foundry'), '2025-04-01').outputs.foundryProjectName.value)]"
+          },
+          "foundryProjectName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'foundry'), '2025-04-01').outputs.foundryProjectName.value]"
+          },
+          "foundryProjectId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'foundry'), '2025-04-01').outputs.foundryProjectId.value]"
+          },
+          "foundryAgentId": {
+            "value": "[parameters('foundryAgentId')]"
+          },
           "allowedTenantIds": {
             "value": "[parameters('allowedTenantIds')]"
           },
@@ -602,7 +897,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "7790861771520311240"
+              "templateHash": "9882470204641905817"
             }
           },
           "parameters": {
@@ -636,6 +931,26 @@
             "openAiDeployment": {
               "type": "string"
             },
+            "foundryAccountEndpoint": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "foundryProjectEndpoint": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "foundryProjectName": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "foundryProjectId": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "foundryAgentId": {
+              "type": "string",
+              "defaultValue": ""
+            },
             "allowedTenantIds": {
               "type": "string"
             },
@@ -656,8 +971,8 @@
               "location": "[parameters('location')]",
               "kind": "linux",
               "sku": {
-                "name": "Y1",
-                "tier": "Dynamic"
+                "name": "P1v3",
+                "tier": "PremiumV3"
               },
               "properties": {
                 "reserved": true
@@ -676,6 +991,7 @@
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('appServicePlanName'))]",
                 "httpsOnly": true,
                 "siteConfig": {
+                  "alwaysOn": true,
                   "pythonVersion": "3.11",
                   "linuxFxVersion": "PYTHON|3.11",
                   "minTlsVersion": "1.2",
@@ -739,6 +1055,26 @@
                       "value": "2024-08-01-preview"
                     },
                     {
+                      "name": "AZURE_FOUNDRY_ACCOUNT_ENDPOINT",
+                      "value": "[parameters('foundryAccountEndpoint')]"
+                    },
+                    {
+                      "name": "AZURE_FOUNDRY_PROJECT_ENDPOINT",
+                      "value": "[parameters('foundryProjectEndpoint')]"
+                    },
+                    {
+                      "name": "AZURE_FOUNDRY_PROJECT_NAME",
+                      "value": "[parameters('foundryProjectName')]"
+                    },
+                    {
+                      "name": "AZURE_FOUNDRY_PROJECT_ID",
+                      "value": "[parameters('foundryProjectId')]"
+                    },
+                    {
+                      "name": "AZURE_FOUNDRY_AGENT_ID",
+                      "value": "[parameters('foundryAgentId')]"
+                    },
+                    {
                       "name": "ALLOWED_TENANT_IDS",
                       "value": "[parameters('allowedTenantIds')]"
                     }
@@ -791,15 +1127,206 @@
             "functionAppName": {
               "type": "string",
               "value": "[parameters('functionAppName')]"
+            },
+            "functionAppId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Web/sites', parameters('functionAppName'))]"
             }
           }
         }
       },
       "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'foundry')]",
         "[resourceId('Microsoft.Resources/deployments', 'keyvault')]",
         "[resourceId('Microsoft.Resources/deployments', 'monitoring')]",
         "[resourceId('Microsoft.Resources/deployments', 'openai')]",
         "[resourceId('Microsoft.Storage/storageAccounts', variables('storageName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "grafana",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "grafanaName": {
+            "value": "[variables('grafanaName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.39.26.7824",
+              "templateHash": "15658406234960991396"
+            }
+          },
+          "parameters": {
+            "grafanaName": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Dashboard/grafana",
+              "apiVersion": "2023-09-01",
+              "name": "[parameters('grafanaName')]",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "sku": {
+                "name": "Standard"
+              },
+              "properties": {
+                "apiKey": "Disabled",
+                "deterministicOutboundIP": "Disabled",
+                "publicNetworkAccess": "Enabled",
+                "zoneRedundancy": "Disabled",
+                "autoGeneratedDomainNameLabelScope": "TenantReuse",
+                "grafanaIntegrations": {
+                  "azureMonitorWorkspaceIntegrations": []
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "grafanaId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Dashboard/grafana', parameters('grafanaName'))]"
+            },
+            "grafanaName": {
+              "type": "string",
+              "value": "[parameters('grafanaName')]"
+            },
+            "grafanaEndpoint": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Dashboard/grafana', parameters('grafanaName')), '2023-09-01').endpoint]"
+            },
+            "grafanaPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Dashboard/grafana', parameters('grafanaName')), '2023-09-01', 'full').identity.principalId]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "webApp",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "webAppName": {
+            "value": "[variables('webAppName')]"
+          },
+          "webAppPlanName": {
+            "value": "[variables('webAppPlanName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "functionAppUrl": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'functionApp'), '2025-04-01').outputs.functionAppUrl.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.39.26.7824",
+              "templateHash": "12011377014637672871"
+            }
+          },
+          "parameters": {
+            "webAppName": {
+              "type": "string"
+            },
+            "webAppPlanName": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "functionAppUrl": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/serverfarms",
+              "apiVersion": "2023-01-01",
+              "name": "[parameters('webAppPlanName')]",
+              "location": "[parameters('location')]",
+              "kind": "linux",
+              "sku": {
+                "name": "P1v3",
+                "tier": "PremiumV3"
+              },
+              "properties": {
+                "reserved": true
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2023-01-01",
+              "name": "[parameters('webAppName')]",
+              "location": "[parameters('location')]",
+              "kind": "app,linux",
+              "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('webAppPlanName'))]",
+                "httpsOnly": true,
+                "siteConfig": {
+                  "alwaysOn": true,
+                  "linuxFxVersion": "NODE|20-lts",
+                  "minTlsVersion": "1.2",
+                  "ftpsState": "Disabled",
+                  "appCommandLine": "pm2 serve /home/site/wwwroot --no-daemon --spa",
+                  "appSettings": [
+                    {
+                      "name": "VITE_API_BASE_URL",
+                      "value": "[parameters('functionAppUrl')]"
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', parameters('webAppPlanName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "webAppUrl": {
+              "type": "string",
+              "value": "[format('https://{0}', reference(resourceId('Microsoft.Web/sites', parameters('webAppName')), '2023-01-01').defaultHostName)]"
+            },
+            "webAppName": {
+              "type": "string",
+              "value": "[parameters('webAppName')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'functionApp')]"
       ]
     }
   ],
@@ -824,6 +1351,26 @@
       "type": "string",
       "value": "[reference(resourceId('Microsoft.Resources/deployments', 'openai'), '2025-04-01').outputs.openAiEndpoint.value]"
     },
+    "foundryAccountName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'foundry'), '2025-04-01').outputs.foundryAccountName.value]"
+    },
+    "foundryProjectName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'foundry'), '2025-04-01').outputs.foundryProjectName.value]"
+    },
+    "foundryProjectEndpoint": {
+      "type": "string",
+      "value": "[format('https://{0}.services.ai.azure.com/api/projects/{1}', reference(resourceId('Microsoft.Resources/deployments', 'foundry'), '2025-04-01').outputs.foundryAccountName.value, reference(resourceId('Microsoft.Resources/deployments', 'foundry'), '2025-04-01').outputs.foundryProjectName.value)]"
+    },
+    "grafanaName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'grafana'), '2025-04-01').outputs.grafanaName.value]"
+    },
+    "grafanaEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'grafana'), '2025-04-01').outputs.grafanaEndpoint.value]"
+    },
     "postgresServerFqdn": {
       "type": "string",
       "value": "[reference(resourceId('Microsoft.Resources/deployments', 'postgres'), '2025-04-01').outputs.serverFqdn.value]"
@@ -831,6 +1378,14 @@
     "appInsightsName": {
       "type": "string",
       "value": "[variables('appInsightsName')]"
+    },
+    "webAppUrl": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'webApp'), '2025-04-01').outputs.webAppUrl.value]"
+    },
+    "webAppName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'webApp'), '2025-04-01').outputs.webAppName.value]"
     }
   }
 }
