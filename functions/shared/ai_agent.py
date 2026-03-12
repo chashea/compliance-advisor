@@ -304,7 +304,11 @@ def ask_advisor(question: str, department: str | None = None) -> dict:
             temperature=0.2,
         )
 
-        run_status = str(getattr(run, "status", "")).lower()
+        run_status_raw = getattr(run, "status", "")
+        run_status_value = getattr(run_status_raw, "value", run_status_raw)
+        run_status = str(run_status_value).lower()
+        if "." in run_status:
+            run_status = run_status.rsplit(".", 1)[-1]
         if run_status != "completed":
             last_error = getattr(run, "last_error", None)
             error_message = None

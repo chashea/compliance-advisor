@@ -1,6 +1,6 @@
 azure-functions>=1.17.0
 azure-ai-agents>=1.1.0
-azure-ai-projects>=1.0.0b12
+azure-ai-projects>=1.0.0b12,<2.0.0
 azure-identity>=1.15.0
 cryptography==41.0.7
 psycopg2-binary>=2.9.9
