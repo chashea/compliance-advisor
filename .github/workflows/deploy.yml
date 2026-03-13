@@ -69,6 +69,7 @@ jobs:
 
       - name: Deploy infrastructure
         if: env.AZURE_RESOURCE_GROUP != '' && env.POSTGRES_ADMIN_PASSWORD != ''
+        continue-on-error: true
         run: |
           az deployment group create \
             --resource-group "$AZURE_RESOURCE_GROUP" \
