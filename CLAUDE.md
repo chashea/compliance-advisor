@@ -132,7 +132,12 @@ After every meaningful change:
    gh release create vX.Y.Z --repo chashea/compliance-advisor --title "vX.Y.Z" --notes "..."
    ```
    Release notes should be a markdown bullet list of what changed.
-6. Confirm with: `**vX.Y.Z** is live — <release URL>`.
+6. After the release, verify the GitHub Actions deploy workflow completed successfully:
+   ```
+   gh run list --repo chashea/compliance-advisor --limit 1
+   ```
+   If the run failed, investigate with `gh run view <run-id> --repo chashea/compliance-advisor --log-failed` and report the failure.
+7. Confirm with: `**vX.Y.Z** is live — <release URL>`.
 
 **GitHub account:** `chashea` — repo at `github.com/chashea/compliance-advisor`, branch `main`.
 
