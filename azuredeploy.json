@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "13687378939001445429"
+      "templateHash": "2206653050409839245"
     }
   },
   "parameters": {
@@ -26,13 +26,6 @@
       "defaultValue": "",
       "metadata": {
         "description": "Comma-separated list of allowed tenant GUIDs for ingestion"
-      }
-    },
-    "openAiDeploymentModel": {
-      "type": "string",
-      "defaultValue": "gpt-4o",
-      "metadata": {
-        "description": "Azure OpenAI model deployment name"
       }
     },
     "deployerObjectId": {
@@ -62,7 +55,6 @@
     "storageName": "[format('{0}st{1}', variables('prefix'), take(variables('uniqueSuffix'), 11))]",
     "functionAppName": "[format('{0}-func-{1}', variables('prefix'), parameters('environmentName'))]",
     "keyVaultName": "[format('{0}-kv-{1}', variables('prefix'), take(variables('uniqueSuffix'), 10))]",
-    "openAiName": "[format('{0}-oai-{1}', variables('prefix'), variables('uniqueSuffix'))]",
     "appInsightsName": "[format('{0}-ai-{1}', variables('prefix'), parameters('environmentName'))]",
     "logAnalyticsName": "[format('{0}-la-{1}', variables('prefix'), parameters('environmentName'))]",
     "diagnosticSettingName": "send-to-cadvisor-law",
@@ -94,19 +86,6 @@
       "name": "[guid(resourceGroup().id, variables('keyVaultName'), variables('functionAppName'), '4633458b-17de-408a-b874-0445c86b69e6')]",
       "properties": {
         "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]",
-        "principalId": "[reference(resourceId('Microsoft.Resources/deployments', 'functionApp'), '2025-04-01').outputs.functionAppPrincipalId.value]",
-        "principalType": "ServicePrincipal"
-      },
-      "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'functionApp')]"
-      ]
-    },
-    {
-      "type": "Microsoft.Authorization/roleAssignments",
-      "apiVersion": "2022-04-01",
-      "name": "[guid(resourceGroup().id, variables('openAiName'), variables('functionAppName'), '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')]",
-      "properties": {
-        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')]",
         "principalId": "[reference(resourceId('Microsoft.Resources/deployments', 'functionApp'), '2025-04-01').outputs.functionAppPrincipalId.value]",
         "principalType": "ServicePrincipal"
       },
@@ -162,31 +141,6 @@
       "dependsOn": [
         "[resourceId('Microsoft.Resources/deployments', 'monitoring')]",
         "[resourceId('Microsoft.Resources/deployments', 'postgres')]"
-      ]
-    },
-    {
-      "type": "Microsoft.Insights/diagnosticSettings",
-      "apiVersion": "2021-05-01-preview",
-      "scope": "[format('Microsoft.CognitiveServices/accounts/{0}', variables('openAiName'))]",
-      "name": "[variables('diagnosticSettingName')]",
-      "properties": {
-        "workspaceId": "[reference(resourceId('Microsoft.Resources/deployments', 'monitoring'), '2025-04-01').outputs.logAnalyticsId.value]",
-        "logs": [
-          {
-            "categoryGroup": "allLogs",
-            "enabled": true
-          }
-        ],
-        "metrics": [
-          {
-            "category": "AllMetrics",
-            "enabled": true
-          }
-        ]
-      },
-      "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'monitoring')]",
-        "[resourceId('Microsoft.Resources/deployments', 'openai')]"
       ]
     },
     {
@@ -532,103 +486,6 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
-      "name": "openai",
-      "properties": {
-        "expressionEvaluationOptions": {
-          "scope": "inner"
-        },
-        "mode": "Incremental",
-        "parameters": {
-          "openAiName": {
-            "value": "[variables('openAiName')]"
-          },
-          "location": {
-            "value": "[parameters('location')]"
-          },
-          "deploymentModel": {
-            "value": "[parameters('openAiDeploymentModel')]"
-          }
-        },
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "metadata": {
-            "_generator": {
-              "name": "bicep",
-              "version": "0.39.26.7824",
-              "templateHash": "2109153487043385114"
-            }
-          },
-          "parameters": {
-            "openAiName": {
-              "type": "string"
-            },
-            "location": {
-              "type": "string"
-            },
-            "deploymentModel": {
-              "type": "string",
-              "defaultValue": "gpt-4o"
-            }
-          },
-          "resources": [
-            {
-              "type": "Microsoft.CognitiveServices/accounts",
-              "apiVersion": "2024-04-01-preview",
-              "name": "[parameters('openAiName')]",
-              "location": "[parameters('location')]",
-              "kind": "OpenAI",
-              "sku": {
-                "name": "S0"
-              },
-              "properties": {
-                "customSubDomainName": "[parameters('openAiName')]",
-                "publicNetworkAccess": "Enabled",
-                "networkAcls": {
-                  "defaultAction": "Allow"
-                }
-              }
-            },
-            {
-              "type": "Microsoft.CognitiveServices/accounts/deployments",
-              "apiVersion": "2024-04-01-preview",
-              "name": "[format('{0}/{1}', parameters('openAiName'), parameters('deploymentModel'))]",
-              "sku": {
-                "name": "Standard",
-                "capacity": 30
-              },
-              "properties": {
-                "model": {
-                  "format": "OpenAI",
-                  "name": "[parameters('deploymentModel')]",
-                  "version": "2024-08-06"
-                }
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('openAiName'))]"
-              ]
-            }
-          ],
-          "outputs": {
-            "openAiEndpoint": {
-              "type": "string",
-              "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', parameters('openAiName')), '2024-04-01-preview').endpoint]"
-            },
-            "openAiId": {
-              "type": "string",
-              "value": "[resourceId('Microsoft.CognitiveServices/accounts', parameters('openAiName'))]"
-            },
-            "openAiName": {
-              "type": "string",
-              "value": "[parameters('openAiName')]"
-            }
-          }
-        }
-      }
-    },
-    {
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
       "name": "functionApp",
       "properties": {
         "expressionEvaluationOptions": {
@@ -660,12 +517,6 @@
           "keyVaultUri": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyvault'), '2025-04-01').outputs.keyVaultUri.value]"
           },
-          "openAiEndpoint": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'openai'), '2025-04-01').outputs.openAiEndpoint.value]"
-          },
-          "openAiDeployment": {
-            "value": "[parameters('openAiDeploymentModel')]"
-          },
           "allowedTenantIds": {
             "value": "[parameters('allowedTenantIds')]"
           },
@@ -680,7 +531,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "2142961781362917919"
+              "templateHash": "7038733257701284884"
             }
           },
           "parameters": {
@@ -706,12 +557,6 @@
               "type": "string"
             },
             "keyVaultUri": {
-              "type": "string"
-            },
-            "openAiEndpoint": {
-              "type": "string"
-            },
-            "openAiDeployment": {
               "type": "string"
             },
             "allowedTenantIds": {
@@ -806,18 +651,6 @@
                       "value": "[parameters('keyVaultUri')]"
                     },
                     {
-                      "name": "AZURE_OPENAI_ENDPOINT",
-                      "value": "[parameters('openAiEndpoint')]"
-                    },
-                    {
-                      "name": "AZURE_OPENAI_DEPLOYMENT",
-                      "value": "[parameters('openAiDeployment')]"
-                    },
-                    {
-                      "name": "AZURE_OPENAI_API_VERSION",
-                      "value": "2024-08-01-preview"
-                    },
-                    {
                       "name": "WEBSITE_RUN_FROM_PACKAGE",
                       "value": "1"
                     },
@@ -885,7 +718,6 @@
       "dependsOn": [
         "[resourceId('Microsoft.Resources/deployments', 'keyvault')]",
         "[resourceId('Microsoft.Resources/deployments', 'monitoring')]",
-        "[resourceId('Microsoft.Resources/deployments', 'openai')]",
         "[resourceId('Microsoft.Storage/storageAccounts', variables('storageName'))]"
       ]
     },
@@ -1012,10 +844,6 @@
     "keyVaultName": {
       "type": "string",
       "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyvault'), '2025-04-01').outputs.keyVaultName.value]"
-    },
-    "openAiEndpoint": {
-      "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'openai'), '2025-04-01').outputs.openAiEndpoint.value]"
     },
     "postgresServerFqdn": {
       "type": "string",

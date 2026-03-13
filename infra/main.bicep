@@ -1,7 +1,7 @@
 // ──────────────────────────────────────────────────────────────────
 // Compliance Advisor — Azure Commercial Infrastructure
 //
-// Deploys: PostgreSQL, Function App, Key Vault, OpenAI, Monitoring
+// Deploys: PostgreSQL, Function App, Key Vault, Monitoring
 //
 // Usage:
 //   az deployment group create \
@@ -20,9 +20,6 @@ param location string = resourceGroup().location
 @description('Comma-separated list of allowed tenant GUIDs for ingestion')
 param allowedTenantIds string = ''
 
-@description('Azure OpenAI model deployment name')
-param openAiDeploymentModel string = 'gpt-4o'
-
 @description('Object ID of the deployer for Key Vault access policies')
 param deployerObjectId string = ''
 
@@ -38,7 +35,6 @@ var uniqueSuffix = uniqueString(resourceGroup().id)
 var storageName = '${prefix}st${take(uniqueSuffix, 11)}'
 var functionAppName = '${prefix}-func-${environmentName}'
 var keyVaultName = '${prefix}-kv-${take(uniqueSuffix, 10)}'
-var openAiName = '${prefix}-oai-${uniqueSuffix}'
 var appInsightsName = '${prefix}-ai-${environmentName}'
 var logAnalyticsName = '${prefix}-la-${environmentName}'
 var diagnosticSettingName = 'send-to-cadvisor-law'
@@ -93,16 +89,6 @@ module monitoring 'modules/monitoring.bicep' = {
   }
 }
 
-// ── Azure OpenAI ────────────────────────────────────────────────
-module openai 'modules/openai.bicep' = {
-  name: 'openai'
-  params: {
-    openAiName: openAiName
-    location: location
-    deploymentModel: openAiDeploymentModel
-  }
-}
-
 // ── Function App ────────────────────────────────────────────────
 module functionApp 'modules/function-app.bicep' = {
   name: 'functionApp'
@@ -115,8 +101,6 @@ module functionApp 'modules/function-app.bicep' = {
     appInsightsInstrumentationKey: monitoring.outputs.appInsightsInstrumentationKey
     appInsightsConnectionString: monitoring.outputs.appInsightsConnectionString
     keyVaultUri: keyVault.outputs.keyVaultUri
-    openAiEndpoint: openai.outputs.openAiEndpoint
-    openAiDeployment: openAiDeploymentModel
     allowedTenantIds: allowedTenantIds
     entraClientId: entraClientId
   }
@@ -133,7 +117,7 @@ module webApp 'modules/webapp.bicep' = {
   }
 }
 
-// ── RBAC: Function App Managed Identity → Key Vault, OpenAI ─────
+// ── RBAC: Function App Managed Identity → Key Vault ─────────────
 
 // Key Vault Secrets User
 resource kvRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
@@ -146,17 +130,6 @@ resource kvRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' =
   }
 }
 
-// Cognitive Services OpenAI User
-resource oaiRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(resourceGroup().id, openAiName, functionAppName, '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
-  scope: resourceGroup()
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
-    principalId: functionApp.outputs.functionAppPrincipalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
 // ── Diagnostic settings ────────────────────────────────────────────
 resource functionAppResource 'Microsoft.Web/sites@2023-01-01' existing = {
   name: functionAppName
@@ -164,10 +137,6 @@ resource functionAppResource 'Microsoft.Web/sites@2023-01-01' existing = {
 
 resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-06-01-preview' existing = {
   name: postgresServerName
-}
-
-resource openAiAccount 'Microsoft.CognitiveServices/accounts@2024-04-01-preview' existing = {
-  name: openAiName
 }
 
 resource functionAppDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
@@ -216,35 +185,11 @@ resource postgresDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-p
   }
 }
 
-resource openAiDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
-  scope: openAiAccount
-  name: diagnosticSettingName
-  dependsOn: [
-    openai
-  ]
-  properties: {
-    workspaceId: monitoring.outputs.logAnalyticsId
-    logs: [
-      {
-        categoryGroup: 'allLogs'
-        enabled: true
-      }
-    ]
-    metrics: [
-      {
-        category: 'AllMetrics'
-        enabled: true
-      }
-    ]
-  }
-}
-
 // ── Outputs ─────────────────────────────────────────────────────
 output functionAppUrl string = functionApp.outputs.functionAppUrl
 output functionAppName string = functionAppName
 output keyVaultUri string = keyVault.outputs.keyVaultUri
 output keyVaultName string = keyVault.outputs.keyVaultName
-output openAiEndpoint string = openai.outputs.openAiEndpoint
 output postgresServerFqdn string = postgres.outputs.serverFqdn
 output appInsightsName string = appInsightsName
 output webAppUrl string = webApp.outputs.webAppUrl

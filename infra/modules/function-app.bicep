@@ -9,8 +9,6 @@ param storageAccountId string
 param appInsightsInstrumentationKey string
 param appInsightsConnectionString string
 param keyVaultUri string
-param openAiEndpoint string
-param openAiDeployment string
 param allowedTenantIds string
 
 // EasyAuth params
@@ -60,9 +58,6 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsightsConnectionString }
         { name: 'DATABASE_URL', value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/database-url/)' }
         { name: 'KEY_VAULT_URL', value: keyVaultUri }
-        { name: 'AZURE_OPENAI_ENDPOINT', value: openAiEndpoint }
-        { name: 'AZURE_OPENAI_DEPLOYMENT', value: openAiDeployment }
-        { name: 'AZURE_OPENAI_API_VERSION', value: '2024-08-01-preview' }
         { name: 'WEBSITE_RUN_FROM_PACKAGE', value: '1' }
         { name: 'ALLOWED_TENANT_IDS', value: allowedTenantIds }
       ]
