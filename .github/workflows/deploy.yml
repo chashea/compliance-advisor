@@ -47,9 +47,9 @@ jobs:
       - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: 91df91cb-c2e4-4c09-83ef-0f35bb730ce6
+          tenant-id: 119e9fe0-c9d3-4a9d-be8b-c82d03fd0cd4
+          subscription-id: 2a71b66d-0453-47ed-a081-b0863b91a2e0
 
       - name: Build Bicep
         if: env.AZURE_RESOURCE_GROUP != '' && env.POSTGRES_ADMIN_PASSWORD != ''
@@ -106,9 +106,9 @@ jobs:
       - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: 91df91cb-c2e4-4c09-83ef-0f35bb730ce6
+          tenant-id: 119e9fe0-c9d3-4a9d-be8b-c82d03fd0cd4
+          subscription-id: 2a71b66d-0453-47ed-a081-b0863b91a2e0
 
       - name: Install PostgreSQL client
         if: env.DATABASE_URL != ''
@@ -163,9 +163,9 @@ jobs:
         if: env.WEB_APP_NAME != ''
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: 91df91cb-c2e4-4c09-83ef-0f35bb730ce6
+          tenant-id: 119e9fe0-c9d3-4a9d-be8b-c82d03fd0cd4
+          subscription-id: 2a71b66d-0453-47ed-a081-b0863b91a2e0
 
       - name: Deploy to Azure Web App
         if: env.WEB_APP_NAME != ''
