@@ -7,8 +7,8 @@ param administratorLogin string = 'cadvisor_admin'
 @secure()
 param administratorPassword string
 
-param skuName string = 'Standard_B1ms'
-param skuTier string = 'Burstable'
+param skuName string = 'Standard_D4ds_v4'
+param skuTier string = 'GeneralPurpose'
 param storageSizeGB int = 32
 
 resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-06-01-preview' = {

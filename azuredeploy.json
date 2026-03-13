@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "840327705383012252"
+      "templateHash": "7343719574314608873"
     }
   },
   "parameters": {
@@ -209,7 +209,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "14194650989098317608"
+              "templateHash": "4418842047152619301"
             }
           },
           "parameters": {
@@ -228,11 +228,11 @@
             },
             "skuName": {
               "type": "string",
-              "defaultValue": "Standard_B1ms"
+              "defaultValue": "Standard_D4ds_v4"
             },
             "skuTier": {
               "type": "string",
-              "defaultValue": "Burstable"
+              "defaultValue": "GeneralPurpose"
             },
             "storageSizeGB": {
               "type": "int",
