@@ -28,9 +28,9 @@ jobs:
   app-hours:
     runs-on: ubuntu-latest
     env:
-      AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
-      FUNCTION_APP_NAME: ${{ secrets.FUNCTION_APP_NAME }}
-      WEB_APP_NAME: ${{ secrets.WEB_APP_NAME }}
+      AZURE_RESOURCE_GROUP: rg-compliance-advisor
+      FUNCTION_APP_NAME: cadvisor-func-prod
+      WEB_APP_NAME: cadvisor-web-prod
       REQUESTED_ACTION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.action || 'auto' }}
     steps:
       - name: Decide action from New York local time
@@ -84,9 +84,9 @@ jobs:
         if: steps.decide.outputs.action != 'none'
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: 91df91cb-c2e4-4c09-83ef-0f35bb730ce6
+          tenant-id: 119e9fe0-c9d3-4a9d-be8b-c82d03fd0cd4
+          subscription-id: 2a71b66d-0453-47ed-a081-b0863b91a2e0
 
       - name: Start app services
         if: steps.decide.outputs.action == 'start'
