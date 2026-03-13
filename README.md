@@ -1,6 +1,6 @@
 # Compliance Advisor
 
-Multi-tenant compliance workload platform that aggregates Microsoft 365 compliance data across agencies into a single executive view.
+Multi-tenant compliance workload platform that aggregates Microsoft 365 compliance data across agencies into a single executive view, with AI-powered compliance advisory via Azure OpenAI.
 
 ## Architecture
 
@@ -19,9 +19,10 @@ Compliance Agent (`collector/cli.py`)
 Azure Function App (`cadvisor-func-prod`)
   - Ingest API: `/api/ingest`
   - Dashboard APIs: POST `/api/advisor/*`
+  - AI Advisor: `/api/advisor/briefing`, `/api/advisor/ask`
       │
-      ▼
-PostgreSQL (17 tables: tenants, ediscovery, labels, dlp, irm, audit, scores, ...)
+      ├──▶ PostgreSQL (17 tables)
+      └──▶ Azure OpenAI (gpt-4o via Assistants API)
       ▲
       │
 React SPA (`cadvisor-web-prod`)
@@ -61,6 +62,7 @@ React SPA (`cadvisor-web-prod`)
 - Information Barriers policy visibility
 - Audit log activity summaries by service and operation
 - Data governance protection scope visibility
+- **AI Advisor** — executive compliance briefings and Q&A powered by Azure OpenAI Assistants API with managed identity auth
 
 ## Prerequisites
 
@@ -289,7 +291,7 @@ compliance-advisor/
 ├── collector/          Per-tenant data collector (Python CLI)
 ├── functions/          Azure Functions v2 API backend
 ├── sql/                PostgreSQL schema (17 tables)
-├── infra/              Bicep IaC templates (+ webapp.bicep)
+├── infra/              Bicep IaC templates (PostgreSQL, Function App, Key Vault, OpenAI, Monitoring)
 ├── tests/              pytest test suite
 └── .github/workflows/  CI/CD (deploy + app-hours scheduler)
 ```
