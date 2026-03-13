@@ -11,6 +11,9 @@ param appInsightsConnectionString string
 param keyVaultUri string
 param allowedTenantIds string
 
+// Azure OpenAI
+param azureOpenAiEndpoint string = ''
+
 // EasyAuth params
 param entraClientId string = ''
 param entraTenantId string = subscription().tenantId
@@ -60,6 +63,7 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         { name: 'KEY_VAULT_URL', value: keyVaultUri }
         { name: 'WEBSITE_RUN_FROM_PACKAGE', value: '1' }
         { name: 'ALLOWED_TENANT_IDS', value: allowedTenantIds }
+        { name: 'AZURE_OPENAI_ENDPOINT', value: azureOpenAiEndpoint }
       ]
     }
   }

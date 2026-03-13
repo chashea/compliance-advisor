@@ -1,7 +1,7 @@
 // ──────────────────────────────────────────────────────────────────
 // Compliance Advisor — Azure Commercial Infrastructure
 //
-// Deploys: PostgreSQL, Function App, Key Vault, Monitoring
+// Deploys: PostgreSQL, Function App, Key Vault, OpenAI, Monitoring
 //
 // Usage:
 //   az deployment group create \
@@ -42,6 +42,7 @@ var appServicePlanName = '${prefix}-asp-${environmentName}'
 var postgresServerName = '${prefix}-pg-${uniqueSuffix}'
 var webAppName = '${prefix}-web-${environmentName}'
 var webAppPlanName = '${prefix}-wasp-${environmentName}'
+var openAiName = '${prefix}-oai-${uniqueSuffix}'
 
 // ── Storage Account (for Azure Functions runtime) ───────────────
 // Functions runtime requires a storage account for triggers/bindings
@@ -89,6 +90,15 @@ module monitoring 'modules/monitoring.bicep' = {
   }
 }
 
+// ── Azure OpenAI ───────────────────────────────────────────────
+module openai 'modules/openai.bicep' = {
+  name: 'openai'
+  params: {
+    openAiName: openAiName
+    location: location
+  }
+}
+
 // ── Function App ────────────────────────────────────────────────
 module functionApp 'modules/function-app.bicep' = {
   name: 'functionApp'
@@ -103,6 +113,7 @@ module functionApp 'modules/function-app.bicep' = {
     keyVaultUri: keyVault.outputs.keyVaultUri
     allowedTenantIds: allowedTenantIds
     entraClientId: entraClientId
+    azureOpenAiEndpoint: openai.outputs.openAiEndpoint
   }
 }
 
@@ -130,9 +141,26 @@ resource kvRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' =
   }
 }
 
+// ── RBAC: Function App Managed Identity → Azure OpenAI ───────────
+
+// Cognitive Services OpenAI User
+resource openAiRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, openAiName, functionAppName, '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
+  scope: resourceGroup()
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
+    principalId: functionApp.outputs.functionAppPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // ── Diagnostic settings ────────────────────────────────────────────
 resource functionAppResource 'Microsoft.Web/sites@2023-01-01' existing = {
   name: functionAppName
+}
+
+resource openAiAccount 'Microsoft.CognitiveServices/accounts@2024-04-01-preview' existing = {
+  name: openAiName
 }
 
 resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-06-01-preview' existing = {
@@ -144,6 +172,29 @@ resource functionAppDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-0
   name: diagnosticSettingName
   dependsOn: [
     functionApp
+  ]
+  properties: {
+    workspaceId: monitoring.outputs.logAnalyticsId
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+      }
+    ]
+  }
+}
+
+resource openAiDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+  scope: openAiAccount
+  name: diagnosticSettingName
+  dependsOn: [
+    openai
   ]
   properties: {
     workspaceId: monitoring.outputs.logAnalyticsId
@@ -194,3 +245,4 @@ output postgresServerFqdn string = postgres.outputs.serverFqdn
 output appInsightsName string = appInsightsName
 output webAppUrl string = webApp.outputs.webAppUrl
 output webAppName string = webApp.outputs.webAppName
+output openAiEndpoint string = openai.outputs.openAiEndpoint

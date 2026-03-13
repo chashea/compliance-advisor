@@ -6,7 +6,7 @@ Project-specific guidance. Global conventions (communication style, git workflow
 
 - **Repo:** `github.com/chashea/compliance-advisor`, branch `main`
 - **Resource group:** `rg-compliance-advisor`
-- **Current version:** v0.29.3
+- **Current version:** v0.30.0
 
 ## Build & Run Commands
 
@@ -51,12 +51,12 @@ Multi-tenant compliance workload platform. Two core runtime components share a P
 
 2. **Function App** (`functions/`) — Azure Functions v2 Python (decorator-based, no `function.json` files). All routes defined in `function_app.py`. Two categories:
    - **Ingest** (`/api/ingest`) — FUNCTION-level auth, validates payload via JSON schema (`shared/validation.py`), upserts to PostgreSQL (`shared/db.py`).
-   - **Dashboard APIs** (`/api/advisor/*`, 13 endpoints) — ANONYMOUS auth, all POST with optional `{department}` filter. SQL queries in `shared/dashboard_queries.py`.
+   - **Dashboard APIs** (`/api/advisor/*`, 15 endpoints) — ANONYMOUS auth, all POST with optional `{department}` filter. SQL queries in `shared/dashboard_queries.py`. Includes AI-powered `/advisor/briefing` and `/advisor/ask` endpoints via Azure OpenAI Assistants API.
    - **Timer** (`compute_aggregates`) — daily 6am UTC, rolls up workload counts → `compliance_trend`.
 
 **Database**: PostgreSQL with 17 tables: `tenants`, `ediscovery_cases`, `sensitivity_labels`, `retention_labels`, `retention_events`, `audit_records`, `dlp_alerts`, `irm_alerts`, `protection_scopes`, `secure_scores` (includes `data_current_score`, `data_max_score`), `improvement_actions`, `subject_rights_requests`, `comm_compliance_policies`, `info_barrier_policies`, `user_content_policies`, `compliance_trend`, `ingestion_log`. Schema in `sql/schema.sql`. Connection pool via psycopg2 `ThreadedConnectionPool` in `shared/db.py`.
 
-**Infrastructure** (`infra/`): Bicep modules for PostgreSQL Flexible Server, Function App + App Service Plan, Key Vault, Log Analytics + App Insights. Function App uses SystemAssigned managed identity with RBAC for Key Vault. `azuredeploy.json` at repo root is the compiled ARM template for the "Deploy to Azure" button.
+**Infrastructure** (`infra/`): Bicep modules for PostgreSQL Flexible Server, Function App + App Service Plan, Key Vault, Azure OpenAI, Log Analytics + App Insights. Function App uses SystemAssigned managed identity with RBAC for Key Vault and Azure OpenAI (Cognitive Services OpenAI User). `azuredeploy.json` at repo root is the compiled ARM template for the "Deploy to Azure" button.
 
 ## Key File Paths
 
@@ -66,6 +66,7 @@ Multi-tenant compliance workload platform. Two core runtime components share a P
 | DB layer | `functions/shared/db.py` | PostgreSQL connection pool + upserts |
 | Dashboard queries | `functions/shared/dashboard_queries.py` | SQL for all dashboard endpoints |
 | Validation | `functions/shared/validation.py` | JSON schema validation for ingest |
+| AI Advisor | `functions/shared/ai_advisor.py` | Azure OpenAI Assistants API integration |
 | Function config | `functions/shared/config.py` | `FunctionSettings` (pydantic-settings) |
 | Collector client | `collector/compliance_client.py` | Graph API calls for 14 compliance workloads |
 | Collector config | `collector/config.py` | `CollectorSettings` (pydantic-settings) |

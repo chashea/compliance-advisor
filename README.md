@@ -192,6 +192,8 @@ All endpoints are `POST` to `/api/advisor/*`.
 | `/api/advisor/subject-rights` | `{department?}` | Subject rights requests |
 | `/api/advisor/comm-compliance` | `{department?}` | Communication compliance policies |
 | `/api/advisor/info-barriers` | `{department?}` | Information barrier policies |
+| `/api/advisor/briefing` | `{department?}` | AI-generated executive compliance briefing |
+| `/api/advisor/ask` | `{question, department?}` | AI-powered compliance Q&A |
 | `/api/ingest` | Collector payload | Ingestion (function key auth) |
 
 ### `/api/advisor/governance` response shape (secure_score)

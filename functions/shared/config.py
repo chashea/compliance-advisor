@@ -24,6 +24,11 @@ class FunctionSettings(BaseSettings):
     # Tenant allow-list (comma-separated GUIDs)
     ALLOWED_TENANT_IDS: str = Field(default="")
 
+    # Azure OpenAI (Assistants API)
+    AZURE_OPENAI_ENDPOINT: str = Field(default="", description="https://<resource>.openai.azure.com/")
+    AZURE_OPENAI_ASSISTANT_ID: str = Field(default="", description="Pre-created assistant ID (auto-creates if empty)")
+    AZURE_OPENAI_MODEL: str = Field(default="gpt-4o", description="Azure OpenAI deployment name")
+
     @property
     def allowed_tenants(self) -> set[str]:
         return {t.strip() for t in self.ALLOWED_TENANT_IDS.split(",") if t.strip()}

@@ -18,6 +18,7 @@ log = logging.getLogger(__name__)
 _DEPENDENCY_IMPORT_ERROR: Exception | None = None
 
 try:
+    from shared.ai_advisor import AdvisorAIError, ask_advisor, generate_briefing
     from shared.dashboard_queries import (
         get_audit,
         get_comm_compliance,
@@ -248,6 +249,44 @@ def advisor_actions(req: func.HttpRequest) -> func.HttpResponse:
         return _json_response(get_improvement_actions(department=body.get("department")))
     except Exception as e:
         log.exception("advisor/actions error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+# ── AI Advisor ────────────────────────────────────────────────────
+
+
+@app.function_name("advisor_briefing")
+@app.route(route="advisor/briefing", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_briefing(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        _ensure_dependencies_loaded()
+        body = _get_body(req)
+        briefing = generate_briefing(department=body.get("department"))
+        return _json_response({"briefing": briefing})
+    except AdvisorAIError as e:
+        log.exception("advisor/briefing AI error: %s", e)
+        return _json_response({"error": str(e)}, 502)
+    except Exception as e:
+        log.exception("advisor/briefing error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+@app.function_name("advisor_ask")
+@app.route(route="advisor/ask", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_ask(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        _ensure_dependencies_loaded()
+        body = _get_body(req)
+        question = body.get("question", "").strip()
+        if not question:
+            return _json_response({"error": "Missing required field: question"}, 400)
+        answer = ask_advisor(question=question, department=body.get("department"))
+        return _json_response({"answer": answer})
+    except AdvisorAIError as e:
+        log.exception("advisor/ask AI error: %s", e)
+        return _json_response({"error": str(e)}, 502)
+    except Exception as e:
+        log.exception("advisor/ask error: %s", e)
         return _json_response({"error": str(e)}, 500)
 
 

@@ -62,7 +62,7 @@ Compliance Advisor is a multi-tenant ingestion + analytics platform with three r
    - Ingestion dedupes via SHA256 payload hash in `ingestion_log`.
 
 5. **Infrastructure + CI/CD**
-   - `infra/main.bicep` provisions PostgreSQL Flexible Server, Function App, Key Vault, and monitoring.
+   - `infra/main.bicep` provisions PostgreSQL Flexible Server, Function App, Key Vault, Azure OpenAI, and monitoring.
    - `.github/workflows/deploy.yml` runs lint/tests first, then OIDC-based infra/function/frontend deployment.
    - `.github/workflows/app-hours.yml` controls weekday ET start/stop scheduling for Function App and Web App.
 
