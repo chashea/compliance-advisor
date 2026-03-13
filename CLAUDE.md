@@ -72,7 +72,8 @@ Multi-tenant compliance workload platform. Two core runtime components share a P
 | Payload | `collector/payload.py` | `CompliancePayload` dataclass |
 | DB schema | `sql/schema.sql` | PostgreSQL table definitions |
 | Infra entry | `infra/main.bicep` | Bicep entry point |
-| CI/CD | `.github/workflows/deploy.yml` | OIDC deploy to Azure Functions |
+| CI/CD Deploy | `.github/workflows/deploy.yml` | OIDC deploy for infra, Functions, and frontend |
+| CI/CD Schedule | `.github/workflows/app-hours.yml` | Weekday ET start/stop schedule for Function App + Web App |
 
 ## Key Design Decisions
 
@@ -88,7 +89,9 @@ Multi-tenant compliance workload platform. Two core runtime components share a P
 
 ## CI/CD
 
-GitHub Actions (`.github/workflows/deploy.yml`): push to `main` → deploy Functions via `Azure/functions-action@v1`. Uses OIDC federated credentials (no stored secrets). Schema migration and deploy steps are conditional on secrets being set.
+GitHub Actions:
+- `.github/workflows/deploy.yml`: push to `main` → deploy infra/functions/frontend via OIDC.
+- `.github/workflows/app-hours.yml`: hourly scheduler with local-time checks (`America/New_York`) that starts apps at 9:00 AM ET and stops them at 8:00 PM ET on weekdays.
 
 ## Code Style
 

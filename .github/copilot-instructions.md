@@ -64,6 +64,7 @@ Compliance Advisor is a multi-tenant ingestion + analytics platform with three r
 5. **Infrastructure + CI/CD**
    - `infra/main.bicep` provisions PostgreSQL Flexible Server, Function App, Key Vault, Azure OpenAI resources, and monitoring.
    - `.github/workflows/deploy.yml` runs lint/tests first, then OIDC-based infra/function/frontend deployment.
+   - `.github/workflows/app-hours.yml` controls weekday ET start/stop scheduling for Function App and Web App.
 
 ## Key Conventions
 
@@ -79,4 +80,5 @@ Compliance Advisor is a multi-tenant ingestion + analytics platform with three r
 - **DB writes are idempotent:** ingestion duplicate check + `ON CONFLICT` upserts.
 - **Tests rely on import path bootstrap:** `tests/conftest.py` inserts `functions/` into `sys.path` so `shared.*` imports resolve.
 - **Repo formatting/lint baselines:** Python 3.11+, line length 120, Ruff `E,F,I,W`, Black formatting; frontend lint uses ESLint.
+- **Operational schedule:** `app-hours.yml` evaluates `America/New_York` local time hourly and applies weekday 9:00 AM start / 8:00 PM stop for both apps.
 - **Scope discipline:** avoid unrelated refactors or feature additions in routine fixes.

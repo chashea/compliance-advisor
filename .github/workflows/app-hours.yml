@@ -1,0 +1,113 @@
+name: App Hours Scheduler
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Action to run"
+        required: true
+        default: auto
+        type: choice
+        options:
+          - auto
+          - start
+          - stop
+          - status
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: app-hours-scheduler
+  cancel-in-progress: false
+
+jobs:
+  app-hours:
+    runs-on: ubuntu-latest
+    env:
+      AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+      FUNCTION_APP_NAME: ${{ secrets.FUNCTION_APP_NAME }}
+      WEB_APP_NAME: ${{ secrets.WEB_APP_NAME }}
+      REQUESTED_ACTION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.action || 'auto' }}
+    steps:
+      - name: Decide action from New York local time
+        id: decide
+        run: |
+          python - <<'PY'
+          import os
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          
+          requested = (os.getenv("REQUESTED_ACTION") or "auto").strip().lower()
+          if requested not in {"auto", "start", "stop", "status"}:
+              requested = "auto"
+          
+          now = datetime.now(ZoneInfo("America/New_York"))
+          is_weekday = now.weekday() < 5
+          
+          if requested == "auto":
+              if is_weekday and now.hour == 9 and now.minute == 0:
+                  action = "start"
+              elif is_weekday and now.hour == 20 and now.minute == 0:
+                  action = "stop"
+              else:
+                  action = "none"
+          else:
+              action = requested
+          
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"action={action}\n")
+              f.write(f"local_time={now.isoformat()}\n")
+              f.write(f"is_weekday={str(is_weekday).lower()}\n")
+          PY
+
+      - name: Show scheduler decision
+        run: |
+          echo "requested action: $REQUESTED_ACTION"
+          echo "resolved action: ${{ steps.decide.outputs.action }}"
+          echo "new york local time: ${{ steps.decide.outputs.local_time }}"
+
+      - name: Validate required settings
+        if: steps.decide.outputs.action != 'none'
+        run: |
+          for v in AZURE_RESOURCE_GROUP FUNCTION_APP_NAME WEB_APP_NAME; do
+            if [ -z "${!v}" ]; then
+              echo "::error::Missing required secret/env: $v"
+              exit 1
+            fi
+          done
+
+      - name: Azure Login (OIDC)
+        if: steps.decide.outputs.action != 'none'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Start app services
+        if: steps.decide.outputs.action == 'start'
+        run: |
+          az functionapp start --resource-group "$AZURE_RESOURCE_GROUP" --name "$FUNCTION_APP_NAME"
+          az webapp start --resource-group "$AZURE_RESOURCE_GROUP" --name "$WEB_APP_NAME"
+
+      - name: Stop app services
+        if: steps.decide.outputs.action == 'stop'
+        run: |
+          az functionapp stop --resource-group "$AZURE_RESOURCE_GROUP" --name "$FUNCTION_APP_NAME"
+          az webapp stop --resource-group "$AZURE_RESOURCE_GROUP" --name "$WEB_APP_NAME"
+
+      - name: Show app states
+        if: steps.decide.outputs.action != 'none'
+        run: |
+          function_state=$(az functionapp show --resource-group "$AZURE_RESOURCE_GROUP" --name "$FUNCTION_APP_NAME" --query state -o tsv)
+          web_state=$(az webapp show --resource-group "$AZURE_RESOURCE_GROUP" --name "$WEB_APP_NAME" --query state -o tsv)
+          echo "Function App state: $function_state"
+          echo "Web App state: $web_state"
+
+      - name: No action this hour
+        if: steps.decide.outputs.action == 'none'
+        run: echo "No start/stop action required for this run."

@@ -241,6 +241,24 @@ Frontend deployment secrets:
 - `WEB_APP_NAME` — Azure Web App name (e.g., `cadvisor-web-prod`)
 - `VITE_API_BASE_URL` — Function App URL (e.g., `https://cadvisor-func-prod.azurewebsites.net`)
 
+### Scheduled App Hours (GitHub Actions)
+
+Workflow: `.github/workflows/app-hours.yml`
+
+- Runs hourly and evaluates local time in `America/New_York`.
+- Auto-starts both Function App + Web App at **9:00 AM ET** on weekdays.
+- Auto-stops both Function App + Web App at **8:00 PM ET** on weekdays.
+- Includes `workflow_dispatch` with actions: `auto`, `start`, `stop`, `status`.
+
+Required secrets:
+
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+- `AZURE_RESOURCE_GROUP`
+- `FUNCTION_APP_NAME`
+- `WEB_APP_NAME`
+
 ## Onboarding a New Tenant
 
 1. Grant admin consent for the `compliance-advisor-collector` app in the target tenant:
@@ -263,5 +281,5 @@ compliance-advisor/
 ├── sql/                PostgreSQL schema (17 tables)
 ├── infra/              Bicep IaC templates (+ webapp.bicep)
 ├── tests/              pytest test suite
-└── .github/workflows/  CI/CD (Functions + Frontend deploy)
+└── .github/workflows/  CI/CD (deploy + app-hours scheduler)
 ```
