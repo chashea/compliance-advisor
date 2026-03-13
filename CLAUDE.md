@@ -96,7 +96,7 @@ GitHub Actions:
 
 ## Code Style
 
-- Python 3.11+, line length 120
+- Python 3.12+, line length 120
 - Ruff rules: E, F, I, W
 - Black formatting
 - Use `ruff` (lint), `black` (format), `mypy` (types), `pytest` (tests)

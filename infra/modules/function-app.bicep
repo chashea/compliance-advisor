@@ -43,8 +43,8 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
     httpsOnly: true
     siteConfig: {
       alwaysOn: true
-      pythonVersion: '3.11'
-      linuxFxVersion: 'PYTHON|3.11'
+      pythonVersion: '3.12'
+      linuxFxVersion: 'PYTHON|3.12'
       minTlsVersion: '1.2'
       ftpsState: 'Disabled'
       cors: {

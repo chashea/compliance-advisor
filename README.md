@@ -64,7 +64,7 @@ React SPA (`cadvisor-web-prod`)
 
 ## Prerequisites
 
-- Python 3.11+
+- Python 3.12+
 - Azure subscription (Commercial)
 - Access to Microsoft 365 tenant(s) with compliance workloads
 - Multi-tenant Entra app registration with client credentials (client secret)

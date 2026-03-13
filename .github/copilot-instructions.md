@@ -11,13 +11,13 @@ ruff check .
 black .
 
 # Run all backend tests
-python3.11 -m pytest tests/
+python3.12 -m pytest tests/
 
 # Run one test file
-python3.11 -m pytest tests/test_validation.py
+python3.12 -m pytest tests/test_validation.py
 
 # Run one specific test
-python3.11 -m pytest tests/test_validation.py::test_valid_payload_no_allowlist
+python3.12 -m pytest tests/test_validation.py::test_valid_payload_no_allowlist
 
 # Run Function App locally
 cd functions && pip install -r requirements.txt && func start
@@ -79,6 +79,6 @@ Compliance Advisor is a multi-tenant ingestion + analytics platform with three r
   - Protection scopes use `POST /dataSecurityAndGovernance/protectionScopes/compute`.
 - **DB writes are idempotent:** ingestion duplicate check + `ON CONFLICT` upserts.
 - **Tests rely on import path bootstrap:** `tests/conftest.py` inserts `functions/` into `sys.path` so `shared.*` imports resolve.
-- **Repo formatting/lint baselines:** Python 3.11+, line length 120, Ruff `E,F,I,W`, Black formatting; frontend lint uses ESLint.
+- **Repo formatting/lint baselines:** Python 3.12+, line length 120, Ruff `E,F,I,W`, Black formatting; frontend lint uses ESLint.
 - **Operational schedule:** `app-hours.yml` evaluates `America/New_York` local time hourly and applies weekday 9:00 AM start / 8:00 PM stop for both apps.
 - **Scope discipline:** avoid unrelated refactors or feature additions in routine fixes.
