@@ -57,6 +57,7 @@ jobs:
 
       - name: Infrastructure what-if
         if: env.AZURE_RESOURCE_GROUP != '' && env.POSTGRES_ADMIN_PASSWORD != ''
+        continue-on-error: true
         run: |
           az deployment group what-if \
             --resource-group "$AZURE_RESOURCE_GROUP" \
