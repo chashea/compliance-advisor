@@ -6,17 +6,25 @@ Multi-tenant compliance workload platform that aggregates Microsoft 365 complian
 
 ```
 Tenant A ──┐
-Tenant B ──┤      collector/cli.py              Azure Function App
-Tenant C ──┘      (client credentials)     ──▶  POST /api/ingest
-                  Microsoft Graph API              │
-                                                   ▼
-                                             PostgreSQL
-                                             (17 tables: tenants,
-                                              ediscovery, labels, dlp,
-                                              irm, audit, scores, ...)
-                                                   │
-                  React SPA frontend     ◀──── POST /api/advisor/*
-                  (cadvisor-web-prod)          (14 dashboard endpoints)
+Tenant B ──┤
+Tenant C ──┘
+      │
+      ▼
+Compliance Agent (`collector/cli.py`)
+  - Auth: client credentials (MSAL)
+  - Source: Microsoft Graph API
+  - Action: POST `/api/ingest`
+      │
+      ▼
+Azure Function App (`cadvisor-func-prod`)
+  - Ingest API: `/api/ingest`
+  - Dashboard APIs: POST `/api/advisor/*`
+      │
+      ▼
+PostgreSQL (17 tables: tenants, ediscovery, labels, dlp, irm, audit, scores, ...)
+      ▲
+      │
+React SPA (`cadvisor-web-prod`)
 ```
 
 ## Compliance Workloads
