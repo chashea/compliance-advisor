@@ -18,7 +18,11 @@ const NAV = [
 
 export default function Layout() {
   return (
-    <div className="flex h-screen bg-slate-50">
+    <div className="flex h-screen flex-col bg-slate-50">
+      {import.meta.env.VITE_DEMO === "true" && (
+        <div className="bg-amber-500 text-white text-xs font-semibold text-center py-1">DEMO MODE</div>
+      )}
+      <div className="flex flex-1 overflow-hidden">
       <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200 bg-white">
         <div className="border-b border-slate-200 px-4 py-4">
           <h1 className="text-lg font-semibold text-slate-800">Compliance Advisor</h1>
@@ -46,6 +50,7 @@ export default function Layout() {
         <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>
+      </div>
       </div>
     </div>
   );
