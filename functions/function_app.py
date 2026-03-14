@@ -10,11 +10,38 @@ Functions:
 import hashlib
 import json
 import logging
+import time
+from collections import defaultdict
 
 import azure.functions as func
 
 app = func.FunctionApp()
 log = logging.getLogger(__name__)
+
+# ── Rate limiting for AI endpoints ───────────────────────────────
+_RATE_LIMIT_MAX = 10  # max requests per window
+_RATE_LIMIT_WINDOW = 60  # window in seconds
+_rate_limit_store: dict[str, list[float]] = defaultdict(list)
+
+
+def _is_rate_limited(client_ip: str) -> bool:
+    """Return True if client_ip has exceeded _RATE_LIMIT_MAX requests in the window."""
+    now = time.monotonic()
+    timestamps = _rate_limit_store[client_ip]
+    # Prune expired entries
+    _rate_limit_store[client_ip] = [t for t in timestamps if now - t < _RATE_LIMIT_WINDOW]
+    if len(_rate_limit_store[client_ip]) >= _RATE_LIMIT_MAX:
+        return True
+    _rate_limit_store[client_ip].append(now)
+    return False
+
+
+def _get_client_ip(req: func.HttpRequest) -> str:
+    """Extract client IP from X-Forwarded-For header or fall back to 'unknown'."""
+    forwarded = req.headers.get("X-Forwarded-For", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return "unknown"
 _DEPENDENCY_IMPORT_ERROR: Exception | None = None
 
 try:
@@ -260,6 +287,8 @@ def advisor_actions(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_briefing(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
+        if _is_rate_limited(_get_client_ip(req)):
+            return _json_response({"error": "Rate limit exceeded. Max 10 requests per minute."}, 429)
         body = _get_body(req)
         briefing = generate_briefing(department=body.get("department"))
         return _json_response({"briefing": briefing})
@@ -276,6 +305,8 @@ def advisor_briefing(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_ask(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
+        if _is_rate_limited(_get_client_ip(req)):
+            return _json_response({"error": "Rate limit exceeded. Max 10 requests per minute."}, 429)
         body = _get_body(req)
         question = body.get("question", "").strip()
         if not question:

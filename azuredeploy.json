@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "7343719574314608873"
+      "templateHash": "544558607346685858"
     }
   },
   "parameters": {
@@ -660,7 +660,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "17057582773564618683"
+              "templateHash": "8413647184902595375"
             }
           },
           "parameters": {
@@ -739,7 +739,7 @@
                   "ftpsState": "Disabled",
                   "cors": {
                     "allowedOrigins": [
-                      "*"
+                      "https://cadvisor-web-prod.azurewebsites.net"
                     ]
                   },
                   "appSettings": [

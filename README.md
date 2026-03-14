@@ -293,6 +293,24 @@ Required secrets:
    compliance-collect --tenant-id <GUID> --agency-id <NAME> --department <DEPT> --display-name "<NAME>"
    ```
 
+## Production Hardening
+
+### CORS
+API CORS is locked to `https://cadvisor-web-prod.azurewebsites.net`. Cross-origin requests from other domains are rejected.
+
+### Rate Limiting
+AI endpoints (`/advisor/briefing`, `/advisor/ask`) are rate-limited to 10 requests per minute per client IP. Exceeding this returns HTTP 429.
+
+### Query Pagination
+All dashboard list queries are capped at 1000 rows. Audit records are capped at 500.
+
+### Database Indexes
+Standalone `snapshot_date` indexes exist on `audit_records`, `dlp_alerts`, and `compliance_trend` for efficient date-filtered queries.
+
+### Known Trade-offs
+- **PostgreSQL HA** — currently single-server (no high availability). Enabling HA doubles cost.
+- **Entra ID auth** — API endpoints use ANONYMOUS auth level. EasyAuth is conditionally deployed when `ENTRA_CLIENT_ID` is set. The CI/CD pipeline warns when it is missing.
+
 ## Project Structure
 
 ```

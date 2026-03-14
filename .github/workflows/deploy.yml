@@ -55,9 +55,20 @@ jobs:
         if: env.AZURE_RESOURCE_GROUP != '' && env.POSTGRES_ADMIN_PASSWORD != ''
         run: az bicep build --file infra/main.bicep --outfile /tmp/azuredeploy.json
 
+      - name: Warn if ENTRA_CLIENT_ID is not set
+        if: env.ENTRA_CLIENT_ID == ''
+        run: echo "::warning::ENTRA_CLIENT_ID is not set — EasyAuth will not be enabled on the Function App. API endpoints are unauthenticated."
+
+      - name: Warn if DEPLOYER_OBJECT_ID is not set
+        if: env.DEPLOYER_OBJECT_ID == ''
+        run: echo "::warning::DEPLOYER_OBJECT_ID is not set — Key Vault deployer access policy will be skipped."
+
+      - name: Warn if ALLOWED_TENANT_IDS is not set
+        if: env.ALLOWED_TENANT_IDS == ''
+        run: echo "::warning::ALLOWED_TENANT_IDS is not set — ingestion tenant filtering will be disabled."
+
       - name: Infrastructure what-if
         if: env.AZURE_RESOURCE_GROUP != '' && env.POSTGRES_ADMIN_PASSWORD != ''
-        continue-on-error: true
         run: |
           az deployment group what-if \
             --resource-group "$AZURE_RESOURCE_GROUP" \
@@ -69,7 +80,6 @@ jobs:
 
       - name: Deploy infrastructure
         if: env.AZURE_RESOURCE_GROUP != '' && env.POSTGRES_ADMIN_PASSWORD != ''
-        continue-on-error: true
         run: |
           az deployment group create \
             --resource-group "$AZURE_RESOURCE_GROUP" \
@@ -81,7 +91,8 @@ jobs:
 
       - name: Skip infra deployment (missing secrets)
         if: env.AZURE_RESOURCE_GROUP == '' || env.POSTGRES_ADMIN_PASSWORD == ''
-        run: echo "Skipping infra deployment; AZURE_RESOURCE_GROUP or POSTGRES_ADMIN_PASSWORD is not set."
+        run: |
+          echo "::warning::Skipping infra deployment — AZURE_RESOURCE_GROUP or POSTGRES_ADMIN_PASSWORD is not set."
 
   deploy-functions:
     needs: [test, deploy-infra]
@@ -114,9 +125,12 @@ jobs:
         if: env.DATABASE_URL != ''
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
+      - name: Warn if DATABASE_URL is not set
+        if: env.DATABASE_URL == ''
+        run: echo "::warning::DATABASE_URL is not set — schema migration and deployment will be skipped."
+
       - name: Run schema migration
         if: env.DATABASE_URL != ''
-        continue-on-error: true
         run: psql "$DATABASE_URL" -f sql/schema.sql
 
       - name: Clear WEBSITE_RUN_FROM_PACKAGE URL
@@ -133,6 +147,15 @@ jobs:
         with:
           app-name: ${{ env.FUNCTION_APP_NAME }}
           package: functions/
+
+      - name: Health check
+        if: env.FUNCTION_APP_NAME != ''
+        run: |
+          echo "Waiting 30s for deployment to stabilize..."
+          sleep 30
+          curl -sf https://cadvisor-func-prod.azurewebsites.net/api/advisor/status \
+            -X POST -H "Content-Type: application/json" -d '{}' \
+            --max-time 30 --retry 3 --retry-delay 10
 
   deploy-frontend:
     needs: [test, deploy-infra]

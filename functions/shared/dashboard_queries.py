@@ -131,6 +131,7 @@ def get_ediscovery(department: str | None = None) -> dict:
         WHERE ec.snapshot_date = (SELECT MAX(snapshot_date) FROM ediscovery_cases)
           {dept_filter}
         ORDER BY ec.created DESC
+        LIMIT 1000
         """,
         params,
     )
@@ -168,6 +169,7 @@ def get_labels(department: str | None = None) -> dict:
         WHERE sl.snapshot_date = (SELECT MAX(snapshot_date) FROM sensitivity_labels)
           {dept_filter}
         ORDER BY sl.priority
+        LIMIT 1000
         """,
         params,
     )
@@ -182,6 +184,7 @@ def get_labels(department: str | None = None) -> dict:
         WHERE rl.snapshot_date = (SELECT MAX(snapshot_date) FROM retention_labels)
           {dept_filter}
         ORDER BY rl.display_name
+        LIMIT 1000
         """,
         params,
     )
@@ -195,6 +198,7 @@ def get_labels(department: str | None = None) -> dict:
         WHERE re.snapshot_date = (SELECT MAX(snapshot_date) FROM retention_events)
           {dept_filter}
         ORDER BY re.created DESC
+        LIMIT 1000
         """,
         params,
     )
@@ -287,6 +291,7 @@ def get_dlp(department: str | None = None) -> dict:
                 ELSE 4
             END,
             da.created DESC
+        LIMIT 1000
         """,
         params,
     )
@@ -350,6 +355,7 @@ def get_governance(department: str | None = None) -> dict:
         WHERE ps.snapshot_date = (SELECT MAX(snapshot_date) FROM protection_scopes)
           {dept_filter}
         ORDER BY ps.scope_type
+        LIMIT 1000
         """,
         params,
     )
@@ -415,6 +421,7 @@ def get_irm(department: str | None = None) -> dict:
                 ELSE 4
             END,
             ia.created DESC
+        LIMIT 1000
         """,
         params,
     )
@@ -460,6 +467,7 @@ def get_subject_rights(department: str | None = None) -> dict:
         WHERE sr.snapshot_date = (SELECT MAX(snapshot_date) FROM subject_rights_requests)
           {dept_filter}
         ORDER BY sr.created DESC
+        LIMIT 1000
         """,
         params,
     )
@@ -497,6 +505,7 @@ def get_comm_compliance(department: str | None = None) -> dict:
         WHERE cc.snapshot_date = (SELECT MAX(snapshot_date) FROM comm_compliance_policies)
           {dept_filter}
         ORDER BY cc.display_name
+        LIMIT 1000
         """,
         params,
     )
@@ -521,6 +530,7 @@ def get_info_barriers(department: str | None = None) -> dict:
         WHERE ib.snapshot_date = (SELECT MAX(snapshot_date) FROM info_barrier_policies)
           {dept_filter}
         ORDER BY ib.display_name
+        LIMIT 1000
         """,
         params,
     )
@@ -562,6 +572,7 @@ def get_improvement_actions(department: str | None = None) -> dict:
           AND ia.deprecated = FALSE
           {dept_filter}
         ORDER BY ia.rank
+        LIMIT 1000
         """,
         params,
     )

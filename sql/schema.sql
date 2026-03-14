@@ -301,3 +301,13 @@ CREATE INDEX IF NOT EXISTS idx_info_barrier_policies_tenant
 
 CREATE INDEX IF NOT EXISTS idx_ingestion_log_lookup
     ON ingestion_log(tenant_id, snapshot_date, payload_hash);
+
+-- Standalone snapshot_date indexes for date-filtered dashboard queries
+CREATE INDEX IF NOT EXISTS idx_audit_records_snapshot
+    ON audit_records(snapshot_date);
+
+CREATE INDEX IF NOT EXISTS idx_dlp_alerts_snapshot
+    ON dlp_alerts(snapshot_date);
+
+CREATE INDEX IF NOT EXISTS idx_compliance_trend_snapshot
+    ON compliance_trend(snapshot_date);

@@ -48,7 +48,7 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
       minTlsVersion: '1.2'
       ftpsState: 'Disabled'
       cors: {
-        allowedOrigins: ['*']
+        allowedOrigins: ['https://cadvisor-web-prod.azurewebsites.net']
       }
       appSettings: [
         { name: 'AzureWebJobsStorage', value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=core.windows.net;AccountKey=${listKeys(storageAccountId, '2023-01-01').keys[0].value}' }
