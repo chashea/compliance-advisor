@@ -63,6 +63,7 @@ React SPA (`cadvisor-web-prod`)
 - Audit log activity summaries by service and operation
 - Data governance protection scope visibility
 - **AI Advisor** — executive compliance briefings and Q&A powered by Azure OpenAI Assistants API with managed identity auth
+- **Demo mode** — `npm run demo` runs the full UI with static data, no backend required
 
 ## Prerequisites
 
@@ -137,6 +138,15 @@ npm run dev
 ```
 
 The dev server proxies `/api` requests to `cadvisor-func-prod.azurewebsites.net`. To use a local Function App, set `VITE_API_BASE_URL=http://localhost:7071` in a `frontend/.env` file.
+
+### 6. Demo mode (no backend required)
+
+```bash
+cd frontend
+npm run demo
+```
+
+Launches the frontend with static demo data — no Azure credentials, Function App, or database needed. All 12 pages render with 3 sample tenants across 2 departments. An amber "DEMO MODE" banner appears at the top. Demo data is tree-shaken from production builds.
 
 ## Collector Usage
 
