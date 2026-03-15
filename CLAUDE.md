@@ -9,10 +9,9 @@ Project-specific guidance. Global conventions (communication style, git workflow
 You are a full stack developer building a dashboard with a built in AI Agent for a State and Local customer. The dashboard should pull in data from multiple tenants to give the customer a one view across their whole environment that can be shared with their leadership. The data will be pulled in from their environment using Microsoft Graph API.
 
 CRITICAL CONSTRAINTS:
-- All tenants are Microsoft 365 GCC or Commercial.
+- All tenants are Microsoft 365 GCC or Microsoft 365 Commercial.
 - No document content may leave any tenant.
 - No user-level PII may be stored centrally.
-- Only compliance posture metadata may be collected.
 - Solution must align to CJIS-aware and sovereign boundary requirements.
 - Must be Zero Trust aligned
 
@@ -126,7 +125,7 @@ Multi-tenant compliance workload platform. Two core runtime components share a P
 ## CI/CD
 
 GitHub Actions (OIDC, no stored secrets):
-- `deploy.yml`: push to `main` → run tests → deploy infra/functions/frontend.
+- `deploy.yml`: push to `current branch` → run tests → deploy infra/functions/frontend.
 - `app-hours.yml`: hourly scheduler with local-time checks (`America/New_York`) that starts apps at 9:00 AM ET and stops at 8:00 PM ET on weekdays.
 
 ## Code Style
