@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import DepartmentFilter from "./DepartmentFilter";
+import { useDemo } from "./DemoContext";
 import { AskDrawer, BriefingDrawer } from "./AIDrawer";
 
 const NAV = [
@@ -18,11 +19,12 @@ const NAV = [
 ];
 
 export default function Layout() {
+  const { demo, setDemo } = useDemo();
   const [drawer, setDrawer] = useState<"briefing" | "ask" | null>(null);
 
   return (
     <div className="flex h-screen flex-col bg-slate-50">
-      {import.meta.env.VITE_DEMO === "true" && (
+      {demo && (
         <div className="bg-amber-500 text-white text-xs font-semibold text-center py-1">DEMO MODE</div>
       )}
       <div className="flex flex-1 overflow-hidden">
@@ -61,6 +63,15 @@ export default function Layout() {
             >
               Ask AI
             </button>
+            <label className="flex items-center gap-1.5 text-sm text-slate-500 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={demo}
+                onChange={(e) => setDemo(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              Demo Data
+            </label>
             <DepartmentFilter />
           </div>
         </header>

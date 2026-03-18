@@ -1,8 +1,7 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
-const IS_DEMO = import.meta.env.VITE_DEMO === "true";
 
-export async function post<T>(endpoint: string, body?: Record<string, unknown>): Promise<T> {
-  if (IS_DEMO) {
+export async function post<T>(endpoint: string, body?: Record<string, unknown>, demo?: boolean): Promise<T> {
+  if (demo) {
     const { getDemoData } = await import("../demo/data");
     return getDemoData(endpoint, body) as T;
   }

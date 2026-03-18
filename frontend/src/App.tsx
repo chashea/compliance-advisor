@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { DepartmentProvider } from "./components/DepartmentContext";
+import { DemoProvider } from "./components/DemoContext";
 import Layout from "./components/Layout";
 import Overview from "./pages/Overview";
 import EDiscovery from "./pages/EDiscovery";
@@ -17,6 +18,7 @@ import Trend from "./pages/Trend";
 export default function App() {
   return (
     <BrowserRouter>
+      <DemoProvider>
       <DepartmentProvider>
         <Routes>
           <Route element={<Layout />}>
@@ -34,6 +36,7 @@ export default function App() {
           </Route>
         </Routes>
       </DepartmentProvider>
+      </DemoProvider>
     </BrowserRouter>
   );
 }
