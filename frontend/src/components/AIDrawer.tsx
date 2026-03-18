@@ -47,6 +47,15 @@ export function BriefingDrawer({ onClose }: { onClose: () => void }) {
   );
 }
 
+const SUGGESTED_PROMPTS = [
+  "What are our top compliance risks right now?",
+  "Summarize our DLP alert trends",
+  "Which sensitivity labels have the lowest adoption?",
+  "Are there any open eDiscovery cases that need attention?",
+  "How is our Secure Score trending over time?",
+  "What improvement actions should we prioritize?",
+];
+
 export function AskDrawer({ onClose }: { onClose: () => void }) {
   const { department } = useDepartment();
   const [question, setQuestion] = useState("");
@@ -54,12 +63,14 @@ export function AskDrawer({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function ask() {
-    if (!question.trim()) return;
+  async function ask(q?: string) {
+    const text = q ?? question;
+    if (!text.trim()) return;
+    if (q) setQuestion(q);
     setLoading(true);
     setError(null);
     try {
-      const res = await post<AskResponse>("ask", { question, ...(department ? { department } : {}) });
+      const res = await post<AskResponse>("ask", { question: text, ...(department ? { department } : {}) });
       setAnswer(res.answer);
     } catch (e) {
       setError(handleError(e));
@@ -80,13 +91,29 @@ export function AskDrawer({ onClose }: { onClose: () => void }) {
           className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
         <button
-          onClick={ask}
+          onClick={() => ask()}
           disabled={loading || !question.trim()}
           className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >
           {loading ? "..." : "Ask"}
         </button>
       </div>
+      {!answer && !loading && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-slate-500">Suggested questions</p>
+          <div className="flex flex-wrap gap-2">
+            {SUGGESTED_PROMPTS.map((prompt) => (
+              <button
+                key={prompt}
+                onClick={() => ask(prompt)}
+                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {loading && <Loading />}
       {error && <ErrorBanner message={error} />}
       {answer && !loading && (
