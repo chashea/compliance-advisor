@@ -13,7 +13,7 @@ const NAV = [
   { to: "/info-barriers", label: "Info Barriers" },
   { to: "/governance", label: "Governance" },
   { to: "/trend", label: "Trend" },
-  { to: "/actions", label: "Actions" },
+  { to: "/advisor", label: "AI Advisor" },
 ];
 
 export default function Layout() {

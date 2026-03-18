@@ -259,3 +259,13 @@ export interface ActionsResponse {
   actions: ImprovementAction[];
   category_breakdown: CategoryBreakdown[];
 }
+
+// /api/advisor/briefing
+export interface BriefingResponse {
+  briefing: string;
+}
+
+// /api/advisor/ask
+export interface AskResponse {
+  answer: string;
+}

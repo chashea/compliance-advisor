@@ -1,11 +1,12 @@
 import { useDepartment } from "../components/DepartmentContext";
+import BarChart from "../components/BarChart";
+import DataTable from "../components/DataTable";
 import ErrorBanner from "../components/ErrorBanner";
+import LineChart from "../components/LineChart";
 import Loading from "../components/Loading";
 import StatCard from "../components/StatCard";
-import BarChart from "../components/BarChart";
-import LineChart from "../components/LineChart";
 import { useApi } from "../hooks/useApi";
-import type { OverviewResponse, StatusResponse, TrendResponse, ActionsResponse } from "../types";
+import type { OverviewResponse, StatusResponse, TrendResponse, ActionsResponse, ImprovementAction } from "../types";
 
 export default function Overview() {
   const { department } = useDepartment();
@@ -31,6 +32,8 @@ export default function Overview() {
     : [];
 
   const score = actions.data?.secure_score;
+  const pct = score?.max_score ? ((score.current_score / score.max_score) * 100).toFixed(0) : "0";
+  const dataPct = score?.data_max_score ? ((score.data_current_score / score.data_max_score) * 100).toFixed(0) : "0";
 
   return (
     <div className="space-y-6">
@@ -44,16 +47,8 @@ export default function Overview() {
         <StatCard label="Audit Records" value={o.audit_summary?.total_records ?? 0} />
         {score && (
           <>
-            <StatCard
-              label="Secure Score"
-              value={`${score.current_score} / ${score.max_score}`}
-              sub={score.score_date ?? undefined}
-            />
-            <StatCard
-              label="Data Category Score"
-              value={`${score.data_current_score} / ${score.data_max_score}`}
-              sub={score.data_max_score ? `${((score.data_current_score / score.data_max_score) * 100).toFixed(0)}%` : undefined}
-            />
+            <StatCard label="Overall Score" value={`${pct}%`} />
+            <StatCard label="Data Category" value={`${dataPct}%`} />
           </>
         )}
       </div>
@@ -80,6 +75,40 @@ export default function Overview() {
             height={300}
           />
         </div>
+      )}
+
+      {actions.data && (
+        <>
+          <h3 className="text-lg font-semibold text-slate-800">Secure Score & Improvement Actions</h3>
+
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <StatCard label="Score Date" value={score?.score_date ?? "N/A"} />
+            <StatCard label="Actions" value={actions.data.actions.length} />
+          </div>
+
+          {actions.data.category_breakdown.length > 0 && (
+            <div>
+              <h3 className="mb-2 text-sm font-medium text-slate-600">By Category</h3>
+              <BarChart data={actions.data.category_breakdown} xKey="control_category" yKey="total" color="#6366f1" height={250} />
+            </div>
+          )}
+
+          <DataTable<ImprovementAction & Record<string, unknown>>
+            columns={[
+              { key: "rank", label: "#" },
+              { key: "title", label: "Title" },
+              { key: "control_category", label: "Category" },
+              { key: "current_score", label: "Score" },
+              { key: "max_score", label: "Max" },
+              { key: "implementation_cost", label: "Cost" },
+              { key: "user_impact", label: "Impact" },
+              { key: "state", label: "State" },
+              { key: "tenant_name", label: "Tenant" },
+            ]}
+            data={actions.data.actions as (ImprovementAction & Record<string, unknown>)[]}
+            keyField="control_id"
+          />
+        </>
       )}
     </div>
   );
