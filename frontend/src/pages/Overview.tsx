@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useDepartment } from "../components/DepartmentContext";
 import BarChart from "../components/BarChart";
 import DataTable from "../components/DataTable";
@@ -6,7 +7,13 @@ import LineChart from "../components/LineChart";
 import Loading from "../components/Loading";
 import StatCard from "../components/StatCard";
 import { useApi } from "../hooks/useApi";
-import type { OverviewResponse, StatusResponse, TrendResponse, ActionsResponse, ImprovementAction } from "../types";
+import { post } from "../api/client";
+import type { OverviewResponse, StatusResponse, TrendResponse, ActionsResponse, ImprovementAction, AskResponse } from "../types";
+
+interface QAPair {
+  question: string;
+  answer: string;
+}
 
 export default function Overview() {
   const { department } = useDepartment();
@@ -16,6 +23,29 @@ export default function Overview() {
   const overview = useApi<OverviewResponse>("overview", body, [department]);
   const trend = useApi<TrendResponse>("trend", { ...body, days: 30 }, [department]);
   const actions = useApi<ActionsResponse>("actions", body, [department]);
+
+  const [question, setQuestion] = useState("");
+  const [askLoading, setAskLoading] = useState(false);
+  const [askError, setAskError] = useState<string | null>(null);
+  const [history, setHistory] = useState<QAPair[]>([]);
+
+  async function askQuestion(e: React.FormEvent) {
+    e.preventDefault();
+    const q = question.trim();
+    if (!q) return;
+    setAskLoading(true);
+    setAskError(null);
+    try {
+      const res = await post<AskResponse>("ask", { question: q, ...(department ? { department } : {}) });
+      setHistory((prev) => [...prev, { question: q, answer: res.answer }]);
+      setQuestion("");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to get answer";
+      setAskError(msg.includes("429") ? "Rate limit reached. Please wait a moment and try again." : msg);
+    } finally {
+      setAskLoading(false);
+    }
+  }
 
   if (status.loading || overview.loading) return <Loading />;
   if (status.error) return <ErrorBanner message={status.error} />;
@@ -36,7 +66,8 @@ export default function Overview() {
   const dataPct = score?.data_max_score ? ((score.data_current_score / score.data_max_score) * 100).toFixed(0) : "0";
 
   return (
-    <div className="space-y-6">
+    <div className="flex gap-6">
+    <div className="min-w-0 flex-1 space-y-6">
       <h2 className="text-xl font-semibold text-slate-800">Overview</h2>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard label="Active Tenants" value={s.active_tenants} sub={s.newest_sync ? `Last sync: ${s.newest_sync}` : undefined} />
@@ -110,6 +141,43 @@ export default function Overview() {
           />
         </>
       )}
+    </div>
+
+    {/* Ask AI Sidebar */}
+    <aside className="hidden w-80 shrink-0 lg:block">
+      <div className="sticky top-0 rounded-lg border border-slate-200 bg-white p-4">
+        <h3 className="mb-3 text-sm font-semibold text-slate-700">Ask AI</h3>
+        <form onSubmit={askQuestion} className="space-y-2">
+          <input
+            type="text"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="Ask about your compliance data..."
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            disabled={askLoading}
+          />
+          <button
+            type="submit"
+            disabled={askLoading || !question.trim()}
+            className="w-full rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {askLoading ? "Thinking..." : "Ask"}
+          </button>
+        </form>
+        {askError && <div className="mt-2"><ErrorBanner message={askError} /></div>}
+        {askLoading && <Loading />}
+        {history.length > 0 && (
+          <div className="mt-3 max-h-[60vh] space-y-3 overflow-y-auto">
+            {history.map((qa, i) => (
+              <div key={i} className="rounded-md border border-slate-100 bg-slate-50 p-3">
+                <p className="mb-1 text-xs font-medium text-slate-700">Q: {qa.question}</p>
+                <div className="whitespace-pre-wrap text-xs text-slate-600">{qa.answer}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </aside>
     </div>
   );
 }
