@@ -3,7 +3,7 @@ import { useDepartment } from "./DepartmentContext";
 import ErrorBanner from "./ErrorBanner";
 import Loading from "./Loading";
 import { post } from "../api/client";
-import type { BriefingResponse } from "../types";
+import type { AskResponse, BriefingResponse } from "../types";
 
 function handleError(err: unknown): string {
   const msg = err instanceof Error ? err.message : "Request failed";
@@ -42,6 +42,55 @@ export function BriefingDrawer({ onClose }: { onClose: () => void }) {
       {error && <ErrorBanner message={error} />}
       {briefing && !loading && (
         <div className="whitespace-pre-wrap text-sm text-slate-700">{briefing}</div>
+      )}
+    </DrawerShell>
+  );
+}
+
+export function AskDrawer({ onClose }: { onClose: () => void }) {
+  const { department } = useDepartment();
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function ask() {
+    if (!question.trim()) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await post<AskResponse>("ask", { question, ...(department ? { department } : {}) });
+      setAnswer(res.answer);
+    } catch (e) {
+      setError(handleError(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <DrawerShell title="Ask AI" onClose={onClose}>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && !loading && ask()}
+          placeholder="Ask about your compliance posture..."
+          className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+        <button
+          onClick={ask}
+          disabled={loading || !question.trim()}
+          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          {loading ? "..." : "Ask"}
+        </button>
+      </div>
+      {loading && <Loading />}
+      {error && <ErrorBanner message={error} />}
+      {answer && !loading && (
+        <div className="whitespace-pre-wrap text-sm text-slate-700">{answer}</div>
       )}
     </DrawerShell>
   );

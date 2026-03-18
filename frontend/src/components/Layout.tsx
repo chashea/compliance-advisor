@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import DepartmentFilter from "./DepartmentFilter";
-import { BriefingDrawer } from "./AIDrawer";
+import { AskDrawer, BriefingDrawer } from "./AIDrawer";
 
 const NAV = [
   { to: "/", label: "Overview" },
@@ -18,7 +18,7 @@ const NAV = [
 ];
 
 export default function Layout() {
-  const [drawer, setDrawer] = useState<"briefing" | null>(null);
+  const [drawer, setDrawer] = useState<"briefing" | "ask" | null>(null);
 
   return (
     <div className="flex h-screen flex-col bg-slate-50">
@@ -55,6 +55,12 @@ export default function Layout() {
             >
               Executive Briefing
             </button>
+            <button
+              onClick={() => setDrawer("ask")}
+              className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              Ask AI
+            </button>
             <DepartmentFilter />
           </div>
         </header>
@@ -65,6 +71,7 @@ export default function Layout() {
       </div>
 
       {drawer === "briefing" && <BriefingDrawer onClose={() => setDrawer(null)} />}
+      {drawer === "ask" && <AskDrawer onClose={() => setDrawer(null)} />}
     </div>
   );
 }
