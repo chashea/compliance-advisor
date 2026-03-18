@@ -12,7 +12,6 @@ import CommCompliance from "./pages/CommCompliance";
 import InfoBarriers from "./pages/InfoBarriers";
 import Governance from "./pages/Governance";
 import Trend from "./pages/Trend";
-import Advisor from "./pages/Advisor";
 
 
 export default function App() {
@@ -32,7 +31,6 @@ export default function App() {
             <Route path="info-barriers" element={<InfoBarriers />} />
             <Route path="governance" element={<Governance />} />
             <Route path="trend" element={<Trend />} />
-            <Route path="advisor" element={<Advisor />} />
           </Route>
         </Routes>
       </DepartmentProvider>

@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import DepartmentFilter from "./DepartmentFilter";
+import { BriefingDrawer } from "./AIDrawer";
 
 const NAV = [
   { to: "/", label: "Overview" },
@@ -13,10 +15,11 @@ const NAV = [
   { to: "/info-barriers", label: "Info Barriers" },
   { to: "/governance", label: "Governance" },
   { to: "/trend", label: "Trend" },
-  { to: "/advisor", label: "AI Advisor" },
 ];
 
 export default function Layout() {
+  const [drawer, setDrawer] = useState<"briefing" | null>(null);
+
   return (
     <div className="flex h-screen flex-col bg-slate-50">
       {import.meta.env.VITE_DEMO === "true" && (
@@ -45,13 +48,23 @@ export default function Layout() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3">
           <span className="text-sm text-slate-500">Microsoft 365 Compliance Dashboard</span>
-          <DepartmentFilter />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setDrawer("briefing")}
+              className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              Executive Briefing
+            </button>
+            <DepartmentFilter />
+          </div>
         </header>
         <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>
       </div>
       </div>
+
+      {drawer === "briefing" && <BriefingDrawer onClose={() => setDrawer(null)} />}
     </div>
   );
 }
