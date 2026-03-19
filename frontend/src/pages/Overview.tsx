@@ -75,7 +75,7 @@ export default function Overview() {
           <h3 className="text-lg font-semibold text-slate-800">Secure Score & Improvement Actions</h3>
 
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <StatCard label="Data Category" value={`${dataPct}%`} />
+            <StatCard label="Data Secure Score" value={`${dataPct}%`} />
             <StatCard label="Actions" value={actions.data.actions.length} />
           </div>
 
