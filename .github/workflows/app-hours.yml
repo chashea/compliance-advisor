@@ -31,6 +31,7 @@ jobs:
       AZURE_RESOURCE_GROUP: rg-compliance-advisor
       FUNCTION_APP_NAME: cadvisor-func-prod
       WEB_APP_NAME: cadvisor-web-prod
+      PG_SERVER_NAME: cadvisor-pg-7zez2cj3gamky
       REQUESTED_ACTION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.action || 'auto' }}
     steps:
       - name: Decide action from New York local time
@@ -73,7 +74,7 @@ jobs:
       - name: Validate required settings
         if: steps.decide.outputs.action != 'none'
         run: |
-          for v in AZURE_RESOURCE_GROUP FUNCTION_APP_NAME WEB_APP_NAME; do
+          for v in AZURE_RESOURCE_GROUP FUNCTION_APP_NAME WEB_APP_NAME PG_SERVER_NAME; do
             if [ -z "${!v}" ]; then
               echo "::error::Missing required secret/env: $v"
               exit 1
@@ -88,6 +89,11 @@ jobs:
           tenant-id: 119e9fe0-c9d3-4a9d-be8b-c82d03fd0cd4
           subscription-id: 2a71b66d-0453-47ed-a081-b0863b91a2e0
 
+      - name: Start PostgreSQL
+        if: steps.decide.outputs.action == 'start'
+        run: |
+          az postgres flexible-server start --resource-group "$AZURE_RESOURCE_GROUP" --name "$PG_SERVER_NAME"
+
       - name: Start app services
         if: steps.decide.outputs.action == 'start'
         run: |
@@ -100,11 +106,18 @@ jobs:
           az functionapp stop --resource-group "$AZURE_RESOURCE_GROUP" --name "$FUNCTION_APP_NAME"
           az webapp stop --resource-group "$AZURE_RESOURCE_GROUP" --name "$WEB_APP_NAME"
 
+      - name: Stop PostgreSQL
+        if: steps.decide.outputs.action == 'stop'
+        run: |
+          az postgres flexible-server stop --resource-group "$AZURE_RESOURCE_GROUP" --name "$PG_SERVER_NAME"
+
       - name: Show app states
         if: steps.decide.outputs.action != 'none'
         run: |
+          pg_state=$(az postgres flexible-server show --resource-group "$AZURE_RESOURCE_GROUP" --name "$PG_SERVER_NAME" --query state -o tsv)
           function_state=$(az functionapp show --resource-group "$AZURE_RESOURCE_GROUP" --name "$FUNCTION_APP_NAME" --query state -o tsv)
           web_state=$(az webapp show --resource-group "$AZURE_RESOURCE_GROUP" --name "$WEB_APP_NAME" --query state -o tsv)
+          echo "PostgreSQL state: $pg_state"
           echo "Function App state: $function_state"
           echo "Web App state: $web_state"
 
