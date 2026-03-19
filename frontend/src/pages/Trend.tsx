@@ -21,13 +21,13 @@ export default function Trend() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-slate-800">Compliance Trend</h2>
+        <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Compliance Trend</h2>
         <div className="flex gap-1">
           {RANGES.map((r) => (
             <button
               key={r}
               onClick={() => setDays(r)}
-              className={`rounded px-3 py-1 text-sm ${days === r ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+              className={`rounded px-3 py-1 text-sm ${days === r ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"}`}
             >
               {r}d
             </button>

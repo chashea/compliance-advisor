@@ -55,7 +55,7 @@ export function BriefingDrawer({ onClose }: { onClose: () => void }) {
       {loading && <Loading />}
       {error && <ErrorBanner message={error} />}
       {briefing && !loading && (
-        <div className="whitespace-pre-wrap text-sm text-slate-700">{stripMarkdown(briefing)}</div>
+        <div className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">{stripMarkdown(briefing)}</div>
       )}
     </DrawerShell>
   );
@@ -103,7 +103,7 @@ export function AskDrawer({ onClose }: { onClose: () => void }) {
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && !loading && ask()}
           placeholder="Ask about your compliance posture..."
-          className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="flex-1 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
         <button
           onClick={() => ask()}
@@ -115,13 +115,13 @@ export function AskDrawer({ onClose }: { onClose: () => void }) {
       </div>
       {!answer && !loading && (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-slate-500">Suggested questions</p>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Suggested questions</p>
           <div className="flex flex-wrap gap-2">
             {SUGGESTED_PROMPTS.map((prompt) => (
               <button
                 key={prompt}
                 onClick={() => ask(prompt)}
-                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                className="rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-600 dark:text-slate-300 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-700 dark:hover:text-blue-400"
               >
                 {prompt}
               </button>
@@ -132,7 +132,7 @@ export function AskDrawer({ onClose }: { onClose: () => void }) {
       {loading && <Loading />}
       {error && <ErrorBanner message={error} />}
       {answer && !loading && (
-        <div className="whitespace-pre-wrap text-sm text-slate-700">{stripMarkdown(answer)}</div>
+        <div className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">{stripMarkdown(answer)}</div>
       )}
     </DrawerShell>
   );
@@ -142,10 +142,10 @@ function DrawerShell({ title, onClose, children }: { title: string; onClose: () 
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/20" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-          <h2 className="text-lg font-semibold text-slate-800">{title}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white dark:bg-slate-900 shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 px-5 py-4">
+          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">{title}</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>

@@ -18,18 +18,18 @@ export default function DLP() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-slate-800">DLP Alerts ({data.alerts.length})</h2>
+      <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100">DLP Alerts ({data.alerts.length})</h2>
 
       {data.severity_breakdown.length > 0 && (
         <div>
-          <h3 className="mb-2 text-sm font-medium text-slate-600">By Severity</h3>
+          <h3 className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">By Severity</h3>
           <BarChart data={data.severity_breakdown} xKey="severity" yKey="total" color="#ef4444" height={250} />
         </div>
       )}
 
       {data.policy_breakdown.length > 0 && (
         <div>
-          <h3 className="mb-2 text-sm font-medium text-slate-600">By Policy</h3>
+          <h3 className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">By Policy</h3>
           <BarChart data={data.policy_breakdown} xKey="policy_name" yKey="total" color="#f59e0b" height={250} />
         </div>
       )}

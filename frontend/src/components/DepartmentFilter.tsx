@@ -18,7 +18,7 @@ export default function DepartmentFilter() {
     <select
       value={department ?? ""}
       onChange={(e) => setDepartment(e.target.value || null)}
-      className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
+      className="rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-700 dark:text-slate-200 focus:border-blue-500 focus:outline-none"
     >
       <option value="">All Departments</option>
       {departments.map((d) => (

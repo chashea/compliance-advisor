@@ -18,11 +18,11 @@ export default function IRM() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-slate-800">Insider Risk Management ({data.alerts.length})</h2>
+      <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Insider Risk Management ({data.alerts.length})</h2>
 
       {data.severity_breakdown.length > 0 && (
         <div>
-          <h3 className="mb-2 text-sm font-medium text-slate-600">By Severity</h3>
+          <h3 className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">By Severity</h3>
           <BarChart data={data.severity_breakdown} xKey="severity" yKey="total" color="#8b5cf6" height={250} />
         </div>
       )}

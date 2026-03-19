@@ -9,7 +9,7 @@ interface Props {
 
 export default function PieChart({ data, height = 300 }: Props) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 shadow-sm">
       <ResponsiveContainer width="100%" height={height}>
         <RePieChart>
           <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>

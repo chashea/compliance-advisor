@@ -45,27 +45,27 @@ export default function DataTable<T extends Record<string, unknown>>({ columns, 
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
       <table className="w-full text-left text-sm">
-        <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-          <tr className="border-b border-slate-200">
+        <thead className="bg-slate-50 dark:bg-slate-800 text-xs uppercase text-slate-500 dark:text-slate-400">
+          <tr className="border-b border-slate-200 dark:border-slate-700">
             {columns.map((c) => (
               <th
                 key={c.key}
-                className="cursor-pointer px-4 py-3 hover:text-slate-700"
+                className="cursor-pointer px-4 py-3 hover:text-slate-700 dark:hover:text-slate-200"
                 onClick={() => toggleSort(c.key)}
               >
                 {c.label} {sortKey === c.key ? (sortAsc ? "\u25B2" : "\u25BC") : ""}
               </th>
             ))}
           </tr>
-          <tr className="border-b border-slate-200">
+          <tr className="border-b border-slate-200 dark:border-slate-700">
             {columns.map((c) => (
               <th key={`filter-${c.key}`} className="px-4 py-1.5">
                 <select
                   value={filters[c.key] ?? ""}
                   onChange={(e) => setFilters((f) => ({ ...f, [c.key]: e.target.value }))}
-                  className="w-full rounded border border-slate-200 bg-white px-2 py-1 text-xs font-normal normal-case text-slate-700 focus:border-blue-400 focus:outline-none"
+                  className="w-full rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs font-normal normal-case text-slate-700 dark:text-slate-200 focus:border-blue-400 focus:outline-none"
                 >
                   <option value="">All</option>
                   {uniqueVals(c.key).map((v) => (
@@ -76,11 +76,11 @@ export default function DataTable<T extends Record<string, unknown>>({ columns, 
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
           {sorted.map((row) => (
-            <tr key={String(row[keyField])} className="hover:bg-slate-50">
+            <tr key={String(row[keyField])} className="hover:bg-slate-50 dark:hover:bg-slate-800">
               {columns.map((c) => (
-                <td key={c.key} className="px-4 py-2.5 text-slate-700">
+                <td key={c.key} className="px-4 py-2.5 text-slate-700 dark:text-slate-200">
                   {c.render ? c.render(row[c.key], row) : String(row[c.key] ?? "")}
                 </td>
               ))}
@@ -88,7 +88,7 @@ export default function DataTable<T extends Record<string, unknown>>({ columns, 
           ))}
           {sorted.length === 0 && (
             <tr>
-              <td colSpan={columns.length} className="px-4 py-8 text-center text-slate-400">
+              <td colSpan={columns.length} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">
                 No data
               </td>
             </tr>

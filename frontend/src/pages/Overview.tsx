@@ -36,7 +36,7 @@ export default function Overview() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-slate-800">Overview</h2>
+      <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Overview</h2>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard label="Active Tenants" value={s.active_tenants} sub={s.newest_sync ? `Last sync: ${s.newest_sync}` : undefined} />
         <StatCard label="eDiscovery Cases" value={o.ediscovery_summary?.total_cases ?? 0} sub={`${o.ediscovery_summary?.active_cases ?? 0} active`} />
@@ -48,14 +48,14 @@ export default function Overview() {
 
       {dlpData.length > 0 && (
         <div>
-          <h3 className="mb-2 text-sm font-medium text-slate-600">DLP Alerts by Severity</h3>
+          <h3 className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">DLP Alerts by Severity</h3>
           <BarChart data={dlpData} xKey="severity" yKey="count" color="#ef4444" height={250} />
         </div>
       )}
 
       {trend.data && trend.data.trend.length > 0 && (
         <div>
-          <h3 className="mb-2 text-sm font-medium text-slate-600">30-Day Trend</h3>
+          <h3 className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">30-Day Trend</h3>
           <LineChart
             data={trend.data.trend}
             xKey="snapshot_date"
@@ -72,7 +72,7 @@ export default function Overview() {
 
       {actions.data && (
         <>
-          <h3 className="text-lg font-semibold text-slate-800">Secure Score & Improvement Actions</h3>
+          <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Secure Score & Improvement Actions</h3>
 
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             <StatCard label="Data Secure Score" value={`${dataPct}%`} />

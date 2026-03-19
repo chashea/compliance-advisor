@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { DepartmentProvider } from "./components/DepartmentContext";
 import { DemoProvider } from "./components/DemoContext";
+import { ThemeProvider } from "./components/ThemeContext";
 import Layout from "./components/Layout";
 import Overview from "./pages/Overview";
 import EDiscovery from "./pages/EDiscovery";
@@ -16,6 +17,7 @@ import Trend from "./pages/Trend";
 export default function App() {
   return (
     <BrowserRouter>
+      <ThemeProvider>
       <DemoProvider>
       <DepartmentProvider>
         <Routes>
@@ -33,6 +35,7 @@ export default function App() {
         </Routes>
       </DepartmentProvider>
       </DemoProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }
