@@ -79,13 +79,6 @@ export default function Overview() {
             <StatCard label="Actions" value={actions.data.actions.length} />
           </div>
 
-          {actions.data.category_breakdown.length > 0 && (
-            <div>
-              <h3 className="mb-2 text-sm font-medium text-slate-600">By Category</h3>
-              <BarChart data={actions.data.category_breakdown} xKey="control_category" yKey="total" color="#6366f1" height={250} />
-            </div>
-          )}
-
           <DataTable<ImprovementAction & Record<string, unknown>>
             columns={[
               { key: "rank", label: "#" },
