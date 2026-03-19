@@ -6,6 +6,18 @@ import Loading from "./Loading";
 import { post } from "../api/client";
 import type { AskResponse, BriefingResponse } from "../types";
 
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/^#{1,6}\s+/gm, "")        // headings
+    .replace(/\*\*(.+?)\*\*/g, "$1")     // bold
+    .replace(/\*(.+?)\*/g, "$1")         // italic
+    .replace(/__(.+?)__/g, "$1")         // bold alt
+    .replace(/_(.+?)_/g, "$1")           // italic alt
+    .replace(/`(.+?)`/g, "$1")           // inline code
+    .replace(/^\s*[-*]\s+/gm, "- ")      // normalize list markers
+    .replace(/^\s*\d+\.\s+/gm, (m) => m.trimStart()); // normalize numbered lists
+}
+
 function handleError(err: unknown): string {
   const msg = err instanceof Error ? err.message : "Request failed";
   return msg.includes("429") ? "Rate limit reached. Please wait a moment and try again." : msg;
@@ -43,7 +55,7 @@ export function BriefingDrawer({ onClose }: { onClose: () => void }) {
       {loading && <Loading />}
       {error && <ErrorBanner message={error} />}
       {briefing && !loading && (
-        <div className="whitespace-pre-wrap text-sm text-slate-700">{briefing}</div>
+        <div className="whitespace-pre-wrap text-sm text-slate-700">{stripMarkdown(briefing)}</div>
       )}
     </DrawerShell>
   );
@@ -120,7 +132,7 @@ export function AskDrawer({ onClose }: { onClose: () => void }) {
       {loading && <Loading />}
       {error && <ErrorBanner message={error} />}
       {answer && !loading && (
-        <div className="whitespace-pre-wrap text-sm text-slate-700">{answer}</div>
+        <div className="whitespace-pre-wrap text-sm text-slate-700">{stripMarkdown(answer)}</div>
       )}
     </DrawerShell>
   );
