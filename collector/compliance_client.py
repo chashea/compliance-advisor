@@ -301,6 +301,9 @@ def get_audit_log_records(token: str, days: int = 1) -> list[dict[str, Any]]:
                 "service": item.get("service", ""),
                 "user_id": item.get("userPrincipalName", "") or item.get("userId", ""),
                 "created": item.get("createdDateTime", ""),
+                "ip_address": item.get("clientIP", "") or item.get("ipAddress", ""),
+                "client_app": item.get("clientAppUsed", ""),
+                "result_status": item.get("resultStatus", ""),
             }
         )
 
@@ -337,7 +340,9 @@ def _legacy_alerts(token: str, provider: str, label: str) -> list[dict[str, Any]
                 "category": item.get("category", ""),
                 "created": item.get("createdDateTime", ""),
                 "resolved": item.get("closedDateTime", ""),
-                "policy_name": "",
+                "policy_name": item.get("vendorInformation", {}).get("subProvider", ""),
+                "description": item.get("description", ""),
+                "assigned_to": item.get("assignedTo", ""),
             }
         )
 

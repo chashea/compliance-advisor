@@ -242,20 +242,39 @@ def upsert_audit_record(
     user_id: str,
     created: str,
     snapshot_date: str,
+    ip_address: str = "",
+    client_app: str = "",
+    result_status: str = "",
 ) -> None:
     execute(
         """
         INSERT INTO audit_records
-            (tenant_id, record_id, record_type, operation, service, user_id, created, snapshot_date)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            (tenant_id, record_id, record_type, operation, service, user_id, created,
+             ip_address, client_app, result_status, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (tenant_id, record_id, snapshot_date) DO UPDATE SET
             record_type = EXCLUDED.record_type,
             operation = EXCLUDED.operation,
             service = EXCLUDED.service,
             user_id = EXCLUDED.user_id,
-            created = EXCLUDED.created
+            created = EXCLUDED.created,
+            ip_address = EXCLUDED.ip_address,
+            client_app = EXCLUDED.client_app,
+            result_status = EXCLUDED.result_status
         """,
-        (tenant_id, record_id, record_type, operation, service, user_id, created, snapshot_date),
+        (
+            tenant_id,
+            record_id,
+            record_type,
+            operation,
+            service,
+            user_id,
+            created,
+            ip_address,
+            client_app,
+            result_status,
+            snapshot_date,
+        ),
     )
 
 
@@ -270,13 +289,15 @@ def upsert_dlp_alert(
     created: str,
     resolved: str,
     snapshot_date: str,
+    description: str = "",
+    assigned_to: str = "",
 ) -> None:
     execute(
         """
         INSERT INTO dlp_alerts
             (tenant_id, alert_id, title, severity, status, category,
-             policy_name, created, resolved, snapshot_date)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             policy_name, created, resolved, description, assigned_to, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (tenant_id, alert_id, snapshot_date) DO UPDATE SET
             title = EXCLUDED.title,
             severity = EXCLUDED.severity,
@@ -284,9 +305,24 @@ def upsert_dlp_alert(
             category = EXCLUDED.category,
             policy_name = EXCLUDED.policy_name,
             created = EXCLUDED.created,
-            resolved = EXCLUDED.resolved
+            resolved = EXCLUDED.resolved,
+            description = EXCLUDED.description,
+            assigned_to = EXCLUDED.assigned_to
         """,
-        (tenant_id, alert_id, title, severity, status, category, policy_name, created, resolved, snapshot_date),
+        (
+            tenant_id,
+            alert_id,
+            title,
+            severity,
+            status,
+            category,
+            policy_name,
+            created,
+            resolved,
+            description,
+            assigned_to,
+            snapshot_date,
+        ),
     )
 
 
@@ -323,13 +359,15 @@ def upsert_irm_alert(
     created: str,
     resolved: str,
     snapshot_date: str,
+    description: str = "",
+    assigned_to: str = "",
 ) -> None:
     execute(
         """
         INSERT INTO irm_alerts
             (tenant_id, alert_id, title, severity, status, category,
-             policy_name, created, resolved, snapshot_date)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             policy_name, created, resolved, description, assigned_to, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (tenant_id, alert_id, snapshot_date) DO UPDATE SET
             title = EXCLUDED.title,
             severity = EXCLUDED.severity,
@@ -337,9 +375,24 @@ def upsert_irm_alert(
             category = EXCLUDED.category,
             policy_name = EXCLUDED.policy_name,
             created = EXCLUDED.created,
-            resolved = EXCLUDED.resolved
+            resolved = EXCLUDED.resolved,
+            description = EXCLUDED.description,
+            assigned_to = EXCLUDED.assigned_to
         """,
-        (tenant_id, alert_id, title, severity, status, category, policy_name, created, resolved, snapshot_date),
+        (
+            tenant_id,
+            alert_id,
+            title,
+            severity,
+            status,
+            category,
+            policy_name,
+            created,
+            resolved,
+            description,
+            assigned_to,
+            snapshot_date,
+        ),
     )
 
 

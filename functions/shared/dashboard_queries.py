@@ -221,7 +221,8 @@ def get_audit(department: str | None = None) -> dict:
     records = query(
         f"""
         SELECT ar.record_id, ar.record_type, ar.operation, ar.service,
-               ar.user_id, ar.created, t.display_name AS tenant_name
+               ar.user_id, ar.created, ar.ip_address, ar.client_app,
+               ar.result_status, t.display_name AS tenant_name
         FROM audit_records ar
         JOIN tenants t ON t.tenant_id = ar.tenant_id
         WHERE ar.snapshot_date = (SELECT MAX(snapshot_date) FROM audit_records)
@@ -277,8 +278,8 @@ def get_dlp(department: str | None = None) -> dict:
     alerts = query(
         f"""
         SELECT da.alert_id, da.title, da.severity, da.status, da.category,
-               da.policy_name, da.created, da.resolved,
-               t.display_name AS tenant_name
+               da.policy_name, da.created, da.resolved, da.description,
+               da.assigned_to, t.display_name AS tenant_name
         FROM dlp_alerts da
         JOIN tenants t ON t.tenant_id = da.tenant_id
         WHERE da.snapshot_date = (SELECT MAX(snapshot_date) FROM dlp_alerts)
@@ -407,8 +408,8 @@ def get_irm(department: str | None = None) -> dict:
     alerts = query(
         f"""
         SELECT ia.alert_id, ia.title, ia.severity, ia.status, ia.category,
-               ia.policy_name, ia.created, ia.resolved,
-               t.display_name AS tenant_name
+               ia.policy_name, ia.created, ia.resolved, ia.description,
+               ia.assigned_to, t.display_name AS tenant_name
         FROM irm_alerts ia
         JOIN tenants t ON t.tenant_id = ia.tenant_id
         WHERE ia.snapshot_date = (SELECT MAX(snapshot_date) FROM irm_alerts)

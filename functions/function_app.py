@@ -42,6 +42,8 @@ def _get_client_ip(req: func.HttpRequest) -> str:
     if forwarded:
         return forwarded.split(",")[0].strip()
     return "unknown"
+
+
 _DEPENDENCY_IMPORT_ERROR: Exception | None = None
 
 try:
@@ -413,6 +415,9 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 user_id=ar.get("user_id", ""),
                 created=ar.get("created", ""),
                 snapshot_date=snapshot_date,
+                ip_address=ar.get("ip_address", ""),
+                client_app=ar.get("client_app", ""),
+                result_status=ar.get("result_status", ""),
             )
 
         # Upsert DLP alerts
@@ -428,6 +433,8 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 created=da.get("created", ""),
                 resolved=da.get("resolved", ""),
                 snapshot_date=snapshot_date,
+                description=da.get("description", ""),
+                assigned_to=da.get("assigned_to", ""),
             )
 
         # Upsert protection scopes
@@ -454,6 +461,8 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 created=ia.get("created", ""),
                 resolved=ia.get("resolved", ""),
                 snapshot_date=snapshot_date,
+                description=ia.get("description", ""),
+                assigned_to=ia.get("assigned_to", ""),
             )
 
         # Upsert subject rights requests

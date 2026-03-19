@@ -80,6 +80,9 @@ CREATE TABLE IF NOT EXISTS audit_records (
     service         TEXT,
     user_id         TEXT,
     created         TEXT,
+    ip_address      TEXT DEFAULT '',
+    client_app      TEXT DEFAULT '',
+    result_status   TEXT DEFAULT '',
     snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
     UNIQUE (tenant_id, record_id, snapshot_date)
 );
@@ -96,6 +99,8 @@ CREATE TABLE IF NOT EXISTS dlp_alerts (
     policy_name     TEXT,
     created         TEXT,
     resolved        TEXT,
+    description     TEXT DEFAULT '',
+    assigned_to     TEXT DEFAULT '',
     snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
     UNIQUE (tenant_id, alert_id, snapshot_date)
 );
@@ -124,6 +129,8 @@ CREATE TABLE IF NOT EXISTS irm_alerts (
     policy_name     TEXT,
     created         TEXT,
     resolved        TEXT,
+    description     TEXT DEFAULT '',
+    assigned_to     TEXT DEFAULT '',
     snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
     UNIQUE (tenant_id, alert_id, snapshot_date)
 );

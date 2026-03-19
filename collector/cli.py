@@ -47,8 +47,8 @@ log = logging.getLogger("collector")
 @click.option(
     "--actions-category",
     envvar="ACTIONS_CATEGORY",
-    default="Data",
-    help="Filter improvement actions by controlCategory (e.g. Data, Identity, Device). Default: Data.",
+    default="",
+    help="Filter improvement actions by controlCategory (e.g. Data, Identity, Device). Default: all categories.",
 )
 def main(
     tenant_id: str,
@@ -142,7 +142,7 @@ def main(
     secure_scores = get_secure_scores(token)
 
     click.echo("  Improvement Actions...")
-    improvement_actions = get_improvement_actions(token, category=actions_category)
+    improvement_actions = get_improvement_actions(token, category=actions_category or None)
 
     click.echo("  User Content Policies...")
     user_content_policies = get_user_content_policies(token)
