@@ -49,6 +49,9 @@ Compliance Advisor is a multi-tenant ingestion + analytics platform with three r
    - Azure Functions v2 decorator model; all routes are defined in one file.
    - `/api/ingest` (FUNCTION auth) validates payload and upserts to PostgreSQL.
    - `/api/advisor/*` endpoints (ANONYMOUS auth) serve dashboard responses.
+   - `/api/collect/{tenant_id}` (FUNCTION auth) triggers on-demand collection for a single tenant.
+   - `/api/tenants` and `/api/tenants/callback` auto-trigger collection on tenant onboard via background thread.
+   - `collect_tenants` timer runs daily at `0 0 2 * * *` (2 AM UTC) and collects from all registered tenants.
    - `compute_aggregates` timer runs daily at `0 0 6 * * *` (6 AM UTC) and writes rollups to `compliance_trend`.
 
 3. **Frontend SPA** (`frontend/`)

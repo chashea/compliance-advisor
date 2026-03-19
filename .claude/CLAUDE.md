@@ -59,7 +59,7 @@ az deployment group create --resource-group rg-compliance-advisor --template-fil
 
 ## Tests
 
-48 tests across 4 files. Run all with:
+71 tests across 7 files. Run all with:
 ```bash
 python3.12 -m pytest tests/
 ```
@@ -81,7 +81,9 @@ Multi-tenant compliance workload platform. Two core runtime components share a P
 2. **Function App** (`functions/`) — Azure Functions v2 Python (decorator-based, no `function.json` files). All routes defined in `function_app.py`. Three categories:
    - **Ingest** (`/api/ingest`) — FUNCTION-level auth, validates payload via JSON schema (`shared/validation.py`), upserts to PostgreSQL (`shared/db.py`).
    - **Dashboard APIs** (`/api/advisor/*`, 15 endpoints) — ANONYMOUS auth, all POST with optional `{department}` filter. SQL queries in `shared/dashboard_queries.py`. Includes AI-powered `/advisor/briefing` and `/advisor/ask` endpoints via Azure OpenAI Assistants API (rate-limited: 10 req/60s per IP).
-   - **Timer** (`compute_aggregates`) — daily 6am UTC, rolls up workload counts into `compliance_trend`.
+   - **Tenant Management** (`/api/tenants`, `/api/tenants/callback`) — Registration and Azure AD admin consent. Both auto-trigger collection for the new tenant via background thread.
+   - **On-demand Collection** (`/api/collect/{tenant_id}`) — FUNCTION-level auth, triggers collection for a single tenant. Also called automatically on tenant onboard.
+   - **Timer** (`collect_tenants`) — daily 2am UTC, collects compliance data from all registered tenants. (`compute_aggregates`) — daily 6am UTC, rolls up workload counts into `compliance_trend`.
 
 3. **Frontend** (`frontend/`) — React 19 SPA with TypeScript, Vite, Tailwind CSS v4, Recharts, React Router v7. 12 pages mapping to dashboard API endpoints. Has a demo mode (`npm run demo`) that uses mock data without a backend. Deployed to `cadvisor-web-prod` (Azure App Service).
 
@@ -93,7 +95,7 @@ Multi-tenant compliance workload platform. Two core runtime components share a P
 
 | Component | File | Purpose |
 |---|---|---|
-| Function App | `functions/function_app.py` | All 17 route/timer definitions |
+| Function App | `functions/function_app.py` | All 19 route/timer definitions |
 | DB layer | `functions/shared/db.py` | PostgreSQL connection pool + upserts |
 | Dashboard queries | `functions/shared/dashboard_queries.py` | SQL for all dashboard endpoints |
 | Validation | `functions/shared/validation.py` | JSON schema validation for ingest |
