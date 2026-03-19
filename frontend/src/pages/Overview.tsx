@@ -46,10 +46,7 @@ export default function Overview() {
         <StatCard label="DLP Alerts" value={o.dlp_summary?.total_dlp_alerts ?? 0} sub={`${o.dlp_summary?.active_alerts ?? 0} active`} />
         <StatCard label="Audit Records" value={o.audit_summary?.total_records ?? 0} />
         {score && (
-          <>
-            <StatCard label="Overall Score" value={`${pct}%`} />
-            <StatCard label="Data Category" value={`${dataPct}%`} />
-          </>
+          <StatCard label="Overall Score" value={`${pct}%`} />
         )}
       </div>
 
@@ -82,7 +79,7 @@ export default function Overview() {
           <h3 className="text-lg font-semibold text-slate-800">Secure Score & Improvement Actions</h3>
 
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <StatCard label="Score Date" value={score?.score_date ?? "N/A"} />
+            <StatCard label="Data Category" value={`${dataPct}%`} />
             <StatCard label="Actions" value={actions.data.actions.length} />
           </div>
 
