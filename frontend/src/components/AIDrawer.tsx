@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDepartment } from "./DepartmentContext";
 import { useDemo } from "./DemoContext";
 import ErrorBanner from "./ErrorBanner";
@@ -139,13 +139,29 @@ export function AskDrawer({ onClose }: { onClose: () => void }) {
 }
 
 function DrawerShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    requestAnimationFrame(() => setOpen(true));
+  }, []);
+
+  function handleClose() {
+    setOpen(false);
+    setTimeout(onClose, 300);
+  }
+
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/20" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white dark:bg-slate-900 shadow-xl">
+      <div
+        className={`fixed inset-0 z-40 bg-black/20 transition-opacity duration-300 ${open ? "opacity-100" : "opacity-0"}`}
+        onClick={handleClose}
+      />
+      <div
+        className={`fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white dark:bg-slate-900 shadow-xl transition-transform duration-300 ease-out ${open ? "translate-x-0" : "translate-x-full"}`}
+      >
         <div className="flex items-center justify-between bg-navy-900 px-5 py-4">
           <h2 className="text-lg font-semibold text-white">{title}</h2>
-          <button onClick={onClose} className="text-navy-300 hover:text-white">
+          <button onClick={handleClose} className="text-navy-300 hover:text-white">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
