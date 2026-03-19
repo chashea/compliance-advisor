@@ -11,6 +11,7 @@ import hashlib
 import json
 import logging
 import time
+import uuid
 from collections import defaultdict
 
 import azure.functions as func
@@ -96,6 +97,68 @@ try:
 except Exception as e:
     _DEPENDENCY_IMPORT_ERROR = e
     log.exception("Function dependency import failed at startup: %s", e)
+
+_COLLECTOR_IMPORT_ERROR: Exception | None = None
+
+try:
+    from collector.auth import get_graph_token
+    from collector.compliance_client import (
+        get_audit_log_records as collect_audit_log_records,
+    )
+    from collector.compliance_client import (
+        get_comm_compliance_policies as collect_comm_compliance,
+    )
+    from collector.compliance_client import (
+        get_compliance_assessments as collect_assessments,
+    )
+    from collector.compliance_client import (
+        get_dlp_alerts as collect_dlp_alerts,
+    )
+    from collector.compliance_client import (
+        get_dlp_policies as collect_dlp_policies,
+    )
+    from collector.compliance_client import (
+        get_ediscovery_cases as collect_ediscovery,
+    )
+    from collector.compliance_client import (
+        get_improvement_actions as collect_improvement_actions,
+    )
+    from collector.compliance_client import (
+        get_info_barrier_policies as collect_info_barriers,
+    )
+    from collector.compliance_client import (
+        get_irm_alerts as collect_irm_alerts,
+    )
+    from collector.compliance_client import (
+        get_irm_policies as collect_irm_policies,
+    )
+    from collector.compliance_client import (
+        get_protection_scopes as collect_protection_scopes,
+    )
+    from collector.compliance_client import (
+        get_retention_events as collect_retention_events,
+    )
+    from collector.compliance_client import (
+        get_retention_labels as collect_retention_labels,
+    )
+    from collector.compliance_client import (
+        get_secure_scores as collect_secure_scores,
+    )
+    from collector.compliance_client import (
+        get_sensitive_info_types as collect_sensitive_info_types,
+    )
+    from collector.compliance_client import (
+        get_sensitivity_labels as collect_sensitivity_labels,
+    )
+    from collector.compliance_client import (
+        get_subject_rights_requests as collect_subject_rights,
+    )
+    from collector.compliance_client import (
+        get_user_content_policies as collect_user_content_policies,
+    )
+except Exception as e:
+    _COLLECTOR_IMPORT_ERROR = e
+    log.warning("Collector imports unavailable (timer will be disabled): %s", e)
 
 
 def _ensure_dependencies_loaded() -> None:
@@ -377,6 +440,132 @@ def advisor_ask(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         log.exception("advisor/ask error: %s", e)
         return _json_response({"error": str(e)}, 500)
+
+
+# ── Tenant Registration ───────────────────────────────────────────
+
+
+@app.function_name("register_tenant")
+@app.route(route="tenants", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
+def register_tenant(req: func.HttpRequest) -> func.HttpResponse:
+    """Register or update a tenant."""
+    try:
+        _ensure_dependencies_loaded()
+        body = _get_body(req)
+
+        tenant_id = body.get("tenant_id", "").strip()
+        if not tenant_id:
+            return _json_response({"error": "Missing required field: tenant_id"}, 400)
+        try:
+            uuid.UUID(tenant_id)
+        except ValueError:
+            return _json_response({"error": "Invalid tenant_id: must be a valid UUID"}, 400)
+
+        display_name = body.get("display_name", "").strip()
+        if not display_name:
+            return _json_response({"error": "Missing required field: display_name"}, 400)
+
+        department = body.get("department", "").strip()
+        if not department:
+            return _json_response({"error": "Missing required field: department"}, 400)
+
+        risk_tier = body.get("risk_tier", "Medium")
+
+        upsert_tenant(
+            tenant_id=tenant_id,
+            display_name=display_name,
+            department=department,
+            risk_tier=risk_tier,
+        )
+
+        log.info("Registered tenant: %s (%s, %s)", tenant_id, display_name, department)
+        return _json_response({"status": "ok", "tenant_id": tenant_id})
+
+    except Exception as e:
+        log.exception("register_tenant error: %s", e)
+        return _json_response({"error": "Internal server error"}, 500)
+
+
+@app.function_name("tenant_consent_callback")
+@app.route(route="tenants/callback", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
+def tenant_consent_callback(req: func.HttpRequest) -> func.HttpResponse:
+    """Handle Azure AD admin consent redirect — auto-register the tenant."""
+    try:
+        _ensure_dependencies_loaded()
+
+        error = req.params.get("error")
+        if error:
+            error_desc = req.params.get("error_description", "Unknown error")
+            log.warning("Admin consent failed: %s — %s", error, error_desc)
+            return func.HttpResponse(
+                _CONSENT_ERROR_HTML.replace("{{error}}", error_desc),
+                status_code=400,
+                mimetype="text/html",
+            )
+
+        tenant_id = req.params.get("tenant", "").strip()
+        admin_consent = req.params.get("admin_consent", "").lower()
+
+        if admin_consent != "true" or not tenant_id:
+            return func.HttpResponse(
+                _CONSENT_ERROR_HTML.replace("{{error}}", "Admin consent was not granted."),
+                status_code=400,
+                mimetype="text/html",
+            )
+
+        try:
+            uuid.UUID(tenant_id)
+        except ValueError:
+            return func.HttpResponse(
+                _CONSENT_ERROR_HTML.replace("{{error}}", "Invalid tenant ID returned."),
+                status_code=400,
+                mimetype="text/html",
+            )
+
+        upsert_tenant(
+            tenant_id=tenant_id,
+            display_name=f"Tenant {tenant_id[:8]}",
+            department="Pending",
+        )
+
+        log.info("Tenant registered via admin consent: %s", tenant_id)
+        return func.HttpResponse(
+            _CONSENT_SUCCESS_HTML.replace("{{tenant_id}}", tenant_id),
+            status_code=200,
+            mimetype="text/html",
+        )
+
+    except Exception as e:
+        log.exception("tenant_consent_callback error: %s", e)
+        return func.HttpResponse(
+            _CONSENT_ERROR_HTML.replace("{{error}}", "Internal server error."),
+            status_code=500,
+            mimetype="text/html",
+        )
+
+
+_CONSENT_SUCCESS_HTML = """<!DOCTYPE html>
+<html><head><title>Tenant Registered</title>
+<style>body{font-family:system-ui,sans-serif;max-width:600px;margin:80px auto;text-align:center}
+.ok{color:#16a34a;font-size:48px}h1{margin:8px 0}code{background:#f1f5f9;padding:2px 8px;border-radius:4px}</style>
+</head><body>
+<div class="ok">&#10003;</div>
+<h1>Tenant Registered</h1>
+<p>Tenant <code>{{tenant_id}}</code> has been registered with Compliance Advisor.</p>
+<p>Data collection will begin on the next scheduled run (2:00 AM UTC daily).</p>
+<p><small>The Compliance Advisor admin can update your display name and department.</small></p>
+</body></html>"""
+
+_CONSENT_ERROR_HTML = """<!DOCTYPE html>
+<html><head><title>Consent Failed</title>
+<style>body{font-family:system-ui,sans-serif;max-width:600px;margin:80px auto;text-align:center}
+.err{color:#dc2626;font-size:48px}h1{margin:8px 0}</style>
+</head><body>
+<div class="err">&#10007;</div>
+<h1>Consent Failed</h1>
+<p>{{error}}</p>
+<p>Please contact the Compliance Advisor administrator.</p>
+</body></html>"""
 
 
 # ── Ingestion ─────────────────────────────────────────────────────
@@ -703,6 +892,312 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         log.exception("Ingestion error: %s", e)
         return _json_response({"error": "Internal server error"}, 500)
+
+
+# ── Timer: Auto-collect from all tenants ──────────────────────────
+
+
+@app.function_name("collect_tenants")
+@app.timer_trigger(schedule="0 0 2 * * *", arg_name="timer", run_on_startup=False)
+def collect_tenants(timer: func.TimerRequest) -> None:
+    """Daily at 2:00 AM UTC: collect compliance data from all registered tenants."""
+    try:
+        _ensure_dependencies_loaded()
+        from datetime import date
+        from types import SimpleNamespace
+
+        from shared.config import get_settings
+
+        settings = get_settings()
+        client_id = settings.COLLECTOR_CLIENT_ID
+        client_secret = settings.COLLECTOR_CLIENT_SECRET
+
+        if not client_id or not client_secret:
+            log.warning("collect_tenants: COLLECTOR_CLIENT_ID/SECRET not configured, skipping")
+            return
+
+        if _COLLECTOR_IMPORT_ERROR is not None:
+            log.error("collect_tenants: collector imports failed at startup: %s", _COLLECTOR_IMPORT_ERROR)
+            return
+
+        audit_days = settings.COLLECTOR_AUDIT_LOG_DAYS
+
+        tenants = query("SELECT tenant_id, display_name, department FROM tenants")
+        if not tenants:
+            log.info("collect_tenants: no tenants registered, skipping")
+            return
+
+        today = date.today().isoformat()
+        successes = 0
+        failures = 0
+
+        for tenant in tenants:
+            tid = tenant["tenant_id"]
+            dept = tenant.get("department", "")
+            dname = tenant.get("display_name", "")
+            try:
+                # Build a minimal settings object for get_graph_token
+                auth_settings = SimpleNamespace(
+                    TENANT_ID=tid,
+                    CLIENT_ID=client_id,
+                    CLIENT_SECRET=client_secret,
+                    login_authority="https://login.microsoftonline.com",
+                    graph_scope=["https://graph.microsoft.com/.default"],
+                )
+                token = get_graph_token(auth_settings)
+
+                # Collect all workloads
+                ediscovery = collect_ediscovery(token)
+                sensitivity = collect_sensitivity_labels(token)
+                retention = collect_retention_labels(token)
+                ret_events = collect_retention_events(token)
+                audit = collect_audit_log_records(token, days=audit_days)
+                dlp = collect_dlp_alerts(token)
+                irm = collect_irm_alerts(token)
+                scopes = collect_protection_scopes(token)
+                scores = collect_secure_scores(token)
+                actions = collect_improvement_actions(token)
+                srr = collect_subject_rights(token)
+                cc = collect_comm_compliance(token)
+                ib = collect_info_barriers(token)
+                ucp = collect_user_content_policies(token)
+                dlp_pol = collect_dlp_policies(token)
+                irm_pol = collect_irm_policies(token)
+                sit = collect_sensitive_info_types(token)
+                assessments = collect_assessments(token)
+
+                # Upsert tenant
+                upsert_tenant(tenant_id=tid, display_name=dname, department=dept)
+
+                # Upsert all workloads (same path as ingest endpoint)
+                for ec in ediscovery:
+                    upsert_ediscovery_case(
+                        tenant_id=tid,
+                        case_id=ec.get("case_id", ""),
+                        display_name=ec.get("display_name", ""),
+                        status=ec.get("status", ""),
+                        created=ec.get("created", ""),
+                        closed=ec.get("closed", ""),
+                        external_id=ec.get("external_id", ""),
+                        custodian_count=ec.get("custodian_count", 0),
+                        snapshot_date=today,
+                    )
+                for sl in sensitivity:
+                    upsert_sensitivity_label(
+                        tenant_id=tid,
+                        label_id=sl.get("label_id", ""),
+                        name=sl.get("name", ""),
+                        description=sl.get("description", ""),
+                        color=sl.get("color", ""),
+                        is_active=sl.get("is_active", True),
+                        parent_id=sl.get("parent_id", ""),
+                        priority=sl.get("priority", 0),
+                        tooltip=sl.get("tooltip", ""),
+                        snapshot_date=today,
+                    )
+                for rl in retention:
+                    upsert_retention_label(
+                        tenant_id=tid,
+                        label_id=rl.get("label_id", ""),
+                        display_name=rl.get("display_name", ""),
+                        retention_duration=rl.get("retention_duration", ""),
+                        retention_trigger=rl.get("retention_trigger", ""),
+                        action_after_retention=rl.get("action_after_retention", ""),
+                        is_in_use=rl.get("is_in_use", False),
+                        status=rl.get("status", ""),
+                        snapshot_date=today,
+                    )
+                for re_ in ret_events:
+                    upsert_retention_event(
+                        tenant_id=tid,
+                        event_id=re_.get("event_id", ""),
+                        display_name=re_.get("display_name", ""),
+                        event_type=re_.get("event_type", ""),
+                        created=re_.get("created", ""),
+                        event_status=re_.get("event_status", ""),
+                        snapshot_date=today,
+                    )
+                for ar in audit:
+                    upsert_audit_record(
+                        tenant_id=tid,
+                        record_id=ar.get("record_id", ""),
+                        record_type=ar.get("record_type", ""),
+                        operation=ar.get("operation", ""),
+                        service=ar.get("service", ""),
+                        user_id=ar.get("user_id", ""),
+                        created=ar.get("created", ""),
+                        snapshot_date=today,
+                        ip_address=ar.get("ip_address", ""),
+                        client_app=ar.get("client_app", ""),
+                        result_status=ar.get("result_status", ""),
+                    )
+                for da in dlp:
+                    upsert_dlp_alert(
+                        tenant_id=tid,
+                        alert_id=da.get("alert_id", ""),
+                        title=da.get("title", ""),
+                        severity=da.get("severity", ""),
+                        status=da.get("status", ""),
+                        category=da.get("category", ""),
+                        policy_name=da.get("policy_name", ""),
+                        created=da.get("created", ""),
+                        resolved=da.get("resolved", ""),
+                        snapshot_date=today,
+                        description=da.get("description", ""),
+                        assigned_to=da.get("assigned_to", ""),
+                    )
+                for ps in scopes:
+                    upsert_protection_scope(
+                        tenant_id=tid,
+                        scope_type=ps.get("scope_type", ""),
+                        execution_mode=ps.get("execution_mode", ""),
+                        locations=ps.get("locations", ""),
+                        activity_types=ps.get("activity_types", ""),
+                        snapshot_date=today,
+                    )
+                for ia in irm:
+                    upsert_irm_alert(
+                        tenant_id=tid,
+                        alert_id=ia.get("alert_id", ""),
+                        title=ia.get("title", ""),
+                        severity=ia.get("severity", ""),
+                        status=ia.get("status", ""),
+                        category=ia.get("category", ""),
+                        policy_name=ia.get("policy_name", ""),
+                        created=ia.get("created", ""),
+                        resolved=ia.get("resolved", ""),
+                        snapshot_date=today,
+                        description=ia.get("description", ""),
+                        assigned_to=ia.get("assigned_to", ""),
+                    )
+                for sr in srr:
+                    upsert_subject_rights_request(
+                        tenant_id=tid,
+                        request_id=sr.get("request_id", ""),
+                        display_name=sr.get("display_name", ""),
+                        request_type=sr.get("request_type", ""),
+                        status=sr.get("status", ""),
+                        created=sr.get("created", ""),
+                        closed=sr.get("closed", ""),
+                        data_subject_type=sr.get("data_subject_type", ""),
+                        snapshot_date=today,
+                    )
+                for c in cc:
+                    upsert_comm_compliance_policy(
+                        tenant_id=tid,
+                        policy_id=c.get("policy_id", ""),
+                        display_name=c.get("display_name", ""),
+                        status=c.get("status", ""),
+                        policy_type=c.get("policy_type", ""),
+                        review_pending_count=c.get("review_pending_count", 0),
+                        snapshot_date=today,
+                    )
+                for b in ib:
+                    upsert_info_barrier_policy(
+                        tenant_id=tid,
+                        policy_id=b.get("policy_id", ""),
+                        display_name=b.get("display_name", ""),
+                        state=b.get("state", ""),
+                        segments_applied=b.get("segments_applied", ""),
+                        snapshot_date=today,
+                    )
+                for ss in scores:
+                    upsert_secure_score(
+                        tenant_id=tid,
+                        current_score=ss.get("current_score", 0),
+                        max_score=ss.get("max_score", 0),
+                        score_date=ss.get("score_date", today),
+                        snapshot_date=today,
+                        data_current_score=ss.get("data_current_score", 0),
+                        data_max_score=ss.get("data_max_score", 0),
+                    )
+                for ia in actions:
+                    upsert_improvement_action(
+                        tenant_id=tid,
+                        control_id=ia.get("control_id", ""),
+                        title=ia.get("title", ""),
+                        control_category=ia.get("control_category", ""),
+                        max_score=ia.get("max_score", 0),
+                        current_score=ia.get("current_score", 0),
+                        implementation_cost=ia.get("implementation_cost", ""),
+                        user_impact=ia.get("user_impact", ""),
+                        tier=ia.get("tier", ""),
+                        service=ia.get("service", ""),
+                        threats=ia.get("threats", ""),
+                        remediation=ia.get("remediation", ""),
+                        state=ia.get("state", "Default"),
+                        deprecated=ia.get("deprecated", False),
+                        rank=ia.get("rank", 0),
+                        snapshot_date=today,
+                    )
+                upsert_user_content_policies(tenant_id=tid, records=ucp, snapshot_date=today)
+                for dp in dlp_pol:
+                    upsert_dlp_policy(
+                        tenant_id=tid,
+                        policy_id=dp.get("policy_id", ""),
+                        display_name=dp.get("display_name", ""),
+                        status=dp.get("status", ""),
+                        policy_type=dp.get("policy_type", ""),
+                        rules_count=dp.get("rules_count", 0),
+                        created=dp.get("created", ""),
+                        modified=dp.get("modified", ""),
+                        mode=dp.get("mode", ""),
+                        snapshot_date=today,
+                    )
+                for ip in irm_pol:
+                    upsert_irm_policy(
+                        tenant_id=tid,
+                        policy_id=ip.get("policy_id", ""),
+                        display_name=ip.get("display_name", ""),
+                        status=ip.get("status", ""),
+                        policy_type=ip.get("policy_type", ""),
+                        created=ip.get("created", ""),
+                        triggers=ip.get("triggers", ""),
+                        snapshot_date=today,
+                    )
+                for si in sit:
+                    upsert_sensitive_info_type(
+                        tenant_id=tid,
+                        type_id=si.get("type_id", ""),
+                        name=si.get("name", ""),
+                        description=si.get("description", ""),
+                        is_custom=si.get("is_custom", False),
+                        category=si.get("category", ""),
+                        scope=si.get("scope", ""),
+                        state=si.get("state", ""),
+                        snapshot_date=today,
+                    )
+                for ca in assessments:
+                    upsert_compliance_assessment(
+                        tenant_id=tid,
+                        assessment_id=ca.get("assessment_id", ""),
+                        display_name=ca.get("display_name", ""),
+                        status=ca.get("status", ""),
+                        framework=ca.get("framework", ""),
+                        completion_percentage=ca.get("completion_percentage", 0),
+                        created=ca.get("created", ""),
+                        category=ca.get("category", ""),
+                        snapshot_date=today,
+                    )
+
+                successes += 1
+                log.info(
+                    "collect_tenants: tenant=%s dept=%s ediscovery=%d labels=%d audit=%d",
+                    tid,
+                    dept,
+                    len(ediscovery),
+                    len(sensitivity),
+                    len(audit),
+                )
+
+            except Exception:
+                failures += 1
+                log.exception("collect_tenants: failed for tenant=%s", tid)
+
+        log.info("collect_tenants: completed — %d succeeded, %d failed", successes, failures)
+
+    except Exception as e:
+        log.exception("collect_tenants: fatal error: %s", e)
 
 
 # ── Timer: Compute daily trend ────────────────────────────────────
