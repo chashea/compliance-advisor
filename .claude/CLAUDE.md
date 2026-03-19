@@ -128,7 +128,7 @@ Multi-tenant compliance workload platform. Two core runtime components share a P
 
 GitHub Actions (OIDC, no stored secrets):
 - `deploy.yml`: push to `current branch` → run tests → deploy infra/functions/frontend.
-- `app-hours.yml`: hourly scheduler with local-time checks (`America/New_York`) that starts apps at 9:00 AM ET and stops at 8:00 PM ET on weekdays.
+- `app-hours.yml`: hourly scheduler with local-time checks (`America/New_York`) that starts apps at 8:00 AM ET and stops at 8:00 PM ET on weekdays.
 
 ## Code Style
 

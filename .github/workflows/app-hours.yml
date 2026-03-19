@@ -50,7 +50,7 @@ jobs:
           is_weekday = now.weekday() < 5
           
           if requested == "auto":
-              if is_weekday and now.hour == 9 and now.minute == 0:
+              if is_weekday and now.hour == 8 and now.minute == 0:
                   action = "start"
               elif is_weekday and now.hour == 20 and now.minute == 0:
                   action = "stop"
