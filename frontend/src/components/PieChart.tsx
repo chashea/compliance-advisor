@@ -1,6 +1,6 @@
 import { Cell, Pie, PieChart as RePieChart, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
-const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#6366f1", "#ec4899"];
+const COLORS = ["#1a365d", "#0d9488", "#b8860b", "#dc2626", "#627d98", "#486581", "#9fb3c8"];
 
 interface Props {
   data: { name: string; value: number }[];

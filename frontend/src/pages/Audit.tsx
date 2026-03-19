@@ -16,19 +16,19 @@ export default function Audit() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Audit Log ({data.records.length} records)</h2>
+      <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Audit Log ({data.records.length} records)</h2>
 
       {data.service_breakdown.length > 0 && (
         <div>
-          <h3 className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">By Service</h3>
+          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">By Service</h3>
           <BarChart data={data.service_breakdown} xKey="service" yKey="total" height={250} />
         </div>
       )}
 
       {data.operation_breakdown.length > 0 && (
         <div>
-          <h3 className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Top Operations</h3>
-          <BarChart data={data.operation_breakdown} xKey="operation" yKey="total" color="#10b981" height={250} />
+          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Top Operations</h3>
+          <BarChart data={data.operation_breakdown} xKey="operation" yKey="total" color="#0d9488" height={250} />
         </div>
       )}
 

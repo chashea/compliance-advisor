@@ -10,7 +10,7 @@ interface Props {
   height?: number;
 }
 
-export default function BarChart({ data, xKey, yKey, color = "#3b82f6", height = 300 }: Props) {
+export default function BarChart({ data, xKey, yKey, color = "#1a365d", height = 300 }: Props) {
   const { dark } = useTheme();
 
   return (

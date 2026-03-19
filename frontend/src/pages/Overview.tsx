@@ -36,34 +36,34 @@ export default function Overview() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Overview</h2>
+      <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Overview</h2>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <StatCard label="Active Tenants" value={s.active_tenants} sub={s.newest_sync ? `Last sync: ${s.newest_sync}` : undefined} />
-        <StatCard label="eDiscovery Cases" value={o.ediscovery_summary?.total_cases ?? 0} sub={`${o.ediscovery_summary?.active_cases ?? 0} active`} />
-        <StatCard label="Sensitivity Labels" value={o.labels_summary?.sensitivity_labels ?? 0} />
-        <StatCard label="Retention Labels" value={o.labels_summary?.retention_labels ?? 0} />
-        <StatCard label="DLP Alerts" value={o.dlp_summary?.total_dlp_alerts ?? 0} sub={`${o.dlp_summary?.active_alerts ?? 0} active`} />
-        <StatCard label="Audit Records" value={o.audit_summary?.total_records ?? 0} />
+        <StatCard label="Active Tenants" value={s.active_tenants} sub={s.newest_sync ? `Last sync: ${s.newest_sync}` : undefined} accent="border-l-navy-700" />
+        <StatCard label="eDiscovery Cases" value={o.ediscovery_summary?.total_cases ?? 0} sub={`${o.ediscovery_summary?.active_cases ?? 0} active`} accent="border-l-teal-600" />
+        <StatCard label="Sensitivity Labels" value={o.labels_summary?.sensitivity_labels ?? 0} accent="border-l-gold-500" />
+        <StatCard label="Retention Labels" value={o.labels_summary?.retention_labels ?? 0} accent="border-l-gold-500" />
+        <StatCard label="DLP Alerts" value={o.dlp_summary?.total_dlp_alerts ?? 0} sub={`${o.dlp_summary?.active_alerts ?? 0} active`} accent="border-l-red-600" />
+        <StatCard label="Audit Records" value={o.audit_summary?.total_records ?? 0} accent="border-l-navy-500" />
       </div>
 
       {dlpData.length > 0 && (
         <div>
-          <h3 className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">DLP Alerts by Severity</h3>
-          <BarChart data={dlpData} xKey="severity" yKey="count" color="#ef4444" height={250} />
+          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">DLP Alerts by Severity</h3>
+          <BarChart data={dlpData} xKey="severity" yKey="count" color="#dc2626" height={250} />
         </div>
       )}
 
       {trend.data && trend.data.trend.length > 0 && (
         <div>
-          <h3 className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">30-Day Trend</h3>
+          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">30-Day Trend</h3>
           <LineChart
             data={trend.data.trend}
             xKey="snapshot_date"
             series={[
-              { key: "ediscovery_cases", color: "#3b82f6", label: "eDiscovery" },
-              { key: "dlp_alerts", color: "#ef4444", label: "DLP" },
-              { key: "sensitivity_labels", color: "#10b981", label: "Sensitivity" },
-              { key: "audit_records", color: "#f59e0b", label: "Audit" },
+              { key: "ediscovery_cases", color: "#4a90d9", label: "eDiscovery" },
+              { key: "dlp_alerts", color: "#dc2626", label: "DLP" },
+              { key: "sensitivity_labels", color: "#14b8a6", label: "Sensitivity" },
+              { key: "audit_records", color: "#b8860b", label: "Audit" },
             ]}
             height={300}
           />
@@ -72,11 +72,11 @@ export default function Overview() {
 
       {actions.data && (
         <>
-          <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Secure Score & Improvement Actions</h3>
+          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Secure Score & Improvement Actions</h3>
 
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <StatCard label="Data Secure Score" value={`${dataPct}%`} />
-            <StatCard label="Actions" value={actions.data.actions.length} />
+            <StatCard label="Data Secure Score" value={`${dataPct}%`} accent="border-l-gold-500" />
+            <StatCard label="Actions" value={actions.data.actions.length} accent="border-l-navy-500" />
           </div>
 
           <DataTable<ImprovementAction & Record<string, unknown>>

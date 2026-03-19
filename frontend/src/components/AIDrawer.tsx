@@ -48,7 +48,7 @@ export function BriefingDrawer({ onClose }: { onClose: () => void }) {
       <button
         onClick={generate}
         disabled={loading}
-        className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className="w-full rounded-md bg-navy-900 px-4 py-2 text-sm font-medium text-white hover:bg-navy-800 disabled:opacity-50"
       >
         {loading ? "Generating..." : briefing ? "Regenerate Briefing" : "Generate Briefing"}
       </button>
@@ -103,12 +103,12 @@ export function AskDrawer({ onClose }: { onClose: () => void }) {
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && !loading && ask()}
           placeholder="Ask about your compliance posture..."
-          className="flex-1 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="flex-1 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:border-navy-500 focus:outline-none focus:ring-1 focus:ring-navy-500"
         />
         <button
           onClick={() => ask()}
           disabled={loading || !question.trim()}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded-md bg-navy-900 px-4 py-2 text-sm font-medium text-white hover:bg-navy-800 disabled:opacity-50"
         >
           {loading ? "..." : "Ask"}
         </button>
@@ -121,7 +121,7 @@ export function AskDrawer({ onClose }: { onClose: () => void }) {
               <button
                 key={prompt}
                 onClick={() => ask(prompt)}
-                className="rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-600 dark:text-slate-300 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-700 dark:hover:text-blue-400"
+                className="rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-600 dark:text-slate-300 hover:border-navy-300 hover:bg-navy-50 dark:hover:bg-navy-900/30 hover:text-navy-700 dark:hover:text-navy-300"
               >
                 {prompt}
               </button>
@@ -143,9 +143,9 @@ function DrawerShell({ title, onClose, children }: { title: string; onClose: () 
     <>
       <div className="fixed inset-0 z-40 bg-black/20" onClick={onClose} />
       <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white dark:bg-slate-900 shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 px-5 py-4">
-          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">{title}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+        <div className="flex items-center justify-between bg-navy-900 px-5 py-4">
+          <h2 className="text-lg font-semibold text-white">{title}</h2>
+          <button onClick={onClose} className="text-navy-300 hover:text-white">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>

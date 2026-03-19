@@ -15,7 +15,7 @@ export default function CommCompliance() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Communication Compliance ({data.policies.length})</h2>
+      <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Communication Compliance ({data.policies.length})</h2>
       <DataTable<CommCompliancePolicy & Record<string, unknown>>
         columns={[
           { key: "display_name", label: "Policy" },
