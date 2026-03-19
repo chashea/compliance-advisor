@@ -32,7 +32,6 @@ export default function Overview() {
     : [];
 
   const score = actions.data?.secure_score;
-  const pct = score?.max_score ? ((score.current_score / score.max_score) * 100).toFixed(0) : "0";
   const dataPct = score?.data_max_score ? ((score.data_current_score / score.data_max_score) * 100).toFixed(0) : "0";
 
   return (
@@ -45,9 +44,6 @@ export default function Overview() {
         <StatCard label="Retention Labels" value={o.labels_summary?.retention_labels ?? 0} />
         <StatCard label="DLP Alerts" value={o.dlp_summary?.total_dlp_alerts ?? 0} sub={`${o.dlp_summary?.active_alerts ?? 0} active`} />
         <StatCard label="Audit Records" value={o.audit_summary?.total_records ?? 0} />
-        {score && (
-          <StatCard label="Overall Score" value={`${pct}%`} />
-        )}
       </div>
 
       {dlpData.length > 0 && (
