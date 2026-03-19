@@ -150,19 +150,6 @@ export interface IRMResponse {
   severity_breakdown: SeverityBreakdown[];
 }
 
-// /api/advisor/governance
-export interface ProtectionScope {
-  scope_type: string;
-  execution_mode: string;
-  locations: string;
-  activity_types: string;
-  tenant_name: string;
-}
-
-export interface GovernanceResponse {
-  scopes: ProtectionScope[];
-}
-
 // /api/advisor/trend
 export interface TrendPoint {
   snapshot_date: string;
@@ -207,19 +194,6 @@ export interface CommCompliancePolicy {
 
 export interface CommComplianceResponse {
   policies: CommCompliancePolicy[];
-}
-
-// /api/advisor/info-barriers
-export interface InfoBarrierPolicy {
-  policy_id: string;
-  display_name: string;
-  state: string;
-  segments_applied: string;
-  tenant_name: string;
-}
-
-export interface InfoBarriersResponse {
-  policies: InfoBarrierPolicy[];
 }
 
 // /api/advisor/actions

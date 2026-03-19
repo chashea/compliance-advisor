@@ -10,8 +10,6 @@ import DLP from "./pages/DLP";
 import IRM from "./pages/IRM";
 import SubjectRights from "./pages/SubjectRights";
 import CommCompliance from "./pages/CommCompliance";
-import InfoBarriers from "./pages/InfoBarriers";
-import Governance from "./pages/Governance";
 import Trend from "./pages/Trend";
 
 
@@ -30,8 +28,6 @@ export default function App() {
             <Route path="irm" element={<IRM />} />
             <Route path="subject-rights" element={<SubjectRights />} />
             <Route path="comm-compliance" element={<CommCompliance />} />
-            <Route path="info-barriers" element={<InfoBarriers />} />
-            <Route path="governance" element={<Governance />} />
             <Route path="trend" element={<Trend />} />
           </Route>
         </Routes>

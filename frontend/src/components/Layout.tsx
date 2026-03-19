@@ -13,8 +13,6 @@ const NAV = [
   { to: "/irm", label: "IRM" },
   { to: "/subject-rights", label: "Subject Rights" },
   { to: "/comm-compliance", label: "Comm Compliance" },
-  { to: "/info-barriers", label: "Info Barriers" },
-  { to: "/governance", label: "Governance" },
   { to: "/trend", label: "Trend" },
 ];
 

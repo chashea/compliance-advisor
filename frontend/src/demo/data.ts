@@ -18,10 +18,6 @@ import type {
   SubjectRightsRequest,
   CommComplianceResponse,
   CommCompliancePolicy,
-  InfoBarriersResponse,
-  InfoBarrierPolicy,
-  GovernanceResponse,
-  ProtectionScope,
   TrendResponse,
   TrendPoint,
   ActionsResponse,
@@ -116,18 +112,6 @@ const commCompliancePolicies: CommCompliancePolicy[] = [
   { policy_id: "cc-1", display_name: "Offensive Language Detection", status: "Active", policy_type: "OffensiveLanguage", review_pending_count: 12, tenant_name: "Contoso Ltd" },
   { policy_id: "cc-2", display_name: "Regulatory Compliance — FINRA", status: "Active", policy_type: "RegulatoryCompliance", review_pending_count: 3, tenant_name: "Fabrikam Inc" },
   { policy_id: "cc-3", display_name: "Conflict of Interest", status: "Inactive", policy_type: "CustomPolicy", review_pending_count: 0, tenant_name: "Northwind Traders" },
-];
-
-const infoBarrierPolicies: InfoBarrierPolicy[] = [
-  { policy_id: "ib-1", display_name: "Legal ↔ Trading Wall", state: "Active", segments_applied: "Legal, Trading", tenant_name: "Contoso Ltd" },
-  { policy_id: "ib-2", display_name: "Research ↔ Sales Wall", state: "Active", segments_applied: "Research, Sales", tenant_name: "Fabrikam Inc" },
-  { policy_id: "ib-3", display_name: "HR ↔ External Wall", state: "Inactive", segments_applied: "HR, External", tenant_name: "Northwind Traders" },
-];
-
-const protectionScopes: ProtectionScope[] = [
-  { scope_type: "DLP", execution_mode: "Enforce", locations: "Exchange, SharePoint, OneDrive", activity_types: "Share, Download", tenant_name: "Contoso Ltd" },
-  { scope_type: "Retention", execution_mode: "Simulate", locations: "Exchange, Teams", activity_types: "All", tenant_name: "Fabrikam Inc" },
-  { scope_type: "DLP", execution_mode: "Enforce", locations: "Endpoint, SharePoint", activity_types: "Copy to USB, Print", tenant_name: "Northwind Traders" },
 ];
 
 const improvementActions: ImprovementAction[] = [
@@ -279,16 +263,6 @@ export function getDemoData(endpoint: string, body?: Record<string, unknown>): u
       return {
         policies: filterByDept(commCompliancePolicies, dept || undefined),
       } satisfies CommComplianceResponse;
-
-    case "info-barriers":
-      return {
-        policies: filterByDept(infoBarrierPolicies, dept || undefined),
-      } satisfies InfoBarriersResponse;
-
-    case "governance":
-      return {
-        scopes: filterByDept(protectionScopes, dept || undefined),
-      } satisfies GovernanceResponse;
 
     case "trend":
       return { trend: trendData } satisfies TrendResponse;
