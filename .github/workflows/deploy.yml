@@ -141,6 +141,9 @@ jobs:
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --settings WEBSITE_RUN_FROM_PACKAGE=1
 
+      - name: Bundle collector package
+        run: cp -r collector/ functions/collector/
+
       - name: Deploy Azure Functions
         if: env.FUNCTION_APP_NAME != ''
         uses: Azure/functions-action@v1

@@ -168,9 +168,7 @@ def _build_context(department: str | None = None) -> str:
     sections.append(f"\n## Secure Scores ({len(scores)} entries)")
     for s in scores:
         pct = f"{(s['current_score'] / s['max_score'] * 100):.0f}%" if s["max_score"] else "N/A"
-        data_pct = (
-            f"{(s['data_current_score'] / s['data_max_score'] * 100):.0f}%" if s["data_max_score"] else "N/A"
-        )
+        data_pct = f"{(s['data_current_score'] / s['data_max_score'] * 100):.0f}%" if s["data_max_score"] else "N/A"
         sections.append(
             f"- Overall: {s['current_score']}/{s['max_score']} ({pct}) | "
             f"Data: {s['data_current_score']}/{s['data_max_score']} ({data_pct}) — {s['score_date']}"

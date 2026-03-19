@@ -64,6 +64,8 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         { name: 'WEBSITE_RUN_FROM_PACKAGE', value: '1' }
         { name: 'ALLOWED_TENANT_IDS', value: allowedTenantIds }
         { name: 'AZURE_OPENAI_ENDPOINT', value: azureOpenAiEndpoint }
+        { name: 'COLLECTOR_CLIENT_ID', value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/gcc-client-id/)' }
+        { name: 'COLLECTOR_CLIENT_SECRET', value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/gcc-password/)' }
       ]
     }
   }
