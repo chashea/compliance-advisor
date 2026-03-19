@@ -539,6 +539,137 @@ def get_info_barriers(department: str | None = None) -> dict:
     return {"policies": policies}
 
 
+def get_dlp_policies(department: str | None = None) -> dict:
+    """POST /api/advisor/dlp-policies — DLP policies."""
+    dept_filter = ""
+    params: dict = {}
+    if department:
+        dept_filter = "AND t.department = %(dept)s"
+        params["dept"] = department
+
+    policies = query(
+        f"""
+        SELECT dp.policy_id, dp.display_name, dp.status, dp.policy_type,
+               dp.rules_count, dp.created, dp.modified, dp.mode,
+               t.display_name AS tenant_name
+        FROM dlp_policies dp
+        JOIN tenants t ON t.tenant_id = dp.tenant_id
+        WHERE dp.snapshot_date = (SELECT MAX(snapshot_date) FROM dlp_policies)
+          {dept_filter}
+        ORDER BY dp.display_name
+        LIMIT 1000
+        """,
+        params,
+    )
+
+    status_breakdown = query(
+        f"""
+        SELECT dp.status, COUNT(*)::int AS total
+        FROM dlp_policies dp
+        JOIN tenants t ON t.tenant_id = dp.tenant_id
+        WHERE dp.snapshot_date = (SELECT MAX(snapshot_date) FROM dlp_policies)
+          {dept_filter}
+        GROUP BY dp.status
+        ORDER BY total DESC
+        """,
+        params,
+    )
+
+    return {"policies": policies, "status_breakdown": status_breakdown}
+
+
+def get_irm_policies(department: str | None = None) -> dict:
+    """POST /api/advisor/irm-policies — Insider Risk Management policies."""
+    dept_filter = ""
+    params: dict = {}
+    if department:
+        dept_filter = "AND t.department = %(dept)s"
+        params["dept"] = department
+
+    policies = query(
+        f"""
+        SELECT ip.policy_id, ip.display_name, ip.status, ip.policy_type,
+               ip.created, ip.triggers, t.display_name AS tenant_name
+        FROM irm_policies ip
+        JOIN tenants t ON t.tenant_id = ip.tenant_id
+        WHERE ip.snapshot_date = (SELECT MAX(snapshot_date) FROM irm_policies)
+          {dept_filter}
+        ORDER BY ip.display_name
+        LIMIT 1000
+        """,
+        params,
+    )
+
+    return {"policies": policies}
+
+
+def get_sensitive_info_types(department: str | None = None) -> dict:
+    """POST /api/advisor/sensitive-info-types — Sensitive Information Types."""
+    dept_filter = ""
+    params: dict = {}
+    if department:
+        dept_filter = "AND t.department = %(dept)s"
+        params["dept"] = department
+
+    types = query(
+        f"""
+        SELECT si.type_id, si.name, si.description, si.is_custom,
+               si.category, si.scope, si.state, t.display_name AS tenant_name
+        FROM sensitive_info_types si
+        JOIN tenants t ON t.tenant_id = si.tenant_id
+        WHERE si.snapshot_date = (SELECT MAX(snapshot_date) FROM sensitive_info_types)
+          {dept_filter}
+        ORDER BY si.name
+        LIMIT 1000
+        """,
+        params,
+    )
+
+    custom_count = sum(1 for t in types if t.get("is_custom"))
+    builtin_count = len(types) - custom_count
+
+    return {"types": types, "custom_count": custom_count, "builtin_count": builtin_count}
+
+
+def get_compliance_assessments(department: str | None = None) -> dict:
+    """POST /api/advisor/assessments — Compliance Assessments."""
+    dept_filter = ""
+    params: dict = {}
+    if department:
+        dept_filter = "AND t.department = %(dept)s"
+        params["dept"] = department
+
+    assessments = query(
+        f"""
+        SELECT ca.assessment_id, ca.display_name, ca.status, ca.framework,
+               ca.completion_percentage, ca.created, ca.category,
+               t.display_name AS tenant_name
+        FROM compliance_assessments ca
+        JOIN tenants t ON t.tenant_id = ca.tenant_id
+        WHERE ca.snapshot_date = (SELECT MAX(snapshot_date) FROM compliance_assessments)
+          {dept_filter}
+        ORDER BY ca.display_name
+        LIMIT 1000
+        """,
+        params,
+    )
+
+    framework_breakdown = query(
+        f"""
+        SELECT ca.framework, COUNT(*)::int AS total
+        FROM compliance_assessments ca
+        JOIN tenants t ON t.tenant_id = ca.tenant_id
+        WHERE ca.snapshot_date = (SELECT MAX(snapshot_date) FROM compliance_assessments)
+          {dept_filter}
+        GROUP BY ca.framework
+        ORDER BY total DESC
+        """,
+        params,
+    )
+
+    return {"assessments": assessments, "framework_breakdown": framework_breakdown}
+
+
 def get_improvement_actions(department: str | None = None) -> dict:
     """POST /api/advisor/actions — Secure Score and improvement actions."""
     dept_filter = ""

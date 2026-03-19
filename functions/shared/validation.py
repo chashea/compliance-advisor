@@ -39,6 +39,10 @@ PAYLOAD_SCHEMA: dict = {
         "secure_scores",
         "improvement_actions",
         "user_content_policies",
+        "dlp_policies",
+        "irm_policies",
+        "sensitive_info_types",
+        "compliance_assessments",
         "collector_version",
     ],
     "properties": {
@@ -169,6 +173,38 @@ PAYLOAD_SCHEMA: dict = {
                     "user_id": {"type": "string", "minLength": 1},
                     "user_upn": {"type": "string", "minLength": 1},
                 },
+            },
+        },
+        "dlp_policies": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["policy_id"],
+                "properties": {"policy_id": {"type": "string", "minLength": 1}},
+            },
+        },
+        "irm_policies": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["policy_id"],
+                "properties": {"policy_id": {"type": "string", "minLength": 1}},
+            },
+        },
+        "sensitive_info_types": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["type_id"],
+                "properties": {"type_id": {"type": "string", "minLength": 1}},
+            },
+        },
+        "compliance_assessments": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["assessment_id"],
+                "properties": {"assessment_id": {"type": "string", "minLength": 1}},
             },
         },
         "collector_version": {"type": "string"},

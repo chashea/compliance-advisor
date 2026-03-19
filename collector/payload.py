@@ -47,6 +47,10 @@ class CompliancePayload:
     secure_scores: list[dict[str, Any]]
     improvement_actions: list[dict[str, Any]]
     user_content_policies: list[dict[str, Any]]
+    dlp_policies: list[dict[str, Any]]
+    irm_policies: list[dict[str, Any]]
+    sensitive_info_types: list[dict[str, Any]]
+    compliance_assessments: list[dict[str, Any]]
     collector_version: str = field(default_factory=_collector_version)
 
     @staticmethod

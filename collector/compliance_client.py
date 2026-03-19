@@ -10,6 +10,10 @@ Pulls data from:
 - GET  /v1.0/security/alerts?$filter=vendorInformation/provider — DLP + IRM alerts
 - POST /v1.0/dataSecurityAndGovernance/protectionScopes/compute  — protection scopes
 - POST /v1.0/users/{id}/dataSecurityAndGovernance/processContent — user content policies
+- GET  /v1.0/security/dataLossPrevention/policies                — DLP policies
+- GET  /beta/security/insiderRiskManagement/policies              — IRM policies
+- GET  /v1.0/security/informationProtection/sensitiveTypes        — sensitive info types
+- GET  /beta/compliance/assessments                               — compliance assessments
 """
 
 import logging
@@ -614,6 +618,156 @@ def get_info_barrier_policies(token: str) -> list[dict[str, Any]]:
         )
 
     log.info("Retrieved %d information barrier policies", len(results))
+    return results
+
+
+# ── DLP Policies ─────────────────────────────────────────────────
+
+
+def get_dlp_policies(token: str) -> list[dict[str, Any]]:
+    """Return DLP policies (v1.0 with beta fallback)."""
+    sess = _session(token)
+    url = f"{GRAPH_BASE}/security/dataLossPrevention/policies"
+
+    try:
+        items = _paginate(sess, url)
+    except requests.exceptions.RequestException as e:
+        log.warning("DLP policies (v1.0) failed: %s — trying beta", e)
+        try:
+            url = f"{GRAPH_BETA}/security/dataLossPrevention/policies"
+            items = _paginate(sess, url)
+        except requests.exceptions.RequestException as e2:
+            log.warning("DLP policies (beta) failed: %s", e2)
+            return []
+
+    results = []
+    for item in items:
+        rules = item.get("rules", [])
+        status = item.get("state", "")
+        if not status and item.get("isEnabled") is not None:
+            status = "enabled" if item["isEnabled"] else "disabled"
+
+        results.append(
+            {
+                "policy_id": item.get("id", ""),
+                "display_name": item.get("displayName", "") or item.get("name", ""),
+                "status": status,
+                "policy_type": item.get("type", ""),
+                "rules_count": len(rules) if isinstance(rules, list) else 0,
+                "created": item.get("createdDateTime", ""),
+                "modified": item.get("lastModifiedDateTime", ""),
+                "mode": item.get("enforcementMode", "") or item.get("mode", ""),
+            }
+        )
+
+    log.info("Retrieved %d DLP policies", len(results))
+    return results
+
+
+# ── IRM Policies ─────────────────────────────────────────────────
+
+
+def get_irm_policies(token: str) -> list[dict[str, Any]]:
+    """Return Insider Risk Management policies (beta API)."""
+    sess = _session(token)
+    url = f"{GRAPH_BETA}/security/insiderRiskManagement/policies"
+
+    try:
+        items = _paginate(sess, url)
+    except requests.exceptions.RequestException as e:
+        log.warning("IRM policies failed: %s", e)
+        return []
+
+    results = []
+    for item in items:
+        status = item.get("state", "")
+        if not status and item.get("isEnabled") is not None:
+            status = "enabled" if item["isEnabled"] else "disabled"
+
+        triggers = item.get("insiderRiskPolicyTriggers", [])
+        triggers_str = ", ".join(str(t) for t in triggers) if isinstance(triggers, list) else str(triggers or "")
+
+        results.append(
+            {
+                "policy_id": item.get("id", ""),
+                "display_name": item.get("displayName", ""),
+                "status": status,
+                "policy_type": item.get("policyType", ""),
+                "created": item.get("createdDateTime", ""),
+                "triggers": triggers_str,
+            }
+        )
+
+    log.info("Retrieved %d IRM policies", len(results))
+    return results
+
+
+# ── Sensitive Information Types ──────────────────────────────────
+
+
+def get_sensitive_info_types(token: str) -> list[dict[str, Any]]:
+    """Return sensitive information types (v1.0 with beta fallback)."""
+    sess = _session(token)
+    url = f"{GRAPH_BASE}/security/informationProtection/sensitiveTypes"
+
+    try:
+        items = _paginate(sess, url)
+    except requests.exceptions.RequestException as e:
+        log.warning("sensitiveTypes (v1.0) failed: %s — trying beta", e)
+        try:
+            url = f"{GRAPH_BETA}/security/informationProtection/sensitiveTypes"
+            items = _paginate(sess, url)
+        except requests.exceptions.RequestException as e2:
+            log.warning("sensitiveTypes (beta) failed: %s", e2)
+            return []
+
+    results = []
+    for item in items:
+        results.append(
+            {
+                "type_id": item.get("id", ""),
+                "name": item.get("name", ""),
+                "description": item.get("description", ""),
+                "is_custom": item.get("publisherName", "Microsoft") != "Microsoft",
+                "category": item.get("category", ""),
+                "scope": item.get("scope", ""),
+                "state": item.get("state", ""),
+            }
+        )
+
+    log.info("Retrieved %d sensitive info types", len(results))
+    return results
+
+
+# ── Compliance Assessments ───────────────────────────────────────
+
+
+def get_compliance_assessments(token: str) -> list[dict[str, Any]]:
+    """Return compliance assessments (beta API)."""
+    sess = _session(token)
+    url = f"{GRAPH_BETA}/compliance/assessments"
+
+    try:
+        items = _paginate(sess, url)
+    except requests.exceptions.RequestException as e:
+        log.warning("compliance assessments failed: %s", e)
+        return []
+
+    results = []
+    for item in items:
+        results.append(
+            {
+                "assessment_id": item.get("id", ""),
+                "display_name": item.get("displayName", ""),
+                "status": item.get("status", ""),
+                "framework": item.get("complianceStandard", "") or item.get("framework", ""),
+                "completion_percentage": float(item.get("completionPercentage", 0) or 0),
+                "created": item.get("createdDateTime", ""),
+                "category": item.get("category", ""),
+            }
+        )
+
+    log.info("Retrieved %d compliance assessments", len(results))
     return results
 
 

@@ -27,6 +27,10 @@ VALID_PAYLOAD = {
     "secure_scores": [],
     "improvement_actions": [],
     "user_content_policies": [],
+    "dlp_policies": [],
+    "irm_policies": [],
+    "sensitive_info_types": [],
+    "compliance_assessments": [],
     "collector_version": "4.0.0",
 }
 
@@ -71,6 +75,10 @@ def test_schema_requires_all_fields():
         "secure_scores",
         "improvement_actions",
         "user_content_policies",
+        "dlp_policies",
+        "irm_policies",
+        "sensitive_info_types",
+        "compliance_assessments",
         "collector_version",
     }
 

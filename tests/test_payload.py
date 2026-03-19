@@ -28,6 +28,10 @@ def _make_payload(**overrides) -> CompliancePayload:
         "secure_scores": [],
         "improvement_actions": [],
         "user_content_policies": [],
+        "dlp_policies": [],
+        "irm_policies": [],
+        "sensitive_info_types": [],
+        "compliance_assessments": [],
     }
     return CompliancePayload(**{**defaults, **overrides})
 
@@ -85,6 +89,10 @@ def test_to_dict_contains_all_fields():
         "secure_scores",
         "improvement_actions",
         "user_content_policies",
+        "dlp_policies",
+        "irm_policies",
+        "sensitive_info_types",
+        "compliance_assessments",
         "collector_version",
     }
     assert set(d.keys()) == expected_keys

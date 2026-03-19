@@ -569,6 +569,130 @@ def upsert_user_content_policies(tenant_id: str, records: list[dict], snapshot_d
     return len(params)
 
 
+def upsert_dlp_policy(
+    tenant_id: str,
+    policy_id: str,
+    display_name: str,
+    status: str,
+    policy_type: str,
+    rules_count: int,
+    created: str,
+    modified: str,
+    mode: str,
+    snapshot_date: str,
+) -> None:
+    execute(
+        """
+        INSERT INTO dlp_policies
+            (tenant_id, policy_id, display_name, status, policy_type,
+             rules_count, created, modified, mode, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (tenant_id, policy_id, snapshot_date) DO UPDATE SET
+            display_name = EXCLUDED.display_name,
+            status = EXCLUDED.status,
+            policy_type = EXCLUDED.policy_type,
+            rules_count = EXCLUDED.rules_count,
+            created = EXCLUDED.created,
+            modified = EXCLUDED.modified,
+            mode = EXCLUDED.mode
+        """,
+        (tenant_id, policy_id, display_name, status, policy_type, rules_count, created, modified, mode, snapshot_date),
+    )
+
+
+def upsert_irm_policy(
+    tenant_id: str,
+    policy_id: str,
+    display_name: str,
+    status: str,
+    policy_type: str,
+    created: str,
+    triggers: str,
+    snapshot_date: str,
+) -> None:
+    execute(
+        """
+        INSERT INTO irm_policies
+            (tenant_id, policy_id, display_name, status, policy_type, created, triggers, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (tenant_id, policy_id, snapshot_date) DO UPDATE SET
+            display_name = EXCLUDED.display_name,
+            status = EXCLUDED.status,
+            policy_type = EXCLUDED.policy_type,
+            created = EXCLUDED.created,
+            triggers = EXCLUDED.triggers
+        """,
+        (tenant_id, policy_id, display_name, status, policy_type, created, triggers, snapshot_date),
+    )
+
+
+def upsert_sensitive_info_type(
+    tenant_id: str,
+    type_id: str,
+    name: str,
+    description: str,
+    is_custom: bool,
+    category: str,
+    scope: str,
+    state: str,
+    snapshot_date: str,
+) -> None:
+    execute(
+        """
+        INSERT INTO sensitive_info_types
+            (tenant_id, type_id, name, description, is_custom, category, scope, state, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (tenant_id, type_id, snapshot_date) DO UPDATE SET
+            name = EXCLUDED.name,
+            description = EXCLUDED.description,
+            is_custom = EXCLUDED.is_custom,
+            category = EXCLUDED.category,
+            scope = EXCLUDED.scope,
+            state = EXCLUDED.state
+        """,
+        (tenant_id, type_id, name, description, is_custom, category, scope, state, snapshot_date),
+    )
+
+
+def upsert_compliance_assessment(
+    tenant_id: str,
+    assessment_id: str,
+    display_name: str,
+    status: str,
+    framework: str,
+    completion_percentage: float,
+    created: str,
+    category: str,
+    snapshot_date: str,
+) -> None:
+    execute(
+        """
+        INSERT INTO compliance_assessments
+            (tenant_id, assessment_id, display_name, status, framework,
+             completion_percentage, created, category, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (tenant_id, assessment_id, snapshot_date) DO UPDATE SET
+            display_name = EXCLUDED.display_name,
+            status = EXCLUDED.status,
+            framework = EXCLUDED.framework,
+            completion_percentage = EXCLUDED.completion_percentage,
+            created = EXCLUDED.created,
+            category = EXCLUDED.category
+        """,
+        (
+            tenant_id,
+            assessment_id,
+            display_name,
+            status,
+            framework,
+            completion_percentage,
+            created,
+            category,
+            snapshot_date,
+        ),
+    )
+
+
 def upsert_improvement_action(
     tenant_id: str,
     control_id: str,

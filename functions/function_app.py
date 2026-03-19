@@ -51,14 +51,18 @@ try:
     from shared.dashboard_queries import (
         get_audit,
         get_comm_compliance,
+        get_compliance_assessments,
         get_dlp,
+        get_dlp_policies,
         get_ediscovery,
         get_governance,
         get_improvement_actions,
         get_info_barriers,
         get_irm,
+        get_irm_policies,
         get_labels,
         get_overview,
+        get_sensitive_info_types,
         get_status,
         get_subject_rights,
         get_trend,
@@ -69,15 +73,19 @@ try:
         record_ingestion,
         upsert_audit_record,
         upsert_comm_compliance_policy,
+        upsert_compliance_assessment,
         upsert_dlp_alert,
+        upsert_dlp_policy,
         upsert_ediscovery_case,
         upsert_improvement_action,
         upsert_info_barrier_policy,
         upsert_irm_alert,
+        upsert_irm_policy,
         upsert_protection_scope,
         upsert_retention_event,
         upsert_retention_label,
         upsert_secure_score,
+        upsert_sensitive_info_type,
         upsert_sensitivity_label,
         upsert_subject_rights_request,
         upsert_tenant,
@@ -278,6 +286,54 @@ def advisor_actions(req: func.HttpRequest) -> func.HttpResponse:
         return _json_response(get_improvement_actions(department=body.get("department")))
     except Exception as e:
         log.exception("advisor/actions error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+@app.function_name("advisor_dlp_policies")
+@app.route(route="advisor/dlp-policies", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_dlp_policies(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        _ensure_dependencies_loaded()
+        body = _get_body(req)
+        return _json_response(get_dlp_policies(department=body.get("department")))
+    except Exception as e:
+        log.exception("advisor/dlp-policies error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+@app.function_name("advisor_irm_policies")
+@app.route(route="advisor/irm-policies", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_irm_policies(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        _ensure_dependencies_loaded()
+        body = _get_body(req)
+        return _json_response(get_irm_policies(department=body.get("department")))
+    except Exception as e:
+        log.exception("advisor/irm-policies error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+@app.function_name("advisor_sensitive_info_types")
+@app.route(route="advisor/sensitive-info-types", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_sensitive_info_types(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        _ensure_dependencies_loaded()
+        body = _get_body(req)
+        return _json_response(get_sensitive_info_types(department=body.get("department")))
+    except Exception as e:
+        log.exception("advisor/sensitive-info-types error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+@app.function_name("advisor_assessments")
+@app.route(route="advisor/assessments", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_assessments(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        _ensure_dependencies_loaded()
+        body = _get_body(req)
+        return _json_response(get_compliance_assessments(department=body.get("department")))
+    except Exception as e:
+        log.exception("advisor/assessments error: %s", e)
         return _json_response({"error": str(e)}, 500)
 
 
@@ -542,6 +598,62 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
             snapshot_date=snapshot_date,
         )
 
+        # Upsert DLP policies
+        for dp in payload.get("dlp_policies", []):
+            upsert_dlp_policy(
+                tenant_id=tenant_id,
+                policy_id=dp.get("policy_id", ""),
+                display_name=dp.get("display_name", ""),
+                status=dp.get("status", ""),
+                policy_type=dp.get("policy_type", ""),
+                rules_count=dp.get("rules_count", 0),
+                created=dp.get("created", ""),
+                modified=dp.get("modified", ""),
+                mode=dp.get("mode", ""),
+                snapshot_date=snapshot_date,
+            )
+
+        # Upsert IRM policies
+        for ip in payload.get("irm_policies", []):
+            upsert_irm_policy(
+                tenant_id=tenant_id,
+                policy_id=ip.get("policy_id", ""),
+                display_name=ip.get("display_name", ""),
+                status=ip.get("status", ""),
+                policy_type=ip.get("policy_type", ""),
+                created=ip.get("created", ""),
+                triggers=ip.get("triggers", ""),
+                snapshot_date=snapshot_date,
+            )
+
+        # Upsert sensitive info types
+        for si in payload.get("sensitive_info_types", []):
+            upsert_sensitive_info_type(
+                tenant_id=tenant_id,
+                type_id=si.get("type_id", ""),
+                name=si.get("name", ""),
+                description=si.get("description", ""),
+                is_custom=si.get("is_custom", False),
+                category=si.get("category", ""),
+                scope=si.get("scope", ""),
+                state=si.get("state", ""),
+                snapshot_date=snapshot_date,
+            )
+
+        # Upsert compliance assessments
+        for ca in payload.get("compliance_assessments", []):
+            upsert_compliance_assessment(
+                tenant_id=tenant_id,
+                assessment_id=ca.get("assessment_id", ""),
+                display_name=ca.get("display_name", ""),
+                status=ca.get("status", ""),
+                framework=ca.get("framework", ""),
+                completion_percentage=ca.get("completion_percentage", 0),
+                created=ca.get("created", ""),
+                category=ca.get("category", ""),
+                snapshot_date=snapshot_date,
+            )
+
         counts = {
             "ediscovery_cases": len(payload.get("ediscovery_cases", [])),
             "sensitivity_labels": len(payload.get("sensitivity_labels", [])),
@@ -553,12 +665,17 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
             "comm_compliance_policies": len(payload.get("comm_compliance_policies", [])),
             "info_barrier_policies": len(payload.get("info_barrier_policies", [])),
             "protection_scopes": len(payload.get("protection_scopes", [])),
+            "dlp_policies": len(payload.get("dlp_policies", [])),
+            "irm_policies": len(payload.get("irm_policies", [])),
+            "sensitive_info_types": len(payload.get("sensitive_info_types", [])),
+            "compliance_assessments": len(payload.get("compliance_assessments", [])),
         }
         record_ingestion(tenant_id, snapshot_date, payload_hash, counts)
 
         log.info(
             "Ingested: tenant=%s dept=%s ediscovery=%d labels=%d retention=%d audit=%d dlp=%d "
-            "irm=%d srr=%d comm_compliance=%d info_barriers=%d scopes=%d scores=%d actions=%d",
+            "irm=%d srr=%d comm_compliance=%d info_barriers=%d scopes=%d scores=%d actions=%d "
+            "dlp_policies=%d irm_policies=%d sit=%d assessments=%d",
             tenant_id,
             payload["department"],
             counts["ediscovery_cases"],
@@ -573,6 +690,10 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
             counts["protection_scopes"],
             len(payload.get("secure_scores", [])),
             len(payload.get("improvement_actions", [])),
+            counts["dlp_policies"],
+            counts["irm_policies"],
+            counts["sensitive_info_types"],
+            counts["compliance_assessments"],
         )
         return _json_response({"status": "ok", "tenant_id": tenant_id, **counts})
 

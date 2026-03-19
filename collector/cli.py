@@ -16,15 +16,19 @@ from collector.auth import get_graph_token
 from collector.compliance_client import (
     get_audit_log_records,
     get_comm_compliance_policies,
+    get_compliance_assessments,
     get_dlp_alerts,
+    get_dlp_policies,
     get_ediscovery_cases,
     get_improvement_actions,
     get_info_barrier_policies,
     get_irm_alerts,
+    get_irm_policies,
     get_protection_scopes,
     get_retention_events,
     get_retention_labels,
     get_secure_scores,
+    get_sensitive_info_types,
     get_sensitivity_labels,
     get_subject_rights_requests,
     get_user_content_policies,
@@ -147,6 +151,18 @@ def main(
     click.echo("  User Content Policies...")
     user_content_policies = get_user_content_policies(token)
 
+    click.echo("  DLP Policies...")
+    dlp_policies = get_dlp_policies(token)
+
+    click.echo("  IRM Policies...")
+    irm_policies = get_irm_policies(token)
+
+    click.echo("  Sensitive Info Types...")
+    sensitive_info_types = get_sensitive_info_types(token)
+
+    click.echo("  Compliance Assessments...")
+    compliance_assessments = get_compliance_assessments(token)
+
     click.echo(
         f"\neDiscovery: {len(ediscovery_cases)} | Labels: {len(sensitivity_labels)} "
         f"| Retention: {len(retention_labels)} labels, {len(retention_events)} events "
@@ -155,7 +171,9 @@ def main(
         f"| InfoBarriers: {len(info_barrier_policies)} "
         f"| Scopes: {len(protection_scopes)} | Secure Score: {len(secure_scores)} "
         f"| Improvement Actions: {len(improvement_actions)} "
-        f"| UserContent: {len(user_content_policies)}"
+        f"| UserContent: {len(user_content_policies)} "
+        f"| DLP Policies: {len(dlp_policies)} | IRM Policies: {len(irm_policies)} "
+        f"| SIT: {len(sensitive_info_types)} | Assessments: {len(compliance_assessments)}"
     )
 
     # Build payload
@@ -179,6 +197,10 @@ def main(
         secure_scores=secure_scores,
         improvement_actions=improvement_actions,
         user_content_policies=user_content_policies,
+        dlp_policies=dlp_policies,
+        irm_policies=irm_policies,
+        sensitive_info_types=sensitive_info_types,
+        compliance_assessments=compliance_assessments,
     )
 
     payload_dict = payload.to_dict()

@@ -226,6 +226,66 @@ CREATE TABLE IF NOT EXISTS user_content_policies (
     UNIQUE (tenant_id, snapshot_date, user_id)
 );
 
+-- DLP Policies
+CREATE TABLE IF NOT EXISTS dlp_policies (
+    id              SERIAL PRIMARY KEY,
+    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
+    policy_id       TEXT NOT NULL,
+    display_name    TEXT,
+    status          TEXT,
+    policy_type     TEXT,
+    rules_count     INT DEFAULT 0,
+    created         TEXT,
+    modified        TEXT,
+    mode            TEXT,
+    snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+    UNIQUE (tenant_id, policy_id, snapshot_date)
+);
+
+-- IRM Policies
+CREATE TABLE IF NOT EXISTS irm_policies (
+    id              SERIAL PRIMARY KEY,
+    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
+    policy_id       TEXT NOT NULL,
+    display_name    TEXT,
+    status          TEXT,
+    policy_type     TEXT,
+    created         TEXT,
+    triggers        TEXT,
+    snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+    UNIQUE (tenant_id, policy_id, snapshot_date)
+);
+
+-- Sensitive Information Types
+CREATE TABLE IF NOT EXISTS sensitive_info_types (
+    id              SERIAL PRIMARY KEY,
+    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
+    type_id         TEXT NOT NULL,
+    name            TEXT,
+    description     TEXT,
+    is_custom       BOOLEAN DEFAULT FALSE,
+    category        TEXT,
+    scope           TEXT,
+    state           TEXT,
+    snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+    UNIQUE (tenant_id, type_id, snapshot_date)
+);
+
+-- Compliance Assessments
+CREATE TABLE IF NOT EXISTS compliance_assessments (
+    id                      SERIAL PRIMARY KEY,
+    tenant_id               TEXT NOT NULL REFERENCES tenants(tenant_id),
+    assessment_id           TEXT NOT NULL,
+    display_name            TEXT,
+    status                  TEXT,
+    framework               TEXT,
+    completion_percentage   REAL DEFAULT 0,
+    created                 TEXT,
+    category                TEXT,
+    snapshot_date           DATE NOT NULL DEFAULT CURRENT_DATE,
+    UNIQUE (tenant_id, assessment_id, snapshot_date)
+);
+
 -- Daily compliance trend (computed by timer trigger)
 CREATE TABLE IF NOT EXISTS compliance_trend (
     id                  SERIAL PRIMARY KEY,
@@ -305,6 +365,18 @@ CREATE INDEX IF NOT EXISTS idx_comm_compliance_policies_tenant
 
 CREATE INDEX IF NOT EXISTS idx_info_barrier_policies_tenant
     ON info_barrier_policies(tenant_id, snapshot_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_dlp_policies_tenant
+    ON dlp_policies(tenant_id, snapshot_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_irm_policies_tenant
+    ON irm_policies(tenant_id, snapshot_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_sensitive_info_types_tenant
+    ON sensitive_info_types(tenant_id, snapshot_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_compliance_assessments_tenant
+    ON compliance_assessments(tenant_id, snapshot_date DESC);
 
 CREATE INDEX IF NOT EXISTS idx_ingestion_log_lookup
     ON ingestion_log(tenant_id, snapshot_date, payload_hash);
