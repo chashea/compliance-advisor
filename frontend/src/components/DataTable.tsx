@@ -17,10 +17,13 @@ export default function DataTable<T extends Record<string, unknown>>({ columns, 
   const [sortAsc, setSortAsc] = useState(true);
   const [filters, setFilters] = useState<Record<string, string>>({});
 
+  const uniqueVals = (key: string) =>
+    [...new Set(data.map((row) => String(row[key] ?? "")))].sort();
+
   const filtered = data.filter((row) =>
     Object.entries(filters).every(([key, val]) => {
       if (!val) return true;
-      return String(row[key] ?? "").toLowerCase().includes(val.toLowerCase());
+      return String(row[key] ?? "") === val;
     }),
   );
 
@@ -59,13 +62,16 @@ export default function DataTable<T extends Record<string, unknown>>({ columns, 
           <tr className="border-b border-slate-200">
             {columns.map((c) => (
               <th key={`filter-${c.key}`} className="px-4 py-1.5">
-                <input
-                  type="text"
-                  placeholder="Filter..."
+                <select
                   value={filters[c.key] ?? ""}
                   onChange={(e) => setFilters((f) => ({ ...f, [c.key]: e.target.value }))}
-                  className="w-full rounded border border-slate-200 px-2 py-1 text-xs font-normal normal-case text-slate-700 placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
-                />
+                  className="w-full rounded border border-slate-200 bg-white px-2 py-1 text-xs font-normal normal-case text-slate-700 focus:border-blue-400 focus:outline-none"
+                >
+                  <option value="">All</option>
+                  {uniqueVals(c.key).map((v) => (
+                    <option key={v} value={v}>{v}</option>
+                  ))}
+                </select>
               </th>
             ))}
           </tr>
