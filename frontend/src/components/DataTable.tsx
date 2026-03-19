@@ -15,8 +15,16 @@ interface Props<T> {
 export default function DataTable<T extends Record<string, unknown>>({ columns, data, keyField }: Props<T>) {
   const [sortKey, setSortKey] = useState<string>(columns[0]?.key ?? "");
   const [sortAsc, setSortAsc] = useState(true);
+  const [filters, setFilters] = useState<Record<string, string>>({});
 
-  const sorted = [...data].sort((a, b) => {
+  const filtered = data.filter((row) =>
+    Object.entries(filters).every(([key, val]) => {
+      if (!val) return true;
+      return String(row[key] ?? "").toLowerCase().includes(val.toLowerCase());
+    }),
+  );
+
+  const sorted = [...filtered].sort((a, b) => {
     const av = a[sortKey];
     const bv = b[sortKey];
     if (av == null) return 1;
@@ -36,8 +44,8 @@ export default function DataTable<T extends Record<string, unknown>>({ columns, 
   return (
     <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
       <table className="w-full text-left text-sm">
-        <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
-          <tr>
+        <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+          <tr className="border-b border-slate-200">
             {columns.map((c) => (
               <th
                 key={c.key}
@@ -45,6 +53,19 @@ export default function DataTable<T extends Record<string, unknown>>({ columns, 
                 onClick={() => toggleSort(c.key)}
               >
                 {c.label} {sortKey === c.key ? (sortAsc ? "\u25B2" : "\u25BC") : ""}
+              </th>
+            ))}
+          </tr>
+          <tr className="border-b border-slate-200">
+            {columns.map((c) => (
+              <th key={`filter-${c.key}`} className="px-4 py-1.5">
+                <input
+                  type="text"
+                  placeholder="Filter..."
+                  value={filters[c.key] ?? ""}
+                  onChange={(e) => setFilters((f) => ({ ...f, [c.key]: e.target.value }))}
+                  className="w-full rounded border border-slate-200 px-2 py-1 text-xs font-normal normal-case text-slate-700 placeholder:text-slate-300 focus:border-blue-400 focus:outline-none"
+                />
               </th>
             ))}
           </tr>
