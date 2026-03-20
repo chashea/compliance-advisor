@@ -29,9 +29,6 @@ htmlcov/
 .coverage
 coverage.xml
 
-# External MCP servers (cloned repos)
-str-mcp-purview/
-
 # Azure Functions
 .python_packages/
 bin/
