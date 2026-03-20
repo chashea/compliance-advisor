@@ -10,9 +10,10 @@ interface Props<T> {
   columns: Column<T>[];
   data: T[];
   keyField: keyof T & string;
+  onRowClick?: (row: T) => void;
 }
 
-export default function DataTable<T extends Record<string, unknown>>({ columns, data, keyField }: Props<T>) {
+export default function DataTable<T extends Record<string, unknown>>({ columns, data, keyField, onRowClick }: Props<T>) {
   const [sortKey, setSortKey] = useState<string>(columns[0]?.key ?? "");
   const [sortAsc, setSortAsc] = useState(true);
   const [filters, setFilters] = useState<Record<string, string>>({});
@@ -78,7 +79,11 @@ export default function DataTable<T extends Record<string, unknown>>({ columns, 
         </thead>
         <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
           {sorted.map((row, idx) => (
-            <tr key={String(row[keyField])} className={`hover:bg-slate-100 dark:hover:bg-slate-800 ${idx % 2 === 1 ? "bg-slate-50/50 dark:bg-slate-800/30" : ""}`}>
+            <tr
+              key={String(row[keyField])}
+              className={`${onRowClick ? "cursor-pointer" : ""} hover:bg-slate-100 dark:hover:bg-slate-800 ${idx % 2 === 1 ? "bg-slate-50/50 dark:bg-slate-800/30" : ""}`}
+              onClick={() => onRowClick?.(row)}
+            >
               {columns.map((c) => (
                 <td key={c.key} className="px-4 py-2.5 text-slate-700 dark:text-slate-200">
                   {c.render ? c.render(row[c.key], row) : String(row[c.key] ?? "")}

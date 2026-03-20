@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { useTenant } from "../hooks/useTenant";
+import ActionDrawer from "../components/ActionDrawer";
 import DataTable from "../components/DataTable";
 import ErrorBanner from "../components/ErrorBanner";
 import KPICard from "../components/KPICard";
@@ -57,6 +59,7 @@ function fmtNum(n: number): string {
 /* ── page ─────────────────────────────────────────────────────────── */
 export default function Overview() {
   const { tenantId } = useTenant();
+  const [selectedAction, setSelectedAction] = useState<ImprovementAction | null>(null);
   const body: Record<string, unknown> = {};
   if (tenantId) body.tenant_id = tenantId;
 
@@ -333,8 +336,13 @@ export default function Overview() {
             ]}
             data={actions.data.actions as (ImprovementAction & Record<string, unknown>)[]}
             keyField="control_id"
+            onRowClick={(row) => setSelectedAction(row as unknown as ImprovementAction)}
           />
         </div>
+      )}
+
+      {selectedAction && (
+        <ActionDrawer action={selectedAction} onClose={() => setSelectedAction(null)} />
       )}
     </div>
   );
