@@ -1,4 +1,3 @@
-import { useDepartment } from "../hooks/useDepartment";
 import { useTenant } from "../hooks/useTenant";
 import DataTable from "../components/DataTable";
 import ErrorBanner from "../components/ErrorBanner";
@@ -7,12 +6,10 @@ import { useApi } from "../hooks/useApi";
 import type { IRMPolicy, IRMPoliciesResponse } from "../types";
 
 export default function IRMPolicies() {
-  const { department } = useDepartment();
   const { tenantId } = useTenant();
   const body: Record<string, unknown> = {};
-  if (department) body.department = department;
   if (tenantId) body.tenant_id = tenantId;
-  const { data, loading, error } = useApi<IRMPoliciesResponse>("irm-policies", body, [department, tenantId]);
+  const { data, loading, error } = useApi<IRMPoliciesResponse>("irm-policies", body, [tenantId]);
 
   if (loading) return <Loading />;
   if (error) return <ErrorBanner message={error} />;

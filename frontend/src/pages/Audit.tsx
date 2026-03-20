@@ -1,4 +1,3 @@
-import { useDepartment } from "../hooks/useDepartment";
 import { useTenant } from "../hooks/useTenant";
 import BarChart from "../components/BarChart";
 import DataTable from "../components/DataTable";
@@ -8,12 +7,10 @@ import { useApi } from "../hooks/useApi";
 import type { AuditRecord, AuditResponse } from "../types";
 
 export default function Audit() {
-  const { department } = useDepartment();
   const { tenantId } = useTenant();
   const body: Record<string, unknown> = {};
-  if (department) body.department = department;
   if (tenantId) body.tenant_id = tenantId;
-  const { data, loading, error } = useApi<AuditResponse>("audit", body, [department, tenantId]);
+  const { data, loading, error } = useApi<AuditResponse>("audit", body, [tenantId]);
 
   if (loading) return <Loading />;
   if (error) return <ErrorBanner message={error} />;

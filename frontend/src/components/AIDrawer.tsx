@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useDepartment } from "../hooks/useDepartment";
 import { useDemo } from "../hooks/useDemo";
 import ErrorBanner from "./ErrorBanner";
 import Loading from "./Loading";
@@ -24,7 +23,6 @@ function handleError(err: unknown): string {
 }
 
 export function BriefingDrawer({ onClose }: { onClose: () => void }) {
-  const { department } = useDepartment();
   const { demo } = useDemo();
   const [briefing, setBriefing] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -34,7 +32,7 @@ export function BriefingDrawer({ onClose }: { onClose: () => void }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await post<BriefingResponse>("briefing", department ? { department } : {}, demo);
+      const res = await post<BriefingResponse>("briefing", {}, demo);
       setBriefing(res.briefing);
     } catch (e) {
       setError(handleError(e));
@@ -71,7 +69,6 @@ const SUGGESTED_PROMPTS = [
 ];
 
 export function AskDrawer({ onClose }: { onClose: () => void }) {
-  const { department } = useDepartment();
   const { demo } = useDemo();
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<string | null>(null);
@@ -85,7 +82,7 @@ export function AskDrawer({ onClose }: { onClose: () => void }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await post<AskResponse>("ask", { question: text, ...(department ? { department } : {}) }, demo);
+      const res = await post<AskResponse>("ask", { question: text }, demo);
       setAnswer(res.answer);
     } catch (e) {
       setError(handleError(e));

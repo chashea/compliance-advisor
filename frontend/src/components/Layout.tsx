@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import DepartmentFilter from "./DepartmentFilter";
 import TenantFilter from "./TenantFilter";
 import { useDemo } from "../hooks/useDemo";
 import { useTheme } from "../hooks/useTheme";
@@ -149,7 +148,6 @@ export default function Layout() {
               Demo
             </label>
             <TenantFilter />
-            <DepartmentFilter />
           </div>
         </header>
         <main className="flex-1 overflow-y-auto p-6">

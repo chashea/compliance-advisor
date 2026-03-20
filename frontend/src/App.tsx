@@ -1,5 +1,4 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { DepartmentProvider } from "./components/DepartmentContext";
 import { DemoProvider } from "./components/DemoContext";
 import { TenantProvider } from "./components/TenantContext";
 import { ThemeProvider } from "./components/ThemeContext";
@@ -24,7 +23,6 @@ export default function App() {
     <BrowserRouter>
       <ThemeProvider>
       <DemoProvider>
-      <DepartmentProvider>
       <TenantProvider>
         <Routes>
           <Route element={<Layout />}>
@@ -44,7 +42,6 @@ export default function App() {
           </Route>
         </Routes>
       </TenantProvider>
-      </DepartmentProvider>
       </DemoProvider>
       </ThemeProvider>
     </BrowserRouter>

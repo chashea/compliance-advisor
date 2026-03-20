@@ -1,4 +1,3 @@
-import { useDepartment } from "../hooks/useDepartment";
 import { useTenant } from "../hooks/useTenant";
 import DataTable from "../components/DataTable";
 import ErrorBanner from "../components/ErrorBanner";
@@ -9,16 +8,14 @@ import { useApi } from "../hooks/useApi";
 import type { OverviewResponse, StatusResponse, TrendResponse, ActionsResponse, ImprovementAction } from "../types";
 
 export default function Overview() {
-  const { department } = useDepartment();
   const { tenantId } = useTenant();
   const body: Record<string, unknown> = {};
-  if (department) body.department = department;
   if (tenantId) body.tenant_id = tenantId;
 
   const status = useApi<StatusResponse>("status", {}, []);
-  const overview = useApi<OverviewResponse>("overview", body, [department, tenantId]);
-  const trend = useApi<TrendResponse>("trend", { ...body, days: 30 }, [department, tenantId]);
-  const actions = useApi<ActionsResponse>("actions", body, [department, tenantId]);
+  const overview = useApi<OverviewResponse>("overview", body, [tenantId]);
+  const trend = useApi<TrendResponse>("trend", { ...body, days: 30 }, [tenantId]);
+  const actions = useApi<ActionsResponse>("actions", body, [tenantId]);
 
   if (status.loading || overview.loading) return <Loading />;
   if (status.error) return <ErrorBanner message={status.error} />;
