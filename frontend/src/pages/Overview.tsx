@@ -1,5 +1,4 @@
 import { useDepartment } from "../components/DepartmentContext";
-import BarChart from "../components/BarChart";
 import DataTable from "../components/DataTable";
 import ErrorBanner from "../components/ErrorBanner";
 import LineChart from "../components/LineChart";
@@ -49,7 +48,14 @@ export default function Overview() {
       {dlpData.length > 0 && (
         <div>
           <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">DLP Alerts by Severity</h3>
-          <BarChart data={dlpData} xKey="severity" yKey="count" color="#dc2626" height={250} />
+          <DataTable<{ severity: string; count: number } & Record<string, unknown>>
+            columns={[
+              { key: "severity", label: "Severity" },
+              { key: "count", label: "Count" },
+            ]}
+            data={dlpData as ({ severity: string; count: number } & Record<string, unknown>)[]}
+            keyField="severity"
+          />
         </div>
       )}
 
