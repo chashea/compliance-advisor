@@ -127,16 +127,51 @@ export default function Overview() {
 
       {/* ── Hero row: Score gauge + KPI cards ──────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-4">
-        {/* Score gauge card */}
-        <div className="flex flex-col items-center justify-center rounded-xl border border-navy-700 bg-navy-800/60 p-6 lg:col-span-1">
-          {score ? (
-            <ScoreGauge
-              score={score.data_current_score}
-              max={score.data_max_score}
-              label="Compliance Score"
-            />
-          ) : (
-            <ScoreGauge score={0} max={100} label="Compliance Score" />
+        {/* Combined Compliance Score card */}
+        <div className="flex items-center gap-6 rounded-xl border border-navy-700 bg-navy-800/60 p-6 lg:col-span-1">
+          <div className="shrink-0">
+            {score ? (
+              <ScoreGauge
+                score={score.data_current_score}
+                max={score.data_max_score}
+                label="Compliance Score"
+                size={140}
+              />
+            ) : (
+              <ScoreGauge score={0} max={100} label="Compliance Score" size={140} />
+            )}
+          </div>
+          {score && (
+            <div className="min-w-0 flex-1 space-y-3">
+              <div>
+                <div className="flex justify-between text-xs text-navy-300">
+                  <span>Data controls</span>
+                  <span>{score.data_current_score}/{score.data_max_score}</span>
+                </div>
+                <div className="mt-1 h-2 rounded-full bg-navy-700">
+                  <div
+                    className="h-2 rounded-full bg-teal-500 transition-all duration-700"
+                    style={{
+                      width: `${score.data_max_score > 0 ? (score.data_current_score / score.data_max_score) * 100 : 0}%`,
+                    }}
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between text-xs text-navy-300">
+                  <span>Overall</span>
+                  <span>{score.current_score}/{score.max_score}</span>
+                </div>
+                <div className="mt-1 h-2 rounded-full bg-navy-700">
+                  <div
+                    className="h-2 rounded-full bg-sky-500 transition-all duration-700"
+                    style={{
+                      width: `${score.max_score > 0 ? (score.current_score / score.max_score) * 100 : 0}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
           )}
         </div>
 
@@ -184,64 +219,6 @@ export default function Overview() {
           />
         </div>
       </div>
-
-      {/* ── Secure Score detail row ────────────────────────────────── */}
-      {score && (
-        <div className="grid gap-4 lg:grid-cols-3">
-          {/* Overall Secure Score card */}
-          <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5">
-            <div className="mb-1 flex items-center gap-2">
-              <span className="h-3 w-3 rounded-sm bg-sky-500" />
-              <span className="text-sm font-semibold text-navy-200">
-                Compliance Score
-              </span>
-            </div>
-            <p className="mt-2 text-4xl font-bold text-white">
-              {score.data_current_score}
-            </p>
-            <p className="text-sm text-navy-400">
-              of {score.data_max_score} points
-            </p>
-            <p className="mt-1 text-2xl font-semibold text-white">
-              {score.data_max_score > 0
-                ? Math.round((score.data_current_score / score.data_max_score) * 100)
-                : 0}
-              %
-            </p>
-            {/* Progress bars */}
-            <div className="mt-4 space-y-3">
-              <div>
-                <div className="flex justify-between text-xs text-navy-300">
-                  <span>Data category controls</span>
-                  <span>{score.data_current_score}/{score.data_max_score}</span>
-                </div>
-                <div className="mt-1 h-2 rounded-full bg-navy-700">
-                  <div
-                    className="h-2 rounded-full bg-teal-500 transition-all duration-700"
-                    style={{
-                      width: `${score.data_max_score > 0 ? (score.data_current_score / score.data_max_score) * 100 : 0}%`,
-                    }}
-                  />
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-xs text-navy-300">
-                  <span>Overall score</span>
-                  <span>{score.current_score}/{score.max_score}</span>
-                </div>
-                <div className="mt-1 h-2 rounded-full bg-navy-700">
-                  <div
-                    className="h-2 rounded-full bg-sky-500 transition-all duration-700"
-                    style={{
-                      width: `${score.max_score > 0 ? (score.current_score / score.max_score) * 100 : 0}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── Tenant posture cards ───────────────────────────────────── */}
       {o.tenants && o.tenants.length > 1 && (
