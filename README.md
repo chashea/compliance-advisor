@@ -71,7 +71,7 @@ React SPA (`cadvisor-web-prod`)
 - Azure subscription (Commercial)
 - Access to Microsoft 365 tenant(s) with compliance workloads
 - Multi-tenant Entra app registration with client credentials (client secret)
-- App service principal added to eDiscovery Manager and Compliance Administrator role groups in Microsoft Purview
+- App service principal registered in Exchange Online and added to **eDiscovery Administrator** role group (via PowerShell)
 - Azure CLI (`az`)
 
 ### Required Graph API Permissions (Application)
@@ -81,17 +81,32 @@ All permissions are **Application** type (not delegated) granted to the multi-te
 | Permission | Workload |
 |---|---|
 | `eDiscovery.Read.All` | eDiscovery cases |
-| `InformationProtectionPolicy.Read.All` | Sensitivity labels |
+| `InformationProtectionPolicy.Read.All` | Sensitivity labels, sensitive info types |
 | `RecordsManagement.Read.All` | Retention labels & events |
 | `AuditLogsQuery.Read.All` | Audit log queries |
-| `SecurityEvents.Read.All` | DLP alerts, IRM alerts, Secure Score, Improvement Actions |
+| `SecurityEvents.Read.All` | Secure Score, Improvement Actions |
+| `SecurityAlert.Read.All` | DLP alerts, IRM alerts |
 | `SubjectRightsRequest.Read.All` | Subject rights requests |
-| `Policy.Read.All` | Information barriers |
+| `Policy.Read.All` | Information barriers, DLP/IRM policies, protection scopes |
 | `User.Read.All` | User enumeration (for content policy probing) |
+| `MailboxSettings.Read` | User content policies |
 
-Additionally, the app's service principal must be added to these role groups in [compliance.microsoft.com](https://compliance.microsoft.com) → Permissions:
-- **eDiscovery Manager**
-- **Compliance Administrator**
+Additionally, the app's service principal must be registered in Exchange Online and assigned to the **eDiscovery Administrator** role group in each tenant. This is required for the eDiscovery Graph API to work with app-only auth:
+
+```powershell
+# Install module if needed: Install-Module ExchangeOnlineManagement
+Connect-ExchangeOnline
+
+# Register the service principal (use the SP Object ID from Entra in that tenant)
+New-ServicePrincipal -AppId <CLIENT_ID> -ObjectId <SP_OBJECT_ID> -DisplayName "compliance-advisor-collector"
+
+# Add to eDiscovery Administrator role group
+Add-RoleGroupMember -Identity "eDiscovery Administrator" -Member <SP_OBJECT_ID>
+
+Disconnect-ExchangeOnline
+```
+
+> **Note:** To find the SP Object ID in each tenant: `az ad sp show --id <CLIENT_ID> --query id -o tsv` (or use Graph API for cross-tenant). Role changes can take up to 60 minutes to propagate.
 
 ## Local Development
 
@@ -286,7 +301,7 @@ Required secrets:
 1. Grant admin consent for the `compliance-advisor-collector` app in the target tenant:
    - Navigate to `https://login.microsoftonline.com/<TENANT_ID>/adminconsent?client_id=<CLIENT_ID>`
    - Or use the Entra admin center → Enterprise applications → Grant admin consent
-2. Add the app's service principal to **eDiscovery Manager** and **Compliance Administrator** role groups in the tenant's [Microsoft Purview compliance portal](https://compliance.microsoft.com) → Permissions
+2. Register the app's service principal in Exchange Online and add it to the **eDiscovery Administrator** role group (see PowerShell steps above)
 3. Add the tenant GUID to `ALLOWED_TENANT_IDS` in the Function App config (if allowlist is enabled)
 4. Run the collector:
    ```bash
