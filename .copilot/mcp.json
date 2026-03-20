@@ -1,0 +1,33 @@
+{
+  "servers": {
+    "Lake": {
+      "type": "http",
+      "url": "https://sentinel.microsoft.com/mcp/data-exploration"
+    },
+    "Agents": {
+      "type": "http",
+      "url": "https://sentinel.microsoft.com/mcp/security-copilot-agent-creation"
+    },
+    "Triage": {
+      "type": "http",
+      "url": "https://sentinel.microsoft.com/mcp/triage"
+    },
+    "Graph": {
+      "type": "http",
+      "url": "https://sentinel.microsoft.com/mcp/graph"
+    },
+    "Purview": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "server.py"],
+      "cwd": "./str-mcp-purview/src",
+      "env": {
+        "PURVIEW_ACCOUNT_NAME": "${PURVIEW_ACCOUNT_NAME}",
+        "PURVIEW_ENDPOINT": "${PURVIEW_ENDPOINT}",
+        "AZURE_TENANT_ID": "${AZURE_TENANT_ID}",
+        "AZURE_CLIENT_ID": "${AZURE_CLIENT_ID}",
+        "AZURE_CLIENT_SECRET": "${AZURE_CLIENT_SECRET}"
+      }
+    }
+  }
+}
