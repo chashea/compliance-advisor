@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useDepartment } from "../hooks/useDepartment";
+import { useTenant } from "../hooks/useTenant";
 import ErrorBanner from "../components/ErrorBanner";
 import LineChart from "../components/LineChart";
 import Loading from "../components/Loading";
@@ -10,9 +11,12 @@ const RANGES = [7, 30, 90, 365] as const;
 
 export default function Trend() {
   const { department } = useDepartment();
+  const { tenantId } = useTenant();
   const [days, setDays] = useState<number>(30);
-  const body = { ...(department ? { department } : {}), days };
-  const { data, loading, error } = useApi<TrendResponse>("trend", body, [department, days]);
+  const body: Record<string, unknown> = { days };
+  if (department) body.department = department;
+  if (tenantId) body.tenant_id = tenantId;
+  const { data, loading, error } = useApi<TrendResponse>("trend", body, [department, tenantId, days]);
 
   if (loading) return <Loading />;
   if (error) return <ErrorBanner message={error} />;

@@ -27,26 +27,37 @@ def get_status() -> dict:
     }
 
 
-def get_overview(department: str | None = None) -> dict:
+def get_overview(department: str | None = None, tenant_id: str | None = None) -> dict:
     """POST /api/advisor/overview — top-level dashboard cards."""
     dept_filter = ""
+    tenant_filter = ""
     params: dict = {}
     if department:
         dept_filter = "WHERE t.department = %(dept)s"
         params["dept"] = department
+    if tenant_id:
+        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
+        params["tenant_id"] = tenant_id
+
+    where_clause = dept_filter
+    if not where_clause and tenant_filter:
+        where_clause = "WHERE 1=1 " + tenant_filter
+    elif tenant_filter:
+        where_clause += " " + tenant_filter
 
     # Tenants
     tenants = query(
         f"""
         SELECT t.tenant_id, t.display_name, t.department
         FROM tenants t
-        {dept_filter}
+        {where_clause}
         ORDER BY t.display_name
         """,
         params,
     )
 
     and_dept = "AND t.department = %(dept)s" if department else ""
+    and_tenant = "AND t.tenant_id = %(tenant_id)s" if tenant_id else ""
 
     # eDiscovery summary
     ediscovery_summary = query_one(
@@ -57,6 +68,7 @@ def get_overview(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = ec.tenant_id
         WHERE ec.snapshot_date = (SELECT MAX(snapshot_date) FROM ediscovery_cases)
           {and_dept}
+          {and_tenant}
         """,
         params,
     )
@@ -68,11 +80,11 @@ def get_overview(department: str | None = None) -> dict:
             (SELECT COUNT(*)::int FROM sensitivity_labels sl
              JOIN tenants t ON t.tenant_id = sl.tenant_id
              WHERE sl.snapshot_date = (SELECT MAX(snapshot_date) FROM sensitivity_labels)
-               {and_dept}) AS sensitivity_labels,
+               {and_dept} {and_tenant}) AS sensitivity_labels,
             (SELECT COUNT(*)::int FROM retention_labels rl
              JOIN tenants t ON t.tenant_id = rl.tenant_id
              WHERE rl.snapshot_date = (SELECT MAX(snapshot_date) FROM retention_labels)
-               {and_dept}) AS retention_labels
+               {and_dept} {and_tenant}) AS retention_labels
         """,
         params,
     )
@@ -89,6 +101,7 @@ def get_overview(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = da.tenant_id
         WHERE da.snapshot_date = (SELECT MAX(snapshot_date) FROM dlp_alerts)
           {and_dept}
+          {and_tenant}
         """,
         params,
     )
@@ -101,6 +114,7 @@ def get_overview(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = ar.tenant_id
         WHERE ar.snapshot_date = (SELECT MAX(snapshot_date) FROM audit_records)
           {and_dept}
+          {and_tenant}
         """,
         params,
     )
@@ -114,13 +128,17 @@ def get_overview(department: str | None = None) -> dict:
     }
 
 
-def get_ediscovery(department: str | None = None) -> dict:
+def get_ediscovery(department: str | None = None, tenant_id: str | None = None) -> dict:
     """POST /api/advisor/ediscovery — eDiscovery cases."""
     dept_filter = ""
+    tenant_filter = ""
     params: dict = {}
     if department:
         dept_filter = "AND t.department = %(dept)s"
         params["dept"] = department
+    if tenant_id:
+        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
+        params["tenant_id"] = tenant_id
 
     cases = query(
         f"""
@@ -130,6 +148,7 @@ def get_ediscovery(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = ec.tenant_id
         WHERE ec.snapshot_date = (SELECT MAX(snapshot_date) FROM ediscovery_cases)
           {dept_filter}
+          {tenant_filter}
         ORDER BY ec.created DESC
         LIMIT 1000
         """,
@@ -143,6 +162,7 @@ def get_ediscovery(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = ec.tenant_id
         WHERE ec.snapshot_date = (SELECT MAX(snapshot_date) FROM ediscovery_cases)
           {dept_filter}
+          {tenant_filter}
         GROUP BY ec.status
         ORDER BY total DESC
         """,
@@ -152,13 +172,17 @@ def get_ediscovery(department: str | None = None) -> dict:
     return {"cases": cases, "status_breakdown": status_breakdown}
 
 
-def get_labels(department: str | None = None) -> dict:
+def get_labels(department: str | None = None, tenant_id: str | None = None) -> dict:
     """POST /api/advisor/labels — sensitivity + retention labels."""
     dept_filter = ""
+    tenant_filter = ""
     params: dict = {}
     if department:
         dept_filter = "AND t.department = %(dept)s"
         params["dept"] = department
+    if tenant_id:
+        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
+        params["tenant_id"] = tenant_id
 
     sensitivity = query(
         f"""
@@ -168,6 +192,7 @@ def get_labels(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = sl.tenant_id
         WHERE sl.snapshot_date = (SELECT MAX(snapshot_date) FROM sensitivity_labels)
           {dept_filter}
+          {tenant_filter}
         ORDER BY sl.priority
         LIMIT 1000
         """,
@@ -183,6 +208,7 @@ def get_labels(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = rl.tenant_id
         WHERE rl.snapshot_date = (SELECT MAX(snapshot_date) FROM retention_labels)
           {dept_filter}
+          {tenant_filter}
         ORDER BY rl.display_name
         LIMIT 1000
         """,
@@ -197,6 +223,7 @@ def get_labels(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = re.tenant_id
         WHERE re.snapshot_date = (SELECT MAX(snapshot_date) FROM retention_events)
           {dept_filter}
+          {tenant_filter}
         ORDER BY re.created DESC
         LIMIT 1000
         """,
@@ -210,13 +237,17 @@ def get_labels(department: str | None = None) -> dict:
     }
 
 
-def get_audit(department: str | None = None) -> dict:
+def get_audit(department: str | None = None, tenant_id: str | None = None) -> dict:
     """POST /api/advisor/audit — audit log records."""
     dept_filter = ""
+    tenant_filter = ""
     params: dict = {}
     if department:
         dept_filter = "AND t.department = %(dept)s"
         params["dept"] = department
+    if tenant_id:
+        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
+        params["tenant_id"] = tenant_id
 
     records = query(
         f"""
@@ -227,6 +258,7 @@ def get_audit(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = ar.tenant_id
         WHERE ar.snapshot_date = (SELECT MAX(snapshot_date) FROM audit_records)
           {dept_filter}
+          {tenant_filter}
         ORDER BY ar.created DESC
         LIMIT 500
         """,
@@ -240,6 +272,7 @@ def get_audit(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = ar.tenant_id
         WHERE ar.snapshot_date = (SELECT MAX(snapshot_date) FROM audit_records)
           {dept_filter}
+          {tenant_filter}
         GROUP BY ar.service
         ORDER BY total DESC
         """,
@@ -253,6 +286,7 @@ def get_audit(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = ar.tenant_id
         WHERE ar.snapshot_date = (SELECT MAX(snapshot_date) FROM audit_records)
           {dept_filter}
+          {tenant_filter}
         GROUP BY ar.operation
         ORDER BY total DESC
         LIMIT 20
@@ -267,13 +301,17 @@ def get_audit(department: str | None = None) -> dict:
     }
 
 
-def get_dlp(department: str | None = None) -> dict:
+def get_dlp(department: str | None = None, tenant_id: str | None = None) -> dict:
     """POST /api/advisor/dlp — DLP alerts."""
     dept_filter = ""
+    tenant_filter = ""
     params: dict = {}
     if department:
         dept_filter = "AND t.department = %(dept)s"
         params["dept"] = department
+    if tenant_id:
+        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
+        params["tenant_id"] = tenant_id
 
     alerts = query(
         f"""
@@ -284,6 +322,7 @@ def get_dlp(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = da.tenant_id
         WHERE da.snapshot_date = (SELECT MAX(snapshot_date) FROM dlp_alerts)
           {dept_filter}
+          {tenant_filter}
         ORDER BY
             CASE da.severity
                 WHEN 'high' THEN 1
@@ -305,6 +344,7 @@ def get_dlp(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = da.tenant_id
         WHERE da.snapshot_date = (SELECT MAX(snapshot_date) FROM dlp_alerts)
           {dept_filter}
+          {tenant_filter}
         GROUP BY da.severity
         ORDER BY
             CASE da.severity
@@ -325,6 +365,7 @@ def get_dlp(department: str | None = None) -> dict:
         WHERE da.snapshot_date = (SELECT MAX(snapshot_date) FROM dlp_alerts)
           AND da.policy_name != ''
           {dept_filter}
+          {tenant_filter}
         GROUP BY da.policy_name
         ORDER BY total DESC
         LIMIT 20
@@ -339,13 +380,17 @@ def get_dlp(department: str | None = None) -> dict:
     }
 
 
-def get_governance(department: str | None = None) -> dict:
+def get_governance(department: str | None = None, tenant_id: str | None = None) -> dict:
     """POST /api/advisor/governance — protection scopes."""
     dept_filter = ""
+    tenant_filter = ""
     params: dict = {}
     if department:
         dept_filter = "AND t.department = %(dept)s"
         params["dept"] = department
+    if tenant_id:
+        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
+        params["tenant_id"] = tenant_id
 
     scopes = query(
         f"""
@@ -355,6 +400,7 @@ def get_governance(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = ps.tenant_id
         WHERE ps.snapshot_date = (SELECT MAX(snapshot_date) FROM protection_scopes)
           {dept_filter}
+          {tenant_filter}
         ORDER BY ps.scope_type
         LIMIT 1000
         """,
@@ -364,7 +410,7 @@ def get_governance(department: str | None = None) -> dict:
     return {"scopes": scopes}
 
 
-def get_trend(department: str | None = None, days: int = 30) -> dict:
+def get_trend(department: str | None = None, days: int = 30, tenant_id: str | None = None) -> dict:
     """POST /api/advisor/trend — compliance workload counts over time."""
     params: dict = {}
     cutoff = (date.today() - timedelta(days=days)).isoformat()
@@ -397,13 +443,17 @@ def get_trend(department: str | None = None, days: int = 30) -> dict:
     return {"trend": trend}
 
 
-def get_irm(department: str | None = None) -> dict:
+def get_irm(department: str | None = None, tenant_id: str | None = None) -> dict:
     """POST /api/advisor/irm — Insider Risk Management alerts."""
     dept_filter = ""
+    tenant_filter = ""
     params: dict = {}
     if department:
         dept_filter = "AND t.department = %(dept)s"
         params["dept"] = department
+    if tenant_id:
+        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
+        params["tenant_id"] = tenant_id
 
     alerts = query(
         f"""
@@ -414,6 +464,7 @@ def get_irm(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = ia.tenant_id
         WHERE ia.snapshot_date = (SELECT MAX(snapshot_date) FROM irm_alerts)
           {dept_filter}
+          {tenant_filter}
         ORDER BY
             CASE ia.severity
                 WHEN 'high' THEN 1
@@ -435,6 +486,7 @@ def get_irm(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = ia.tenant_id
         WHERE ia.snapshot_date = (SELECT MAX(snapshot_date) FROM irm_alerts)
           {dept_filter}
+          {tenant_filter}
         GROUP BY ia.severity
         ORDER BY
             CASE ia.severity
@@ -450,13 +502,17 @@ def get_irm(department: str | None = None) -> dict:
     return {"alerts": alerts, "severity_breakdown": severity_breakdown}
 
 
-def get_subject_rights(department: str | None = None) -> dict:
+def get_subject_rights(department: str | None = None, tenant_id: str | None = None) -> dict:
     """POST /api/advisor/subject-rights — Subject Rights Requests."""
     dept_filter = ""
+    tenant_filter = ""
     params: dict = {}
     if department:
         dept_filter = "AND t.department = %(dept)s"
         params["dept"] = department
+    if tenant_id:
+        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
+        params["tenant_id"] = tenant_id
 
     requests = query(
         f"""
@@ -467,6 +523,7 @@ def get_subject_rights(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = sr.tenant_id
         WHERE sr.snapshot_date = (SELECT MAX(snapshot_date) FROM subject_rights_requests)
           {dept_filter}
+          {tenant_filter}
         ORDER BY sr.created DESC
         LIMIT 1000
         """,
@@ -480,6 +537,7 @@ def get_subject_rights(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = sr.tenant_id
         WHERE sr.snapshot_date = (SELECT MAX(snapshot_date) FROM subject_rights_requests)
           {dept_filter}
+          {tenant_filter}
         GROUP BY sr.status
         ORDER BY total DESC
         """,
@@ -489,13 +547,17 @@ def get_subject_rights(department: str | None = None) -> dict:
     return {"requests": requests, "status_breakdown": status_breakdown}
 
 
-def get_comm_compliance(department: str | None = None) -> dict:
+def get_comm_compliance(department: str | None = None, tenant_id: str | None = None) -> dict:
     """POST /api/advisor/comm-compliance — Communication Compliance policies."""
     dept_filter = ""
+    tenant_filter = ""
     params: dict = {}
     if department:
         dept_filter = "AND t.department = %(dept)s"
         params["dept"] = department
+    if tenant_id:
+        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
+        params["tenant_id"] = tenant_id
 
     policies = query(
         f"""
@@ -505,6 +567,7 @@ def get_comm_compliance(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = cc.tenant_id
         WHERE cc.snapshot_date = (SELECT MAX(snapshot_date) FROM comm_compliance_policies)
           {dept_filter}
+          {tenant_filter}
         ORDER BY cc.display_name
         LIMIT 1000
         """,
@@ -514,13 +577,17 @@ def get_comm_compliance(department: str | None = None) -> dict:
     return {"policies": policies}
 
 
-def get_info_barriers(department: str | None = None) -> dict:
+def get_info_barriers(department: str | None = None, tenant_id: str | None = None) -> dict:
     """POST /api/advisor/info-barriers — Information Barrier policies."""
     dept_filter = ""
+    tenant_filter = ""
     params: dict = {}
     if department:
         dept_filter = "AND t.department = %(dept)s"
         params["dept"] = department
+    if tenant_id:
+        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
+        params["tenant_id"] = tenant_id
 
     policies = query(
         f"""
@@ -530,6 +597,7 @@ def get_info_barriers(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = ib.tenant_id
         WHERE ib.snapshot_date = (SELECT MAX(snapshot_date) FROM info_barrier_policies)
           {dept_filter}
+          {tenant_filter}
         ORDER BY ib.display_name
         LIMIT 1000
         """,
@@ -539,13 +607,17 @@ def get_info_barriers(department: str | None = None) -> dict:
     return {"policies": policies}
 
 
-def get_dlp_policies(department: str | None = None) -> dict:
+def get_dlp_policies(department: str | None = None, tenant_id: str | None = None) -> dict:
     """POST /api/advisor/dlp-policies — DLP policies."""
     dept_filter = ""
+    tenant_filter = ""
     params: dict = {}
     if department:
         dept_filter = "AND t.department = %(dept)s"
         params["dept"] = department
+    if tenant_id:
+        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
+        params["tenant_id"] = tenant_id
 
     policies = query(
         f"""
@@ -556,6 +628,7 @@ def get_dlp_policies(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = dp.tenant_id
         WHERE dp.snapshot_date = (SELECT MAX(snapshot_date) FROM dlp_policies)
           {dept_filter}
+          {tenant_filter}
         ORDER BY dp.display_name
         LIMIT 1000
         """,
@@ -569,6 +642,7 @@ def get_dlp_policies(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = dp.tenant_id
         WHERE dp.snapshot_date = (SELECT MAX(snapshot_date) FROM dlp_policies)
           {dept_filter}
+          {tenant_filter}
         GROUP BY dp.status
         ORDER BY total DESC
         """,
@@ -578,13 +652,17 @@ def get_dlp_policies(department: str | None = None) -> dict:
     return {"policies": policies, "status_breakdown": status_breakdown}
 
 
-def get_irm_policies(department: str | None = None) -> dict:
+def get_irm_policies(department: str | None = None, tenant_id: str | None = None) -> dict:
     """POST /api/advisor/irm-policies — Insider Risk Management policies."""
     dept_filter = ""
+    tenant_filter = ""
     params: dict = {}
     if department:
         dept_filter = "AND t.department = %(dept)s"
         params["dept"] = department
+    if tenant_id:
+        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
+        params["tenant_id"] = tenant_id
 
     policies = query(
         f"""
@@ -594,6 +672,7 @@ def get_irm_policies(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = ip.tenant_id
         WHERE ip.snapshot_date = (SELECT MAX(snapshot_date) FROM irm_policies)
           {dept_filter}
+          {tenant_filter}
         ORDER BY ip.display_name
         LIMIT 1000
         """,
@@ -603,13 +682,17 @@ def get_irm_policies(department: str | None = None) -> dict:
     return {"policies": policies}
 
 
-def get_sensitive_info_types(department: str | None = None) -> dict:
+def get_sensitive_info_types(department: str | None = None, tenant_id: str | None = None) -> dict:
     """POST /api/advisor/sensitive-info-types — Sensitive Information Types."""
     dept_filter = ""
+    tenant_filter = ""
     params: dict = {}
     if department:
         dept_filter = "AND t.department = %(dept)s"
         params["dept"] = department
+    if tenant_id:
+        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
+        params["tenant_id"] = tenant_id
 
     types = query(
         f"""
@@ -619,6 +702,7 @@ def get_sensitive_info_types(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = si.tenant_id
         WHERE si.snapshot_date = (SELECT MAX(snapshot_date) FROM sensitive_info_types)
           {dept_filter}
+          {tenant_filter}
         ORDER BY si.name
         LIMIT 1000
         """,
@@ -631,13 +715,17 @@ def get_sensitive_info_types(department: str | None = None) -> dict:
     return {"types": types, "custom_count": custom_count, "builtin_count": builtin_count}
 
 
-def get_compliance_assessments(department: str | None = None) -> dict:
+def get_compliance_assessments(department: str | None = None, tenant_id: str | None = None) -> dict:
     """POST /api/advisor/assessments — Compliance Assessments."""
     dept_filter = ""
+    tenant_filter = ""
     params: dict = {}
     if department:
         dept_filter = "AND t.department = %(dept)s"
         params["dept"] = department
+    if tenant_id:
+        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
+        params["tenant_id"] = tenant_id
 
     assessments = query(
         f"""
@@ -648,6 +736,7 @@ def get_compliance_assessments(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = ca.tenant_id
         WHERE ca.snapshot_date = (SELECT MAX(snapshot_date) FROM compliance_assessments)
           {dept_filter}
+          {tenant_filter}
         ORDER BY ca.display_name
         LIMIT 1000
         """,
@@ -661,6 +750,7 @@ def get_compliance_assessments(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = ca.tenant_id
         WHERE ca.snapshot_date = (SELECT MAX(snapshot_date) FROM compliance_assessments)
           {dept_filter}
+          {tenant_filter}
         GROUP BY ca.framework
         ORDER BY total DESC
         """,
@@ -670,13 +760,17 @@ def get_compliance_assessments(department: str | None = None) -> dict:
     return {"assessments": assessments, "framework_breakdown": framework_breakdown}
 
 
-def get_improvement_actions(department: str | None = None) -> dict:
+def get_improvement_actions(department: str | None = None, tenant_id: str | None = None) -> dict:
     """POST /api/advisor/actions — Secure Score and improvement actions."""
     dept_filter = ""
+    tenant_filter = ""
     params: dict = {}
     if department:
         dept_filter = "AND t.department = %(dept)s"
         params["dept"] = department
+    if tenant_id:
+        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
+        params["tenant_id"] = tenant_id
 
     score = query_one(
         f"""
@@ -686,6 +780,7 @@ def get_improvement_actions(department: str | None = None) -> dict:
         JOIN tenants t ON t.tenant_id = ss.tenant_id
         WHERE ss.snapshot_date = (SELECT MAX(snapshot_date) FROM secure_scores)
           {dept_filter}
+          {tenant_filter}
         ORDER BY ss.score_date DESC
         LIMIT 1
         """,
@@ -703,6 +798,7 @@ def get_improvement_actions(department: str | None = None) -> dict:
         WHERE ia.snapshot_date = (SELECT MAX(snapshot_date) FROM improvement_actions)
           AND ia.deprecated = FALSE
           {dept_filter}
+          {tenant_filter}
         ORDER BY ia.rank
         LIMIT 1000
         """,
@@ -718,6 +814,7 @@ def get_improvement_actions(department: str | None = None) -> dict:
         WHERE ia.snapshot_date = (SELECT MAX(snapshot_date) FROM improvement_actions)
           AND ia.deprecated = FALSE
           {dept_filter}
+          {tenant_filter}
         GROUP BY ia.control_category
         ORDER BY total_max_score DESC
         """,

@@ -74,18 +74,22 @@ def _get_or_create_assistant_id() -> str:
     return _assistant_id
 
 
-def _build_context(department: str | None = None) -> str:
+def _build_context(department: str | None = None, tenant_id: str | None = None) -> str:
     dept_filter = ""
-    dept_params: tuple = ()
+    tenant_filter = ""
+    dept_params: dict = {}
     if department:
-        dept_filter = "AND t.department = %s"
-        dept_params = (department,)
+        dept_filter = "AND t.department = %(dept)s"
+        dept_params["dept"] = department
+    if tenant_id:
+        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
+        dept_params["tenant_id"] = tenant_id
 
     sections: list[str] = []
 
     # Tenants
     tenants = query(
-        f"SELECT tenant_id, display_name, department, risk_tier FROM tenants t WHERE 1=1 {dept_filter}",
+        f"SELECT tenant_id, display_name, department, risk_tier FROM tenants t WHERE 1=1 {dept_filter} {tenant_filter}",
         dept_params,
     )
     sections.append(f"## Tenants ({len(tenants)})")
@@ -98,7 +102,7 @@ def _build_context(department: str | None = None) -> str:
             FROM ediscovery_cases ec
             JOIN tenants t ON ec.tenant_id = t.tenant_id
             WHERE ec.snapshot_date = (SELECT MAX(snapshot_date) FROM ediscovery_cases WHERE tenant_id = ec.tenant_id)
-            {dept_filter}""",
+            {dept_filter} {tenant_filter}""",
         dept_params,
     )
     sections.append(f"\n## eDiscovery Cases ({len(cases)})")
@@ -111,7 +115,7 @@ def _build_context(department: str | None = None) -> str:
             FROM sensitivity_labels sl
             JOIN tenants t ON sl.tenant_id = t.tenant_id
             WHERE sl.snapshot_date = (SELECT MAX(snapshot_date) FROM sensitivity_labels WHERE tenant_id = sl.tenant_id)
-            {dept_filter}""",
+            {dept_filter} {tenant_filter}""",
         dept_params,
     )
     active = sum(1 for lbl in labels if lbl["is_active"])
@@ -123,7 +127,7 @@ def _build_context(department: str | None = None) -> str:
             FROM dlp_alerts da
             JOIN tenants t ON da.tenant_id = t.tenant_id
             WHERE da.snapshot_date = (SELECT MAX(snapshot_date) FROM dlp_alerts WHERE tenant_id = da.tenant_id)
-            {dept_filter}""",
+            {dept_filter} {tenant_filter}""",
         dept_params,
     )
     sections.append(f"\n## DLP Alerts ({len(dlp)})")
@@ -138,7 +142,7 @@ def _build_context(department: str | None = None) -> str:
             FROM audit_records ar
             JOIN tenants t ON ar.tenant_id = t.tenant_id
             WHERE ar.snapshot_date = (SELECT MAX(snapshot_date) FROM audit_records WHERE tenant_id = ar.tenant_id)
-            {dept_filter}""",
+            {dept_filter} {tenant_filter}""",
         dept_params,
     )
     sections.append(f"\n## Audit Records: {audit_count[0]['cnt'] if audit_count else 0}")
@@ -149,7 +153,7 @@ def _build_context(department: str | None = None) -> str:
             FROM retention_labels rl
             JOIN tenants t ON rl.tenant_id = t.tenant_id
             WHERE rl.snapshot_date = (SELECT MAX(snapshot_date) FROM retention_labels WHERE tenant_id = rl.tenant_id)
-            {dept_filter}""",
+            {dept_filter} {tenant_filter}""",
         dept_params,
     )
     in_use = sum(1 for r in retention if r["is_in_use"])
@@ -161,7 +165,7 @@ def _build_context(department: str | None = None) -> str:
             FROM secure_scores ss
             JOIN tenants t ON ss.tenant_id = t.tenant_id
             WHERE ss.snapshot_date = (SELECT MAX(snapshot_date) FROM secure_scores WHERE tenant_id = ss.tenant_id)
-            {dept_filter}
+            {dept_filter} {tenant_filter}
             ORDER BY ss.score_date DESC LIMIT 5""",
         dept_params,
     )
@@ -196,10 +200,10 @@ def _build_context(department: str | None = None) -> str:
     return "\n".join(sections)
 
 
-def ask_advisor(question: str, department: str | None = None) -> str:
+def ask_advisor(question: str, department: str | None = None, tenant_id: str | None = None) -> str:
     client = _get_client()
     assistant_id = _get_or_create_assistant_id()
-    context = _build_context(department)
+    context = _build_context(department, tenant_id)
 
     thread = client.beta.threads.create()
     try:
@@ -231,7 +235,7 @@ def ask_advisor(question: str, department: str | None = None) -> str:
             log.warning("Failed to delete thread %s", thread.id)
 
 
-def generate_briefing(department: str | None = None) -> str:
+def generate_briefing(department: str | None = None, tenant_id: str | None = None) -> str:
     return ask_advisor(
         "Provide an executive compliance briefing covering:\n"
         "1. Overall compliance posture and Secure Score trends\n"
@@ -240,4 +244,5 @@ def generate_briefing(department: str | None = None) -> str:
         "4. eDiscovery and DLP alert status\n"
         "5. Recommended next steps",
         department=department,
+        tenant_id=tenant_id,
     )

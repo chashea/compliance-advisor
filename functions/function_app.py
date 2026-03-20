@@ -227,7 +227,7 @@ def advisor_overview(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
         body = _get_body(req)
-        return _json_response(get_overview(department=body.get("department")))
+        return _json_response(get_overview(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
         log.exception("advisor/overview error: %s", e)
         return _json_response({"error": str(e)}, 500)
@@ -239,7 +239,7 @@ def advisor_ediscovery(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
         body = _get_body(req)
-        return _json_response(get_ediscovery(department=body.get("department")))
+        return _json_response(get_ediscovery(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
         log.exception("advisor/ediscovery error: %s", e)
         return _json_response({"error": str(e)}, 500)
@@ -251,7 +251,7 @@ def advisor_labels(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
         body = _get_body(req)
-        return _json_response(get_labels(department=body.get("department")))
+        return _json_response(get_labels(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
         log.exception("advisor/labels error: %s", e)
         return _json_response({"error": str(e)}, 500)
@@ -263,7 +263,7 @@ def advisor_audit(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
         body = _get_body(req)
-        return _json_response(get_audit(department=body.get("department")))
+        return _json_response(get_audit(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
         log.exception("advisor/audit error: %s", e)
         return _json_response({"error": str(e)}, 500)
@@ -275,7 +275,7 @@ def advisor_dlp(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
         body = _get_body(req)
-        return _json_response(get_dlp(department=body.get("department")))
+        return _json_response(get_dlp(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
         log.exception("advisor/dlp error: %s", e)
         return _json_response({"error": str(e)}, 500)
@@ -287,7 +287,7 @@ def advisor_irm(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
         body = _get_body(req)
-        return _json_response(get_irm(department=body.get("department")))
+        return _json_response(get_irm(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
         log.exception("advisor/irm error: %s", e)
         return _json_response({"error": str(e)}, 500)
@@ -299,7 +299,7 @@ def advisor_subject_rights(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
         body = _get_body(req)
-        return _json_response(get_subject_rights(department=body.get("department")))
+        return _json_response(get_subject_rights(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
         log.exception("advisor/subject-rights error: %s", e)
         return _json_response({"error": str(e)}, 500)
@@ -311,7 +311,7 @@ def advisor_comm_compliance(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
         body = _get_body(req)
-        return _json_response(get_comm_compliance(department=body.get("department")))
+        return _json_response(get_comm_compliance(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
         log.exception("advisor/comm-compliance error: %s", e)
         return _json_response({"error": str(e)}, 500)
@@ -323,7 +323,7 @@ def advisor_info_barriers(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
         body = _get_body(req)
-        return _json_response(get_info_barriers(department=body.get("department")))
+        return _json_response(get_info_barriers(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
         log.exception("advisor/info-barriers error: %s", e)
         return _json_response({"error": str(e)}, 500)
@@ -335,7 +335,7 @@ def advisor_governance(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
         body = _get_body(req)
-        return _json_response(get_governance(department=body.get("department")))
+        return _json_response(get_governance(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
         log.exception("advisor/governance error: %s", e)
         return _json_response({"error": str(e)}, 500)
@@ -357,6 +357,7 @@ def advisor_trend(req: func.HttpRequest) -> func.HttpResponse:
             get_trend(
                 department=body.get("department"),
                 days=days,
+                tenant_id=body.get("tenant_id"),
             )
         )
     except Exception as e:
@@ -370,7 +371,7 @@ def advisor_actions(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
         body = _get_body(req)
-        return _json_response(get_improvement_actions(department=body.get("department")))
+        return _json_response(get_improvement_actions(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
         log.exception("advisor/actions error: %s", e)
         return _json_response({"error": str(e)}, 500)
@@ -382,7 +383,7 @@ def advisor_dlp_policies(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
         body = _get_body(req)
-        return _json_response(get_dlp_policies(department=body.get("department")))
+        return _json_response(get_dlp_policies(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
         log.exception("advisor/dlp-policies error: %s", e)
         return _json_response({"error": str(e)}, 500)
@@ -394,7 +395,7 @@ def advisor_irm_policies(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
         body = _get_body(req)
-        return _json_response(get_irm_policies(department=body.get("department")))
+        return _json_response(get_irm_policies(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
         log.exception("advisor/irm-policies error: %s", e)
         return _json_response({"error": str(e)}, 500)
@@ -406,7 +407,7 @@ def advisor_sensitive_info_types(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
         body = _get_body(req)
-        return _json_response(get_sensitive_info_types(department=body.get("department")))
+        return _json_response(get_sensitive_info_types(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
         log.exception("advisor/sensitive-info-types error: %s", e)
         return _json_response({"error": str(e)}, 500)
@@ -418,7 +419,7 @@ def advisor_assessments(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
         body = _get_body(req)
-        return _json_response(get_compliance_assessments(department=body.get("department")))
+        return _json_response(get_compliance_assessments(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
         log.exception("advisor/assessments error: %s", e)
         return _json_response({"error": str(e)}, 500)
@@ -435,7 +436,7 @@ def advisor_briefing(req: func.HttpRequest) -> func.HttpResponse:
         if _is_rate_limited(_get_client_ip(req)):
             return _json_response({"error": "Rate limit exceeded. Max 10 requests per minute."}, 429)
         body = _get_body(req)
-        briefing = generate_briefing(department=body.get("department"))
+        briefing = generate_briefing(department=body.get("department"), tenant_id=body.get("tenant_id"))
         return _json_response({"briefing": briefing})
     except AdvisorAIError as e:
         log.exception("advisor/briefing AI error: %s", e)
@@ -456,7 +457,7 @@ def advisor_ask(req: func.HttpRequest) -> func.HttpResponse:
         question = body.get("question", "").strip()
         if not question:
             return _json_response({"error": "Missing required field: question"}, 400)
-        answer = ask_advisor(question=question, department=body.get("department"))
+        answer = ask_advisor(question=question, department=body.get("department"), tenant_id=body.get("tenant_id"))
         return _json_response({"answer": answer})
     except AdvisorAIError as e:
         log.exception("advisor/ask AI error: %s", e)

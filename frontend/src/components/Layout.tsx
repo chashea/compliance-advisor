@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import DepartmentFilter from "./DepartmentFilter";
+import TenantFilter from "./TenantFilter";
 import { useDemo } from "../hooks/useDemo";
 import { useTheme } from "../hooks/useTheme";
 import { AskDrawer, BriefingDrawer } from "./AIDrawer";
@@ -147,6 +148,7 @@ export default function Layout() {
               />
               Demo
             </label>
+            <TenantFilter />
             <DepartmentFilter />
           </div>
         </header>

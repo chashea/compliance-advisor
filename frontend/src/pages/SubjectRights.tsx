@@ -1,4 +1,5 @@
 import { useDepartment } from "../hooks/useDepartment";
+import { useTenant } from "../hooks/useTenant";
 import DataTable from "../components/DataTable";
 import ErrorBanner from "../components/ErrorBanner";
 import Loading from "../components/Loading";
@@ -8,7 +9,11 @@ import type { SubjectRightsRequest, SubjectRightsResponse } from "../types";
 
 export default function SubjectRights() {
   const { department } = useDepartment();
-  const { data, loading, error } = useApi<SubjectRightsResponse>("subject-rights", department ? { department } : {}, [department]);
+  const { tenantId } = useTenant();
+  const body: Record<string, unknown> = {};
+  if (department) body.department = department;
+  if (tenantId) body.tenant_id = tenantId;
+  const { data, loading, error } = useApi<SubjectRightsResponse>("subject-rights", body, [department, tenantId]);
 
   if (loading) return <Loading />;
   if (error) return <ErrorBanner message={error} />;
