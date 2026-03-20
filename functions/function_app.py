@@ -938,7 +938,7 @@ def _collect_single_tenant(
         irm = collect_irm_alerts(token)
         scopes = collect_protection_scopes(token)
         scores = collect_secure_scores(token)
-        actions = collect_improvement_actions(token)
+        actions = collect_improvement_actions(token, service="Microsoft Information Protection")
         srr = collect_subject_rights(token)
         cc = collect_comm_compliance(token)
         ib = collect_info_barriers(token)

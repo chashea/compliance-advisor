@@ -466,24 +466,24 @@ def get_secure_scores(token: str) -> list[dict[str, Any]]:
 # ── Improvement Actions (Secure Score Control Profiles) ───────────
 
 
-def get_improvement_actions(token: str, category: str | None = None) -> list[dict[str, Any]]:
+def get_improvement_actions(token: str, service: str | None = None) -> list[dict[str, Any]]:
     """Return Secure Score control profiles (improvement actions).
 
     Args:
-        category: Optional controlCategory filter (e.g. 'Data', 'Identity', 'Device').
-                  If None, all categories are returned.
+        service: Optional product/service filter (e.g. 'Microsoft Information Protection').
+                 Filtered client-side after fetch. If None, all services are returned.
     """
     sess = _session(token)
-    if category:
-        url = f"{GRAPH_BASE}/security/secureScoreControlProfiles" f"?$filter=controlCategory eq '{category}'"
-    else:
-        url = f"{GRAPH_BASE}/security/secureScoreControlProfiles"
+    url = f"{GRAPH_BASE}/security/secureScoreControlProfiles"
 
     try:
         items = _paginate(sess, url, max_pages=5)
     except requests.exceptions.RequestException as e:
         log.warning("secureScoreControlProfiles failed: %s", e)
         return []
+
+    if service:
+        items = [i for i in items if i.get("service", "").lower() == service.lower()]
 
     actions = []
     for item in items:
