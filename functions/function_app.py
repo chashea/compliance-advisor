@@ -1200,12 +1200,18 @@ def _collect_single_tenant(
             "improvement_actions": len(actions),
         }
         log.info("_collect_single_tenant: tenant=%s dept=%s counts=%s", tid, department, counts)
-        update_tenant_status(tid, "active")
+        try:
+            update_tenant_status(tid, "active")
+        except Exception:
+            log.debug("update_tenant_status not available yet (run schema migration)")
         return {"status": "ok", "tenant_id": tid, "record_counts": counts}
 
     except Exception as e:
         log.exception("_collect_single_tenant: failed for tenant=%s: %s", tid, e)
-        update_tenant_status(tid, "error")
+        try:
+            update_tenant_status(tid, "error")
+        except Exception:
+            pass
         return {"status": "error", "tenant_id": tid, "error": str(e)}
 
 
