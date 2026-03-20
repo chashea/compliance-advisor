@@ -48,9 +48,7 @@ def get_overview(department: str | None = None, tenant_id: str | None = None) ->
     # Tenants
     tenants = query(
         f"""
-        SELECT t.tenant_id, t.display_name, t.department,
-               COALESCE(t.status, 'pending') AS status,
-               t.collected_at::text
+        SELECT t.tenant_id, t.display_name, t.department
         FROM tenants t
         {where_clause}
         ORDER BY t.display_name
@@ -68,7 +66,10 @@ def get_overview(department: str | None = None, tenant_id: str | None = None) ->
                COUNT(*) FILTER (WHERE ec.status = 'active')::int AS active_cases
         FROM ediscovery_cases ec
         JOIN tenants t ON t.tenant_id = ec.tenant_id
-        WHERE ec.snapshot_date = (SELECT MAX(snapshot_date) FROM ediscovery_cases)
+        WHERE ec.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM ediscovery_cases _sub
+                WHERE _sub.tenant_id = ec.tenant_id
+            )
           {and_dept}
           {and_tenant}
         """,
@@ -81,11 +82,17 @@ def get_overview(department: str | None = None, tenant_id: str | None = None) ->
         SELECT
             (SELECT COUNT(*)::int FROM sensitivity_labels sl
              JOIN tenants t ON t.tenant_id = sl.tenant_id
-             WHERE sl.snapshot_date = (SELECT MAX(snapshot_date) FROM sensitivity_labels)
+             WHERE sl.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM sensitivity_labels _sub
+                WHERE _sub.tenant_id = sl.tenant_id
+            )
                {and_dept} {and_tenant}) AS sensitivity_labels,
             (SELECT COUNT(*)::int FROM retention_labels rl
              JOIN tenants t ON t.tenant_id = rl.tenant_id
-             WHERE rl.snapshot_date = (SELECT MAX(snapshot_date) FROM retention_labels)
+             WHERE rl.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM retention_labels _sub
+                WHERE _sub.tenant_id = rl.tenant_id
+            )
                {and_dept} {and_tenant}) AS retention_labels
         """,
         params,
@@ -101,7 +108,10 @@ def get_overview(department: str | None = None, tenant_id: str | None = None) ->
             COUNT(*) FILTER (WHERE da.status != 'resolved')::int AS active_alerts
         FROM dlp_alerts da
         JOIN tenants t ON t.tenant_id = da.tenant_id
-        WHERE da.snapshot_date = (SELECT MAX(snapshot_date) FROM dlp_alerts)
+        WHERE da.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM dlp_alerts _sub
+                WHERE _sub.tenant_id = da.tenant_id
+            )
           {and_dept}
           {and_tenant}
         """,
@@ -114,7 +124,10 @@ def get_overview(department: str | None = None, tenant_id: str | None = None) ->
         SELECT COUNT(*)::int AS total_records
         FROM audit_records ar
         JOIN tenants t ON t.tenant_id = ar.tenant_id
-        WHERE ar.snapshot_date = (SELECT MAX(snapshot_date) FROM audit_records)
+        WHERE ar.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM audit_records _sub
+                WHERE _sub.tenant_id = ar.tenant_id
+            )
           {and_dept}
           {and_tenant}
         """,
@@ -148,7 +161,10 @@ def get_ediscovery(department: str | None = None, tenant_id: str | None = None) 
                ec.external_id, ec.custodian_count, t.display_name AS tenant_name
         FROM ediscovery_cases ec
         JOIN tenants t ON t.tenant_id = ec.tenant_id
-        WHERE ec.snapshot_date = (SELECT MAX(snapshot_date) FROM ediscovery_cases)
+        WHERE ec.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM ediscovery_cases _sub
+                WHERE _sub.tenant_id = ec.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         ORDER BY ec.created DESC
@@ -162,7 +178,10 @@ def get_ediscovery(department: str | None = None, tenant_id: str | None = None) 
         SELECT ec.status, COUNT(*)::int AS total
         FROM ediscovery_cases ec
         JOIN tenants t ON t.tenant_id = ec.tenant_id
-        WHERE ec.snapshot_date = (SELECT MAX(snapshot_date) FROM ediscovery_cases)
+        WHERE ec.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM ediscovery_cases _sub
+                WHERE _sub.tenant_id = ec.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         GROUP BY ec.status
@@ -192,7 +211,10 @@ def get_labels(department: str | None = None, tenant_id: str | None = None) -> d
                sl.parent_id, sl.priority, sl.tooltip, t.display_name AS tenant_name
         FROM sensitivity_labels sl
         JOIN tenants t ON t.tenant_id = sl.tenant_id
-        WHERE sl.snapshot_date = (SELECT MAX(snapshot_date) FROM sensitivity_labels)
+        WHERE sl.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM sensitivity_labels _sub
+                WHERE _sub.tenant_id = sl.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         ORDER BY sl.priority
@@ -208,7 +230,10 @@ def get_labels(department: str | None = None, tenant_id: str | None = None) -> d
                t.display_name AS tenant_name
         FROM retention_labels rl
         JOIN tenants t ON t.tenant_id = rl.tenant_id
-        WHERE rl.snapshot_date = (SELECT MAX(snapshot_date) FROM retention_labels)
+        WHERE rl.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM retention_labels _sub
+                WHERE _sub.tenant_id = rl.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         ORDER BY rl.display_name
@@ -223,7 +248,10 @@ def get_labels(department: str | None = None, tenant_id: str | None = None) -> d
                t.display_name AS tenant_name
         FROM retention_events re
         JOIN tenants t ON t.tenant_id = re.tenant_id
-        WHERE re.snapshot_date = (SELECT MAX(snapshot_date) FROM retention_events)
+        WHERE re.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM retention_events _sub
+                WHERE _sub.tenant_id = re.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         ORDER BY re.created DESC
@@ -258,7 +286,10 @@ def get_audit(department: str | None = None, tenant_id: str | None = None) -> di
                ar.result_status, t.display_name AS tenant_name
         FROM audit_records ar
         JOIN tenants t ON t.tenant_id = ar.tenant_id
-        WHERE ar.snapshot_date = (SELECT MAX(snapshot_date) FROM audit_records)
+        WHERE ar.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM audit_records _sub
+                WHERE _sub.tenant_id = ar.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         ORDER BY ar.created DESC
@@ -272,7 +303,10 @@ def get_audit(department: str | None = None, tenant_id: str | None = None) -> di
         SELECT ar.service, COUNT(*)::int AS total
         FROM audit_records ar
         JOIN tenants t ON t.tenant_id = ar.tenant_id
-        WHERE ar.snapshot_date = (SELECT MAX(snapshot_date) FROM audit_records)
+        WHERE ar.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM audit_records _sub
+                WHERE _sub.tenant_id = ar.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         GROUP BY ar.service
@@ -286,7 +320,10 @@ def get_audit(department: str | None = None, tenant_id: str | None = None) -> di
         SELECT ar.operation, COUNT(*)::int AS total
         FROM audit_records ar
         JOIN tenants t ON t.tenant_id = ar.tenant_id
-        WHERE ar.snapshot_date = (SELECT MAX(snapshot_date) FROM audit_records)
+        WHERE ar.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM audit_records _sub
+                WHERE _sub.tenant_id = ar.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         GROUP BY ar.operation
@@ -322,7 +359,10 @@ def get_dlp(department: str | None = None, tenant_id: str | None = None) -> dict
                da.assigned_to, t.display_name AS tenant_name
         FROM dlp_alerts da
         JOIN tenants t ON t.tenant_id = da.tenant_id
-        WHERE da.snapshot_date = (SELECT MAX(snapshot_date) FROM dlp_alerts)
+        WHERE da.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM dlp_alerts _sub
+                WHERE _sub.tenant_id = da.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         ORDER BY
@@ -344,7 +384,10 @@ def get_dlp(department: str | None = None, tenant_id: str | None = None) -> dict
                COUNT(*) FILTER (WHERE da.status != 'resolved')::int AS active
         FROM dlp_alerts da
         JOIN tenants t ON t.tenant_id = da.tenant_id
-        WHERE da.snapshot_date = (SELECT MAX(snapshot_date) FROM dlp_alerts)
+        WHERE da.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM dlp_alerts _sub
+                WHERE _sub.tenant_id = da.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         GROUP BY da.severity
@@ -364,7 +407,10 @@ def get_dlp(department: str | None = None, tenant_id: str | None = None) -> dict
         SELECT da.policy_name, COUNT(*)::int AS total
         FROM dlp_alerts da
         JOIN tenants t ON t.tenant_id = da.tenant_id
-        WHERE da.snapshot_date = (SELECT MAX(snapshot_date) FROM dlp_alerts)
+        WHERE da.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM dlp_alerts _sub
+                WHERE _sub.tenant_id = da.tenant_id
+            )
           AND da.policy_name != ''
           {dept_filter}
           {tenant_filter}
@@ -400,7 +446,10 @@ def get_governance(department: str | None = None, tenant_id: str | None = None) 
                t.display_name AS tenant_name
         FROM protection_scopes ps
         JOIN tenants t ON t.tenant_id = ps.tenant_id
-        WHERE ps.snapshot_date = (SELECT MAX(snapshot_date) FROM protection_scopes)
+        WHERE ps.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM protection_scopes _sub
+                WHERE _sub.tenant_id = ps.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         ORDER BY ps.scope_type
@@ -464,7 +513,10 @@ def get_irm(department: str | None = None, tenant_id: str | None = None) -> dict
                ia.assigned_to, t.display_name AS tenant_name
         FROM irm_alerts ia
         JOIN tenants t ON t.tenant_id = ia.tenant_id
-        WHERE ia.snapshot_date = (SELECT MAX(snapshot_date) FROM irm_alerts)
+        WHERE ia.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM irm_alerts _sub
+                WHERE _sub.tenant_id = ia.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         ORDER BY
@@ -486,7 +538,10 @@ def get_irm(department: str | None = None, tenant_id: str | None = None) -> dict
                COUNT(*) FILTER (WHERE ia.status != 'resolved')::int AS active
         FROM irm_alerts ia
         JOIN tenants t ON t.tenant_id = ia.tenant_id
-        WHERE ia.snapshot_date = (SELECT MAX(snapshot_date) FROM irm_alerts)
+        WHERE ia.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM irm_alerts _sub
+                WHERE _sub.tenant_id = ia.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         GROUP BY ia.severity
@@ -523,7 +578,10 @@ def get_subject_rights(department: str | None = None, tenant_id: str | None = No
                t.display_name AS tenant_name
         FROM subject_rights_requests sr
         JOIN tenants t ON t.tenant_id = sr.tenant_id
-        WHERE sr.snapshot_date = (SELECT MAX(snapshot_date) FROM subject_rights_requests)
+        WHERE sr.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM subject_rights_requests _sub
+                WHERE _sub.tenant_id = sr.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         ORDER BY sr.created DESC
@@ -537,7 +595,10 @@ def get_subject_rights(department: str | None = None, tenant_id: str | None = No
         SELECT sr.status, COUNT(*)::int AS total
         FROM subject_rights_requests sr
         JOIN tenants t ON t.tenant_id = sr.tenant_id
-        WHERE sr.snapshot_date = (SELECT MAX(snapshot_date) FROM subject_rights_requests)
+        WHERE sr.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM subject_rights_requests _sub
+                WHERE _sub.tenant_id = sr.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         GROUP BY sr.status
@@ -567,7 +628,10 @@ def get_comm_compliance(department: str | None = None, tenant_id: str | None = N
                cc.review_pending_count, t.display_name AS tenant_name
         FROM comm_compliance_policies cc
         JOIN tenants t ON t.tenant_id = cc.tenant_id
-        WHERE cc.snapshot_date = (SELECT MAX(snapshot_date) FROM comm_compliance_policies)
+        WHERE cc.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM comm_compliance_policies _sub
+                WHERE _sub.tenant_id = cc.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         ORDER BY cc.display_name
@@ -597,7 +661,10 @@ def get_info_barriers(department: str | None = None, tenant_id: str | None = Non
                t.display_name AS tenant_name
         FROM info_barrier_policies ib
         JOIN tenants t ON t.tenant_id = ib.tenant_id
-        WHERE ib.snapshot_date = (SELECT MAX(snapshot_date) FROM info_barrier_policies)
+        WHERE ib.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM info_barrier_policies _sub
+                WHERE _sub.tenant_id = ib.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         ORDER BY ib.display_name
@@ -628,7 +695,10 @@ def get_dlp_policies(department: str | None = None, tenant_id: str | None = None
                t.display_name AS tenant_name
         FROM dlp_policies dp
         JOIN tenants t ON t.tenant_id = dp.tenant_id
-        WHERE dp.snapshot_date = (SELECT MAX(snapshot_date) FROM dlp_policies)
+        WHERE dp.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM dlp_policies _sub
+                WHERE _sub.tenant_id = dp.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         ORDER BY dp.display_name
@@ -642,7 +712,10 @@ def get_dlp_policies(department: str | None = None, tenant_id: str | None = None
         SELECT dp.status, COUNT(*)::int AS total
         FROM dlp_policies dp
         JOIN tenants t ON t.tenant_id = dp.tenant_id
-        WHERE dp.snapshot_date = (SELECT MAX(snapshot_date) FROM dlp_policies)
+        WHERE dp.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM dlp_policies _sub
+                WHERE _sub.tenant_id = dp.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         GROUP BY dp.status
@@ -672,7 +745,10 @@ def get_irm_policies(department: str | None = None, tenant_id: str | None = None
                ip.created, ip.triggers, t.display_name AS tenant_name
         FROM irm_policies ip
         JOIN tenants t ON t.tenant_id = ip.tenant_id
-        WHERE ip.snapshot_date = (SELECT MAX(snapshot_date) FROM irm_policies)
+        WHERE ip.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM irm_policies _sub
+                WHERE _sub.tenant_id = ip.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         ORDER BY ip.display_name
@@ -702,7 +778,10 @@ def get_sensitive_info_types(department: str | None = None, tenant_id: str | Non
                si.category, si.scope, si.state, t.display_name AS tenant_name
         FROM sensitive_info_types si
         JOIN tenants t ON t.tenant_id = si.tenant_id
-        WHERE si.snapshot_date = (SELECT MAX(snapshot_date) FROM sensitive_info_types)
+        WHERE si.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM sensitive_info_types _sub
+                WHERE _sub.tenant_id = si.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         ORDER BY si.name
@@ -736,7 +815,10 @@ def get_compliance_assessments(department: str | None = None, tenant_id: str | N
                t.display_name AS tenant_name
         FROM compliance_assessments ca
         JOIN tenants t ON t.tenant_id = ca.tenant_id
-        WHERE ca.snapshot_date = (SELECT MAX(snapshot_date) FROM compliance_assessments)
+        WHERE ca.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM compliance_assessments _sub
+                WHERE _sub.tenant_id = ca.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         ORDER BY ca.display_name
@@ -750,7 +832,10 @@ def get_compliance_assessments(department: str | None = None, tenant_id: str | N
         SELECT ca.framework, COUNT(*)::int AS total
         FROM compliance_assessments ca
         JOIN tenants t ON t.tenant_id = ca.tenant_id
-        WHERE ca.snapshot_date = (SELECT MAX(snapshot_date) FROM compliance_assessments)
+        WHERE ca.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM compliance_assessments _sub
+                WHERE _sub.tenant_id = ca.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
         GROUP BY ca.framework
@@ -776,15 +861,19 @@ def get_improvement_actions(department: str | None = None, tenant_id: str | None
 
     score = query_one(
         f"""
-        SELECT ss.current_score, ss.max_score, ss.score_date::text,
-               ss.data_current_score, ss.data_max_score
+        SELECT COALESCE(SUM(ss.current_score), 0)::real AS current_score,
+               COALESCE(SUM(ss.max_score), 0)::real AS max_score,
+               MAX(ss.score_date)::text AS score_date,
+               COALESCE(SUM(ss.data_current_score), 0)::real AS data_current_score,
+               COALESCE(SUM(ss.data_max_score), 0)::real AS data_max_score
         FROM secure_scores ss
         JOIN tenants t ON t.tenant_id = ss.tenant_id
-        WHERE ss.snapshot_date = (SELECT MAX(snapshot_date) FROM secure_scores)
+        WHERE ss.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM secure_scores _sub
+                WHERE _sub.tenant_id = ss.tenant_id
+            )
           {dept_filter}
           {tenant_filter}
-        ORDER BY ss.score_date DESC
-        LIMIT 1
         """,
         params,
     )
@@ -797,7 +886,10 @@ def get_improvement_actions(department: str | None = None, tenant_id: str | None
                ia.rank, t.display_name AS tenant_name
         FROM improvement_actions ia
         JOIN tenants t ON t.tenant_id = ia.tenant_id
-        WHERE ia.snapshot_date = (SELECT MAX(snapshot_date) FROM improvement_actions)
+        WHERE ia.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM improvement_actions _sub
+                WHERE _sub.tenant_id = ia.tenant_id
+            )
           AND ia.deprecated = FALSE
           {dept_filter}
           {tenant_filter}
@@ -813,7 +905,10 @@ def get_improvement_actions(department: str | None = None, tenant_id: str | None
                SUM(ia.max_score)::real AS total_max_score
         FROM improvement_actions ia
         JOIN tenants t ON t.tenant_id = ia.tenant_id
-        WHERE ia.snapshot_date = (SELECT MAX(snapshot_date) FROM improvement_actions)
+        WHERE ia.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM improvement_actions _sub
+                WHERE _sub.tenant_id = ia.tenant_id
+            )
           AND ia.deprecated = FALSE
           {dept_filter}
           {tenant_filter}
