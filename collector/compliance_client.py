@@ -466,12 +466,12 @@ def get_secure_scores(token: str) -> list[dict[str, Any]]:
 # ── Improvement Actions (Secure Score Control Profiles) ───────────
 
 
-def get_improvement_actions(token: str, service: str | None = None) -> list[dict[str, Any]]:
+def get_improvement_actions(token: str, services: set[str] | None = None) -> list[dict[str, Any]]:
     """Return Secure Score control profiles (improvement actions).
 
     Args:
-        service: Optional product/service filter (e.g. 'Microsoft Information Protection').
-                 Filtered client-side after fetch. If None, all services are returned.
+        services: Set of product/service names to include (case-insensitive).
+                  Filtered client-side after fetch. If None, returns all Data-category actions.
     """
     sess = _session(token)
     url = f"{GRAPH_BASE}/security/secureScoreControlProfiles"
@@ -482,8 +482,14 @@ def get_improvement_actions(token: str, service: str | None = None) -> list[dict
         log.warning("secureScoreControlProfiles failed: %s", e)
         return []
 
-    if service:
-        items = [i for i in items if i.get("service", "").lower() == service.lower()]
+    unique_services = {i.get("service", "") for i in items}
+    log.info("Secure Score service values in tenant: %s", sorted(unique_services))
+
+    if services:
+        services_lower = {s.lower() for s in services}
+        items = [i for i in items if i.get("service", "").lower() in services_lower]
+    else:
+        items = [i for i in items if i.get("controlCategory", "").lower() == "data"]
 
     actions = []
     for item in items:

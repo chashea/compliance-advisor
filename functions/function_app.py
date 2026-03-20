@@ -184,6 +184,29 @@ def _get_body(req: func.HttpRequest) -> dict:
         return {}
 
 
+# ── Health Check ──────────────────────────────────────────────────
+
+
+@app.function_name("health")
+@app.route(route="health", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
+def health(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        _ensure_dependencies_loaded()
+        from shared.db import get_pool
+
+        pool = get_pool()
+        conn = pool.getconn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+        finally:
+            pool.putconn(conn)
+        return _json_response({"status": "healthy"})
+    except Exception as e:
+        log.exception("health check failed: %s", e)
+        return _json_response({"status": "unhealthy", "error": str(e)}, 503)
+
+
 # ── Dashboard API Routes ──────────────────────────────────────────
 
 
@@ -938,7 +961,7 @@ def _collect_single_tenant(
         irm = collect_irm_alerts(token)
         scopes = collect_protection_scopes(token)
         scores = collect_secure_scores(token)
-        actions = collect_improvement_actions(token, service="Microsoft Information Protection")
+        actions = collect_improvement_actions(token)
         srr = collect_subject_rights(token)
         cc = collect_comm_compliance(token)
         ib = collect_info_barriers(token)

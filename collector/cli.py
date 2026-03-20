@@ -51,8 +51,9 @@ log = logging.getLogger("collector")
 @click.option(
     "--actions-service",
     envvar="ACTIONS_SERVICE",
-    default="Microsoft Information Protection",
-    help="Filter improvement actions by product/service. Default: Microsoft Information Protection.",
+    multiple=True,
+    default=None,
+    help="Filter improvement actions by product/service (repeatable). Uses Purview defaults if omitted.",
 )
 def main(
     tenant_id: str,
@@ -146,7 +147,7 @@ def main(
     secure_scores = get_secure_scores(token)
 
     click.echo("  Improvement Actions...")
-    improvement_actions = get_improvement_actions(token, service=actions_service or None)
+    improvement_actions = get_improvement_actions(token, services=set(actions_service) if actions_service else None)
 
     click.echo("  User Content Policies...")
     user_content_policies = get_user_content_policies(token)
