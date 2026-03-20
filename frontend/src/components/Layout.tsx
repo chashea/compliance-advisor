@@ -109,7 +109,6 @@ export default function Layout() {
       </aside>
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex items-center justify-between bg-navy-900 border-b border-navy-700 px-6 py-3">
-          <span className="text-sm font-medium text-navy-200">Microsoft 365 Compliance Dashboard</span>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setDrawer("briefing")}
