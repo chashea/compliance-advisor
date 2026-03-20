@@ -68,16 +68,16 @@ export default function Layout() {
   const [drawer, setDrawer] = useState<"briefing" | "ask" | null>(null);
 
   return (
-    <div className="flex h-screen flex-col bg-slate-100 dark:bg-slate-950">
+    <div className="flex h-screen flex-col bg-navy-950">
       {demo && (
         <div className="bg-navy-800 text-gold-400 text-xs font-semibold text-center py-1 tracking-wide">DEMO MODE</div>
       )}
       <div className="flex flex-1 overflow-hidden">
-      <aside className="flex w-56 shrink-0 flex-col bg-navy-900">
+      <aside className="flex w-56 shrink-0 flex-col bg-navy-900 border-r border-navy-600">
         <div className="flex items-center gap-3 px-4 py-5">
           <svg className="h-8 w-8 shrink-0" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2 4 5.5v5c0 5.25 3.4 10.2 8 11.5 4.6-1.3 8-6.25 8-11.5v-5L12 2Z" fill="#b8860b" />
-            <path d="m10 14.2-2.5-2.5-1.2 1.3 3.7 3.7 7-7-1.2-1.3-5.8 5.8Z" fill="#1a365d" />
+            <path d="M12 2 4 5.5v5c0 5.25 3.4 10.2 8 11.5 4.6-1.3 8-6.25 8-11.5v-5L12 2Z" fill="#3b82f6" />
+            <path d="m10 14.2-2.5-2.5-1.2 1.3 3.7 3.7 7-7-1.2-1.3-5.8 5.8Z" fill="#050810" />
           </svg>
           <div>
             <h1 className="text-sm font-bold text-white tracking-wide">Compliance</h1>
@@ -108,7 +108,7 @@ export default function Layout() {
         </nav>
       </aside>
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex items-center justify-between bg-navy-900 border-b border-navy-700 px-6 py-3">
+        <header className="flex items-center justify-between bg-navy-900 border-b border-navy-600 px-6 py-3">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setDrawer("briefing")}
@@ -149,7 +149,7 @@ export default function Layout() {
             <TenantFilter />
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto bg-navy-950 p-6">
           <Outlet />
         </main>
       </div>
