@@ -130,10 +130,10 @@ export default function Overview() {
             <ScoreGauge
               score={score.data_current_score}
               max={score.data_max_score}
-              label="Data Compliance Score"
+              label="Compliance Score"
             />
           ) : (
-            <ScoreGauge score={0} max={100} label="Data Compliance Score" />
+            <ScoreGauge score={0} max={100} label="Compliance Score" />
           )}
         </div>
 
@@ -190,7 +190,7 @@ export default function Overview() {
             <div className="mb-1 flex items-center gap-2">
               <span className="h-3 w-3 rounded-sm bg-sky-500" />
               <span className="text-sm font-semibold text-navy-200">
-                Data Secure Score
+                Compliance Score
               </span>
             </div>
             <p className="mt-2 text-4xl font-bold text-white">
