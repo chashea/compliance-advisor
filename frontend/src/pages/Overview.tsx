@@ -322,7 +322,6 @@ export default function Overview() {
           </h3>
           <DataTable<ImprovementAction & Record<string, unknown>>
             columns={[
-              { key: "rank", label: "#" },
               { key: "title", label: "Title" },
               { key: "control_category", label: "Category" },
               { key: "current_score", label: "Score" },
