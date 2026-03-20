@@ -162,6 +162,7 @@ def test_collects_and_upserts(
     mock_upsert_sens,
     mock_upsert_edisc,
     mock_upsert_tenant,
+    mock_update_status,
 ):
     mock_get_settings.return_value = _mock_settings()
     from functions.function_app import collect_tenants
@@ -181,6 +182,7 @@ def test_collects_and_upserts(
 
 @patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
 @patch("functions.function_app._COLLECTOR_IMPORT_ERROR", None)
+@patch("functions.function_app.update_tenant_status")
 @patch("functions.function_app.upsert_tenant")
 @patch("functions.function_app.collect_ediscovery", return_value=[])
 @patch("functions.function_app.collect_sensitivity_labels", return_value=[])
@@ -226,6 +228,7 @@ def test_per_tenant_error_isolation(
     mock_sens_labels,
     mock_ediscovery,
     mock_upsert_tenant,
+    mock_update_status,
 ):
     mock_get_settings.return_value = _mock_settings()
     mock_query.return_value = [

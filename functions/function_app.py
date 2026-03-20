@@ -73,6 +73,7 @@ try:
         check_ingestion_duplicate,
         query,
         record_ingestion,
+        update_tenant_status,
         upsert_audit_record,
         upsert_comm_compliance_policy,
         upsert_compliance_assessment,
@@ -93,7 +94,6 @@ try:
         upsert_tenant,
         upsert_trend,
         upsert_user_content_policies,
-        update_tenant_status,
     )
     from shared.validation import validate_ingestion_request
 except Exception as e:
