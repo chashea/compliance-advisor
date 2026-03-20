@@ -240,36 +240,6 @@ export default function Overview() {
               </div>
             </div>
           </div>
-
-          {/* Category breakdown */}
-          {actions.data && actions.data.category_breakdown.length > 0 && (
-            <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5 lg:col-span-2">
-              <h3 className="mb-4 text-sm font-semibold text-navy-200">
-                Category Contribution to Secure Score
-              </h3>
-              <div className="space-y-3">
-                {actions.data.category_breakdown.map((cat) => {
-                  const catPct = cat.total_max_score > 0
-                    ? Math.round((cat.total / cat.total_max_score) * 100)
-                    : 0;
-                  return (
-                    <div key={cat.control_category}>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-navy-200">{cat.control_category}</span>
-                        <span className="font-medium text-white">{catPct}%</span>
-                      </div>
-                      <div className="mt-1 h-2.5 rounded-full bg-navy-700">
-                        <div
-                          className="h-2.5 rounded-full bg-teal-500 transition-all duration-700"
-                          style={{ width: `${catPct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
