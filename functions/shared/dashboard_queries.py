@@ -891,6 +891,7 @@ def get_improvement_actions(department: str | None = None, tenant_id: str | None
                 WHERE _sub.tenant_id = ia.tenant_id
             )
           AND ia.deprecated = FALSE
+          AND ia.control_category = 'Data'
           {dept_filter}
           {tenant_filter}
         ORDER BY ia.rank
@@ -910,6 +911,7 @@ def get_improvement_actions(department: str | None = None, tenant_id: str | None
                 WHERE _sub.tenant_id = ia.tenant_id
             )
           AND ia.deprecated = FALSE
+          AND ia.control_category = 'Data'
           {dept_filter}
           {tenant_filter}
         GROUP BY ia.control_category
