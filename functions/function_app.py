@@ -371,7 +371,8 @@ def advisor_actions(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
         body = _get_body(req)
-        return _json_response(get_improvement_actions(department=body.get("department"), tenant_id=body.get("tenant_id")))
+        result = get_improvement_actions(department=body.get("department"), tenant_id=body.get("tenant_id"))
+        return _json_response(result)
     except Exception as e:
         log.exception("advisor/actions error: %s", e)
         return _json_response({"error": str(e)}, 500)
@@ -407,7 +408,8 @@ def advisor_sensitive_info_types(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
         body = _get_body(req)
-        return _json_response(get_sensitive_info_types(department=body.get("department"), tenant_id=body.get("tenant_id")))
+        result = get_sensitive_info_types(department=body.get("department"), tenant_id=body.get("tenant_id"))
+        return _json_response(result)
     except Exception as e:
         log.exception("advisor/sensitive-info-types error: %s", e)
         return _json_response({"error": str(e)}, 500)
@@ -419,7 +421,8 @@ def advisor_assessments(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
         body = _get_body(req)
-        return _json_response(get_compliance_assessments(department=body.get("department"), tenant_id=body.get("tenant_id")))
+        result = get_compliance_assessments(department=body.get("department"), tenant_id=body.get("tenant_id"))
+        return _json_response(result)
     except Exception as e:
         log.exception("advisor/assessments error: %s", e)
         return _json_response({"error": str(e)}, 500)
