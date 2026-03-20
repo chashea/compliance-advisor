@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { post } from "../api/client";
-import { useDemo } from "../components/DemoContext";
+import { useDemo } from "./useDemo";
 
 interface ApiState<T> {
   data: T | null;

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useDepartment } from "../components/DepartmentContext";
+import { useDepartment } from "../hooks/useDepartment";
 import ErrorBanner from "../components/ErrorBanner";
 import LineChart from "../components/LineChart";
 import Loading from "../components/Loading";

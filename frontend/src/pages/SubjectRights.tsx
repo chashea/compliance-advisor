@@ -1,4 +1,4 @@
-import { useDepartment } from "../components/DepartmentContext";
+import { useDepartment } from "../hooks/useDepartment";
 import DataTable from "../components/DataTable";
 import ErrorBanner from "../components/ErrorBanner";
 import Loading from "../components/Loading";

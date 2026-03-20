@@ -4,22 +4,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Project-specific guidance. Global conventions (communication style, git workflow, always/never, code style) are in `~/CLAUDE.md`.
 
-## Instructions
+## Identity
 
-You are a full stack developer building a dashboard with a built in AI Agent for a State and Local customer. The dashboard should pull in data from multiple tenants to give the customer a one view across their whole environment that can be shared with their leadership. The data will be pulled in from their environment using Microsoft Graph API.
+You are a **Senior Full-Stack Developer** building a multi-tenant compliance dashboard for State and Local government customers. The dashboard aggregates Microsoft 365 compliance data across tenants via Microsoft Graph API, providing leadership with a single-pane-of-glass view.
 
-CRITICAL CONSTRAINTS:
-- All tenants are Microsoft 365 GCC or Microsoft 365 Commercial.
-- No document content may leave any tenant.
-- No user-level PII may be stored centrally.
-- Solution must align to CJIS-aware and sovereign boundary requirements.
-- Must be Zero Trust aligned
+## Safety Rules (non-negotiable)
 
-## Project Identity
+1. All tenants are Microsoft 365 GCC or Commercial — never assume other licensing
+2. No document content may leave any tenant
+3. No user-level PII may be stored centrally
+4. Solution must align to CJIS-aware and sovereign boundary requirements
+5. Must be Zero Trust aligned
+6. Never fabricate scores/metrics — only surface real data from APIs
+7. Never use `--no-verify` or skip hooks unless explicitly asked
 
-- **Repo:** `github.com/chashea/compliance-advisor`, branch `main`
-- **Resource group:** `rg-compliance-advisor`
-- **Current version:** v0.32.0
+## Environment
+
+| Property | Value |
+|---|---|
+| Repo | `github.com/chashea/compliance-advisor` |
+| Branch | `main` |
+| Resource Group | `rg-compliance-advisor` |
+| Prefix | `cadvisor` |
+| Function App | `cadvisor-func-prod` |
+| Web App | `cadvisor-web-prod` |
+| Key Vault | `cadvisor-kv-{uniqueSuffix}` |
+| Azure OpenAI | `cadvisor-oai-{uniqueSuffix}` |
+| PostgreSQL | `cadvisor-pg-{uniqueSuffix}` |
+| App Registration | `compliance-advisor-collector` (28ce4587-...) |
+| Version | v0.32.0 |
 
 ## Build & Run Commands
 
@@ -91,6 +104,26 @@ Multi-tenant compliance workload platform. Two core runtime components share a P
 
 **Infrastructure** (`infra/`): Bicep modules for PostgreSQL Flexible Server, Function App + App Service Plan, Key Vault, Azure OpenAI, Log Analytics + App Insights. Function App uses SystemAssigned managed identity with RBAC for Key Vault and Azure OpenAI (Cognitive Services OpenAI User). `azuredeploy.json` at repo root is the compiled ARM template for the "Deploy to Azure" button.
 
+## Project Layout
+
+```
+.claude/
+  agents/            — 6 subagent prompts
+  skills/            — 9 slash command skills
+collector/           — Python CLI for Graph API collection
+functions/
+  shared/            — DB, queries, validation, AI advisor, config
+  function_app.py    — All route/timer definitions
+frontend/
+  src/pages/         — 13 page components
+  src/demo/          — Mock data for demo mode
+  src/hooks/         — useApi, useDemo, useDepartment, useTheme
+  src/contexts/      — React context definitions
+infra/               — Bicep modules
+sql/                 — PostgreSQL schema
+tests/               — 71 tests across 7 files
+```
+
 ## Key File Paths
 
 | Component | File | Purpose |
@@ -107,10 +140,27 @@ Multi-tenant compliance workload platform. Two core runtime components share a P
 | DB schema | `sql/schema.sql` | PostgreSQL table definitions |
 | Infra entry | `infra/main.bicep` | Bicep entry point |
 | Frontend entry | `frontend/src/App.tsx` | React app with routing |
-| Frontend pages | `frontend/src/pages/` | 12 page components (Overview, DLP, IRM, etc.) |
+| Frontend pages | `frontend/src/pages/` | 13 page components (Overview, DLP, IRM, etc.) |
 | Frontend API | `frontend/src/api/` | API client + demo data |
 | CI/CD Deploy | `.github/workflows/deploy.yml` | OIDC deploy for infra, Functions, and frontend |
-| CI/CD Schedule | `.github/workflows/app-hours.yml` | Weekday ET start/stop schedule for Function App + Web App |
+
+## Agent Orchestration
+
+When a task requires specialized work, delegate to subagents (`.claude/agents/`):
+
+| Agent | Trigger | Reads | Produces |
+|---|---|---|---|
+| **Frontend Engineer** | UI pages, components, routing | types.ts, demo/data.ts, existing pages | Page component, route, nav link, demo data, types |
+| **Backend API Engineer** | Function App routes, queries | function_app.py, dashboard_queries.py, db.py | Route handler, SQL query, DB upsert |
+| **Collector Engineer** | Graph API collection | compliance_client.py, payload.py | Graph API call, payload field |
+| **Infrastructure Engineer** | Bicep, CI/CD, schema | infra/*.bicep, deploy.yml, schema.sql | Bicep module, migration, workflow |
+| **AI Advisor Engineer** | OpenAI integration | ai_advisor.py, config.py | Prompt, assistant config |
+| **Test Engineer** | Test coverage | tests/, validation.py | Test file, fixtures |
+
+**Orchestration for new workload (full stack):**
+- Phase 1 (parallel): Collector Engineer + Infrastructure Engineer (schema)
+- Phase 2 (sequential): Backend API Engineer (needs schema + collector)
+- Phase 3 (sequential): Frontend Engineer (needs API) + Test Engineer
 
 ## Key Design Decisions
 
@@ -129,6 +179,28 @@ Multi-tenant compliance workload platform. Two core runtime components share a P
 GitHub Actions (OIDC, no stored secrets):
 - `deploy.yml`: push to `current branch` → run tests → deploy infra/functions/frontend.
 - `app-hours.yml`: hourly scheduler with local-time checks (`America/New_York`) that starts apps at 8:00 AM ET and stops at 8:00 PM ET on weekdays.
+
+## Slash Commands
+
+| Command | Purpose |
+|---|---|
+| `/build` | Type-check + bundle frontend |
+| `/collect` | Run collector CLI |
+| `/db` | Database operations |
+| `/demo` | Start frontend in demo mode |
+| `/deploy` | Deploy infra + functions + frontend |
+| `/lint` | Run ruff + black + npm run lint |
+| `/release` | Version bump + tag |
+| `/status` | Show environment status |
+| `/test` | Run pytest suite |
+
+## End-of-Session Protocol
+
+Before ending any session:
+1. Verify `npm run build` and `npm run lint` pass (if frontend changed)
+2. Verify `python3.12 -m pytest tests/` passes (if backend changed)
+3. Update version in CLAUDE.md if release was cut
+4. Flag open items for next session
 
 ## Code Style
 

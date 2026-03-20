@@ -22,6 +22,14 @@ import type {
   TrendPoint,
   ActionsResponse,
   ImprovementAction,
+  DLPPoliciesResponse,
+  DLPPolicy,
+  IRMPoliciesResponse,
+  IRMPolicy,
+  SensitiveInfoTypesResponse,
+  SensitiveInfoType,
+  AssessmentsResponse,
+  Assessment,
 } from "../types";
 
 // --- Tenants ---
@@ -121,6 +129,36 @@ const improvementActions: ImprovementAction[] = [
   { control_id: "ia-4", title: "Enable retention policies for Teams", control_category: "Data", max_score: 10, current_score: 7, implementation_cost: "Low", user_impact: "Low", tier: "Tier 1", service: "Microsoft Teams", threats: "Data loss", remediation: "Configure retention policies for Teams chats and channels.", state: "InProgress", rank: 4, tenant_name: "Fabrikam Inc" },
   { control_id: "ia-5", title: "Configure insider risk management", control_category: "Data", max_score: 10, current_score: 10, implementation_cost: "Moderate", user_impact: "Low", tier: "Tier 3", service: "Microsoft 365", threats: "Insider threat", remediation: "Enable departing employee and data theft policy templates.", state: "Completed", rank: 5, tenant_name: "Northwind Traders" },
   { control_id: "ia-6", title: "Set up communication compliance", control_category: "Data", max_score: 10, current_score: 0, implementation_cost: "Moderate", user_impact: "Moderate", tier: "Tier 3", service: "Microsoft 365", threats: "Regulatory violation", remediation: "Create policies for offensive language and regulatory compliance.", state: "NotStarted", rank: 6, tenant_name: "Northwind Traders" },
+];
+
+const dlpPolicies: DLPPolicy[] = [
+  { policy_id: "dp-1", display_name: "PCI-DSS Protection", status: "Enabled", policy_type: "DLP", rules_count: 5, created: "2025-06-15", modified: daysAgo(10), mode: "Enforce", tenant_name: "Contoso Ltd" },
+  { policy_id: "dp-2", display_name: "PII Protection", status: "Enabled", policy_type: "DLP", rules_count: 3, created: "2025-08-01", modified: daysAgo(5), mode: "Enforce", tenant_name: "Contoso Ltd" },
+  { policy_id: "dp-3", display_name: "Endpoint DLP", status: "TestWithNotifications", policy_type: "DLP", rules_count: 2, created: "2026-01-10", modified: daysAgo(2), mode: "TestWithNotifications", tenant_name: "Fabrikam Inc" },
+  { policy_id: "dp-4", display_name: "Teams DLP", status: "Enabled", policy_type: "DLP", rules_count: 4, created: "2025-09-20", modified: daysAgo(15), mode: "Enforce", tenant_name: "Northwind Traders" },
+];
+
+const irmPolicies: IRMPolicy[] = [
+  { policy_id: "ip-1", display_name: "Data Theft — Departing Employee", status: "Active", policy_type: "DataTheft", created: "2025-07-01", triggers: "HR connector, resignation event", tenant_name: "Contoso Ltd" },
+  { policy_id: "ip-2", display_name: "General Data Leaks", status: "Active", policy_type: "DataLeaks", created: "2025-09-15", triggers: "DLP policy match", tenant_name: "Fabrikam Inc" },
+  { policy_id: "ip-3", display_name: "Security Policy Violations", status: "Active", policy_type: "SecurityPolicyViolation", created: "2026-01-05", triggers: "Defender alert", tenant_name: "Northwind Traders" },
+  { policy_id: "ip-4", display_name: "Patient Data Misuse", status: "Inactive", policy_type: "DataTheft", created: "2025-11-20", triggers: "Sensitivity label match", tenant_name: "Contoso Ltd" },
+];
+
+const sensitiveInfoTypes: SensitiveInfoType[] = [
+  { type_id: "sit-1", name: "U.S. Social Security Number (SSN)", description: "Detects US SSNs", is_custom: false, category: "PII", scope: "Tenant", state: "Enabled", tenant_name: "Contoso Ltd" },
+  { type_id: "sit-2", name: "Credit Card Number", description: "Detects major credit card formats", is_custom: false, category: "Financial", scope: "Tenant", state: "Enabled", tenant_name: "Contoso Ltd" },
+  { type_id: "sit-3", name: "Contoso Employee ID", description: "Custom pattern for Contoso employee IDs", is_custom: true, category: "HR", scope: "Tenant", state: "Enabled", tenant_name: "Contoso Ltd" },
+  { type_id: "sit-4", name: "IBAN", description: "International Bank Account Number", is_custom: false, category: "Financial", scope: "Tenant", state: "Enabled", tenant_name: "Fabrikam Inc" },
+  { type_id: "sit-5", name: "Northwind Case Number", description: "Custom case tracking number", is_custom: true, category: "Legal", scope: "Tenant", state: "Enabled", tenant_name: "Northwind Traders" },
+];
+
+const complianceAssessments: Assessment[] = [
+  { assessment_id: "ca-1", display_name: "NIST 800-53 Assessment", status: "Active", framework: "NIST 800-53", completion_percentage: 72, created: "2025-10-01", category: "Security", tenant_name: "Contoso Ltd" },
+  { assessment_id: "ca-2", display_name: "CJIS Security Policy", status: "Active", framework: "CJIS", completion_percentage: 85, created: "2025-11-15", category: "Criminal Justice", tenant_name: "Contoso Ltd" },
+  { assessment_id: "ca-3", display_name: "ISO 27001 Readiness", status: "Active", framework: "ISO 27001", completion_percentage: 60, created: "2026-01-20", category: "Security", tenant_name: "Fabrikam Inc" },
+  { assessment_id: "ca-4", display_name: "NIST 800-53 Assessment", status: "Completed", framework: "NIST 800-53", completion_percentage: 100, created: "2025-06-01", category: "Security", tenant_name: "Northwind Traders" },
+  { assessment_id: "ca-5", display_name: "SOC 2 Type II", status: "Active", framework: "SOC 2", completion_percentage: 45, created: "2026-02-10", category: "Compliance", tenant_name: "Northwind Traders" },
 ];
 
 // Trend: 30 days counting back from 2026-03-14
@@ -266,6 +304,40 @@ export function getDemoData(endpoint: string, body?: Record<string, unknown>): u
 
     case "trend":
       return { trend: trendData } satisfies TrendResponse;
+
+    case "dlp-policies": {
+      const policies = filterByDept(dlpPolicies, dept || undefined);
+      const breakdown: Record<string, number> = {};
+      policies.forEach((p) => { breakdown[p.status] = (breakdown[p.status] ?? 0) + 1; });
+      return {
+        policies,
+        status_breakdown: Object.entries(breakdown).map(([status, total]) => ({ status, total })),
+      } satisfies DLPPoliciesResponse;
+    }
+
+    case "irm-policies":
+      return {
+        policies: filterByDept(irmPolicies, dept || undefined),
+      } satisfies IRMPoliciesResponse;
+
+    case "sensitive-info-types": {
+      const types = filterByDept(sensitiveInfoTypes, dept || undefined);
+      return {
+        types,
+        custom_count: types.filter((t) => t.is_custom).length,
+        builtin_count: types.filter((t) => !t.is_custom).length,
+      } satisfies SensitiveInfoTypesResponse;
+    }
+
+    case "assessments": {
+      const assessments = filterByDept(complianceAssessments, dept || undefined);
+      const fwMap: Record<string, number> = {};
+      assessments.forEach((a) => { fwMap[a.framework] = (fwMap[a.framework] ?? 0) + 1; });
+      return {
+        assessments,
+        framework_breakdown: Object.entries(fwMap).map(([framework, total]) => ({ framework, total })),
+      } satisfies AssessmentsResponse;
+    }
 
     case "actions": {
       const actions = filterByDept(improvementActions, dept || undefined);

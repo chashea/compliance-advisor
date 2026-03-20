@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useDepartment } from "./DepartmentContext";
-import { useDemo } from "./DemoContext";
+import { useDepartment } from "../hooks/useDepartment";
+import { useDemo } from "../hooks/useDemo";
 import ErrorBanner from "./ErrorBanner";
 import Loading from "./Loading";
 import { post } from "../api/client";

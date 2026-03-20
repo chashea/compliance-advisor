@@ -234,6 +234,79 @@ export interface ActionsResponse {
   category_breakdown: CategoryBreakdown[];
 }
 
+// /api/advisor/dlp-policies
+export interface DLPPolicy {
+  policy_id: string;
+  display_name: string;
+  status: string;
+  policy_type: string;
+  rules_count: number;
+  created: string;
+  modified: string;
+  mode: string;
+  tenant_name: string;
+}
+
+export interface DLPPoliciesResponse {
+  policies: DLPPolicy[];
+  status_breakdown: StatusBreakdown[];
+}
+
+// /api/advisor/irm-policies
+export interface IRMPolicy {
+  policy_id: string;
+  display_name: string;
+  status: string;
+  policy_type: string;
+  created: string;
+  triggers: string;
+  tenant_name: string;
+}
+
+export interface IRMPoliciesResponse {
+  policies: IRMPolicy[];
+}
+
+// /api/advisor/sensitive-info-types
+export interface SensitiveInfoType {
+  type_id: string;
+  name: string;
+  description: string;
+  is_custom: boolean;
+  category: string;
+  scope: string;
+  state: string;
+  tenant_name: string;
+}
+
+export interface SensitiveInfoTypesResponse {
+  types: SensitiveInfoType[];
+  custom_count: number;
+  builtin_count: number;
+}
+
+// /api/advisor/assessments
+export interface Assessment {
+  assessment_id: string;
+  display_name: string;
+  status: string;
+  framework: string;
+  completion_percentage: number;
+  created: string;
+  category: string;
+  tenant_name: string;
+}
+
+export interface FrameworkBreakdown {
+  framework: string;
+  total: number;
+}
+
+export interface AssessmentsResponse {
+  assessments: Assessment[];
+  framework_breakdown: FrameworkBreakdown[];
+}
+
 // /api/advisor/briefing
 export interface BriefingResponse {
   briefing: string;

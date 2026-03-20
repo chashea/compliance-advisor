@@ -1,11 +1,5 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-
-interface ThemeCtx {
-  dark: boolean;
-  toggleDark: () => void;
-}
-
-const Ctx = createContext<ThemeCtx>({ dark: false, toggleDark: () => {} });
+import { useEffect, useState, type ReactNode } from "react";
+import { ThemeCtx } from "../contexts/ThemeCtx";
 
 function getInitial(): boolean {
   const stored = localStorage.getItem("theme");
@@ -23,9 +17,5 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const toggleDark = () => setDark((d) => !d);
 
-  return <Ctx.Provider value={{ dark, toggleDark }}>{children}</Ctx.Provider>;
-}
-
-export function useTheme() {
-  return useContext(Ctx);
+  return <ThemeCtx.Provider value={{ dark, toggleDark }}>{children}</ThemeCtx.Provider>;
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { post } from "../api/client";
 import type { OverviewResponse } from "../types";
-import { useDepartment } from "./DepartmentContext";
+import { useDepartment } from "../hooks/useDepartment";
 
 export default function DepartmentFilter() {
   const { department, setDepartment } = useDepartment();

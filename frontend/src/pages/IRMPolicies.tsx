@@ -3,11 +3,11 @@ import DataTable from "../components/DataTable";
 import ErrorBanner from "../components/ErrorBanner";
 import Loading from "../components/Loading";
 import { useApi } from "../hooks/useApi";
-import type { CommCompliancePolicy, CommComplianceResponse } from "../types";
+import type { IRMPolicy, IRMPoliciesResponse } from "../types";
 
-export default function CommCompliance() {
+export default function IRMPolicies() {
   const { department } = useDepartment();
-  const { data, loading, error } = useApi<CommComplianceResponse>("comm-compliance", department ? { department } : {}, [department]);
+  const { data, loading, error } = useApi<IRMPoliciesResponse>("irm-policies", department ? { department } : {}, [department]);
 
   if (loading) return <Loading />;
   if (error) return <ErrorBanner message={error} />;
@@ -15,16 +15,17 @@ export default function CommCompliance() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Communication Compliance ({data.policies.length})</h2>
-      <DataTable<CommCompliancePolicy & Record<string, unknown>>
+      <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">IRM Policies ({data.policies.length})</h2>
+      <DataTable<IRMPolicy & Record<string, unknown>>
         columns={[
           { key: "display_name", label: "Policy" },
-          { key: "policy_type", label: "Type" },
           { key: "status", label: "Status" },
-          { key: "review_pending_count", label: "Pending Reviews" },
+          { key: "policy_type", label: "Type" },
+          { key: "triggers", label: "Triggers" },
+          { key: "created", label: "Created" },
           { key: "tenant_name", label: "Tenant" },
         ]}
-        data={data.policies as (CommCompliancePolicy & Record<string, unknown>)[]}
+        data={data.policies as (IRMPolicy & Record<string, unknown>)[]}
         keyField="policy_id"
       />
     </div>

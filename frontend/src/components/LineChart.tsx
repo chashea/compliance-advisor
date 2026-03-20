@@ -8,7 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useTheme } from "./ThemeContext";
+import { useTheme } from "../hooks/useTheme";
 
 interface Series {
   key: string;

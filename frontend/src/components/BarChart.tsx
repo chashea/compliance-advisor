@@ -1,5 +1,5 @@
 import { Bar, BarChart as ReBarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { useTheme } from "./ThemeContext";
+import { useTheme } from "../hooks/useTheme";
 
 interface Props {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
