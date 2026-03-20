@@ -6,7 +6,10 @@ Project-specific guidance. Global conventions (communication style, git workflow
 
 ## Identity
 
-You are a **Senior Full-Stack Developer** building a multi-tenant compliance dashboard for State and Local government customers. The dashboard aggregates Microsoft 365 compliance data across tenants via Microsoft Graph API, providing leadership with a single-pane-of-glass view.
+- **Role:** Senior Full-Stack Developer
+- **Product:** Multi-tenant compliance dashboard for State and Local government
+- **Data source:** Microsoft 365 compliance workloads via Microsoft Graph API
+- **Goal:** Single-pane-of-glass view across all tenants for leadership reporting
 
 ## Safety Rules (non-negotiable)
 
@@ -104,6 +107,38 @@ Multi-tenant compliance workload platform. Two core runtime components share a P
 
 **Infrastructure** (`infra/`): Bicep modules for PostgreSQL Flexible Server, Function App + App Service Plan, Key Vault, Azure OpenAI, Log Analytics + App Insights. Function App uses SystemAssigned managed identity with RBAC for Key Vault and Azure OpenAI (Cognitive Services OpenAI User). `azuredeploy.json` at repo root is the compiled ARM template for the "Deploy to Azure" button.
 
+## API Routes
+
+All dashboard routes are `POST` with optional `{ "department": "..." }` body filter unless noted.
+
+| Route | Auth | Description |
+|---|---|---|
+| `advisor/status` | ANONYMOUS | System status |
+| `advisor/overview` | ANONYMOUS | Dashboard overview |
+| `advisor/ediscovery` | ANONYMOUS | eDiscovery cases |
+| `advisor/labels` | ANONYMOUS | Sensitivity + retention labels |
+| `advisor/audit` | ANONYMOUS | Audit log records |
+| `advisor/dlp` | ANONYMOUS | DLP alerts + stats |
+| `advisor/irm` | ANONYMOUS | IRM alerts + stats |
+| `advisor/subject-rights` | ANONYMOUS | Subject rights requests |
+| `advisor/comm-compliance` | ANONYMOUS | Communication compliance policies |
+| `advisor/info-barriers` | ANONYMOUS | Information barrier policies |
+| `advisor/governance` | ANONYMOUS | Governance compliance data |
+| `advisor/trend` | ANONYMOUS | Trend over configurable days (1-365, default 30) |
+| `advisor/actions` | ANONYMOUS | Improvement actions |
+| `advisor/dlp-policies` | ANONYMOUS | DLP policy configurations |
+| `advisor/irm-policies` | ANONYMOUS | IRM policy configurations |
+| `advisor/sensitive-info-types` | ANONYMOUS | Sensitive information types |
+| `advisor/assessments` | ANONYMOUS | Compliance assessments |
+| `advisor/briefing` | ANONYMOUS | AI briefing (rate-limited: 10/min per IP) |
+| `advisor/ask` | ANONYMOUS | AI chat (rate-limited: 10/min per IP, requires `question`) |
+| `tenants` | FUNCTION | Register/update tenant |
+| `tenants/callback` | ANONYMOUS | GET — Azure AD admin consent callback |
+| `ingest` | FUNCTION | Ingest compliance payload (schema-validated, idempotent) |
+| `collect/{tenant_id}` | FUNCTION | On-demand collection trigger |
+| Timer: `collect_tenants` | — | Daily 2:00 AM UTC, all registered tenants |
+| Timer: `compute_aggregates` | — | Daily 6:00 AM UTC, roll up trend data |
+
 ## Project Layout
 
 ```
@@ -173,6 +208,16 @@ When a task requires specialized work, delegate to subagents (`.claude/agents/`)
 - DLP and IRM alerts use the legacy `/v1.0/security/alerts` endpoint filtered by `vendorInformation/provider` — IRM has no valid `serviceSource` enum in `alerts_v2`; DLP surfaces more reliably this way.
 - Improvement actions default to `controlCategory eq 'Data'` via `--actions-category` / `ACTIONS_CATEGORY` env var.
 - Secure Score snapshot cross-references `controlScores` with Data category profiles to compute `data_current_score` / `data_max_score`.
+
+## Known Gotchas
+
+1. **Key Vault references may not resolve** — After deployment, `@Microsoft.KeyVault(SecretUri=...)` app settings can fail to resolve due to RBAC propagation delay. `FunctionSettings` has a `model_validator` fallback that fetches secrets directly via `azure-keyvault-secrets` + `DefaultAzureCredential`. If you see `invalid dsn` errors, this is why.
+2. **DLP/IRM must use legacy alerts API** — `/v1.0/security/alerts` filtered by `vendorInformation/provider`, not `alerts_v2`. IRM has no valid `serviceSource` enum in v2; DLP surfaces more reliably via v1.
+3. **Sensitivity labels require beta API** — `beta/security/informationProtection/sensitivityLabels` with v1.0 fallback. Beta returns richer data but can break without notice.
+4. **Audit log API is async** — POST to create query, poll status until complete, then GET records. Do not treat it as a synchronous call.
+5. **Secure Score `controlScores` filtering** — `controlCategory eq 'Data'` is the default. Changing `--actions-category` affects both improvement actions and the data score calculation. These must stay in sync.
+6. **`app-hours.yml` stops apps at 8 PM ET** — If debugging after hours, the Function App and Web App may be stopped. Check `az webapp show --query state` before assuming a deployment failure.
+7. **`WEBSITE_RUN_FROM_PACKAGE=1`** — The Function App runs from a zip. Local file writes inside the app won't persist. Don't try to write temp files to the app directory.
 
 ## CI/CD
 

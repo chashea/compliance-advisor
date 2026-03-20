@@ -23,10 +23,18 @@ def _get_pool() -> ThreadedConnectionPool:
     global _pool
     if _pool is None:
         settings = get_settings()
+        dsn = settings.DATABASE_URL
+        if dsn.startswith("@Microsoft.KeyVault("):
+            log.warning("DATABASE_URL still contains unresolved Key Vault reference — resolving via KEY_VAULT_URL")
+            from azure.identity import DefaultAzureCredential
+            from azure.keyvault.secrets import SecretClient
+
+            client = SecretClient(vault_url=settings.KEY_VAULT_URL, credential=DefaultAzureCredential())
+            dsn = client.get_secret("database-url").value
         _pool = ThreadedConnectionPool(
             minconn=1,
             maxconn=10,
-            dsn=settings.DATABASE_URL,
+            dsn=dsn,
             connect_timeout=10,
             options="-c statement_timeout=30000",
         )

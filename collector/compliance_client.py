@@ -7,13 +7,13 @@ Pulls data from:
 - GET  /v1.0/security/labels/retentionLabels                     — retention labels
 - GET  /v1.0/security/triggers/retentionEvents                   — retention events
 - POST /v1.0/security/auditLog/queries + GET records             — audit log (async)
-- GET  /v1.0/security/alerts?$filter=vendorInformation/provider — DLP + IRM alerts
+- GET  /v1.0/security/alerts_v2?$filter=serviceSource             — DLP + IRM alerts
 - POST /v1.0/dataSecurityAndGovernance/protectionScopes/compute  — protection scopes
 - POST /v1.0/users/{id}/dataSecurityAndGovernance/processContent — user content policies
-- GET  /v1.0/security/dataLossPrevention/policies                — DLP policies
+- GET  /beta/security/informationProtection/dataLossPreventionPolicies — DLP policies
 - GET  /beta/security/insiderRiskManagement/policies              — IRM policies
-- GET  /v1.0/security/informationProtection/sensitiveTypes        — sensitive info types
-- GET  /beta/compliance/assessments                               — compliance assessments
+- GET  /beta/dataClassification/sensitiveTypes                    — sensitive info types
+- GET  /beta/security/complianceManagement/assessments            — compliance assessments
 """
 
 import logging
@@ -318,19 +318,19 @@ def get_audit_log_records(token: str, days: int = 1) -> list[dict[str, Any]]:
 # ── DLP Alerts ────────────────────────────────────────────────────
 
 
-def _legacy_alerts(token: str, provider: str, label: str) -> list[dict[str, Any]]:
-    """Return alerts from the legacy /security/alerts endpoint filtered by vendorInformation/provider."""
+def _alerts_v2(token: str, service_source: str, label: str) -> list[dict[str, Any]]:
+    """Return alerts from /security/alerts_v2 filtered by serviceSource."""
     sess = _session(token)
     url = (
-        f"{GRAPH_BASE}/security/alerts"
-        f"?$filter=vendorInformation/provider eq '{provider}'"
+        f"{GRAPH_BASE}/security/alerts_v2"
+        f"?$filter=serviceSource eq '{service_source}'"
         "&$top=100&$orderby=createdDateTime desc"
     )
 
     try:
         items = _paginate(sess, url, max_pages=5)
     except requests.exceptions.RequestException as e:
-        log.warning("%s alerts failed: %s", label, e)
+        log.warning("%s alerts_v2 failed: %s", label, e)
         return []
 
     alerts = []
@@ -343,8 +343,8 @@ def _legacy_alerts(token: str, provider: str, label: str) -> list[dict[str, Any]
                 "status": item.get("status", ""),
                 "category": item.get("category", ""),
                 "created": item.get("createdDateTime", ""),
-                "resolved": item.get("closedDateTime", ""),
-                "policy_name": item.get("vendorInformation", {}).get("subProvider", ""),
+                "resolved": item.get("resolvedDateTime", ""),
+                "policy_name": item.get("alertPolicyId", ""),
                 "description": item.get("description", ""),
                 "assigned_to": item.get("assignedTo", ""),
             }
@@ -355,16 +355,16 @@ def _legacy_alerts(token: str, provider: str, label: str) -> list[dict[str, Any]
 
 
 def get_dlp_alerts(token: str) -> list[dict[str, Any]]:
-    """Return DLP alerts from Defender (legacy alerts API, provider=Microsoft Data Loss Prevention)."""
-    return _legacy_alerts(token, "Microsoft Data Loss Prevention", "DLP")
+    """Return DLP alerts (alerts_v2, serviceSource=microsoftDataLossPrevention)."""
+    return _alerts_v2(token, "microsoftDataLossPrevention", "DLP")
 
 
 # ── Insider Risk Management alerts ────────────────────────────────
 
 
 def get_irm_alerts(token: str) -> list[dict[str, Any]]:
-    """Return IRM alerts from Defender (legacy alerts API, provider=Microsoft Insider Risk Management)."""
-    return _legacy_alerts(token, "Microsoft Insider Risk Management", "IRM")
+    """Return IRM alerts (alerts_v2, serviceSource=microsoftInsiderRiskManagement)."""
+    return _alerts_v2(token, "microsoftInsiderRiskManagement", "IRM")
 
 
 # ── Data Security & Governance (protection scopes) ────────────────
@@ -529,9 +529,9 @@ def get_improvement_actions(token: str, service: str | None = None) -> list[dict
 
 
 def get_subject_rights_requests(token: str) -> list[dict[str, Any]]:
-    """Return Subject Rights Requests from Graph beta API."""
+    """Return Subject Rights Requests (v1.0 security namespace)."""
     sess = _session(token)
-    url = f"{GRAPH_BETA}/privacy/subjectRightsRequests"
+    url = f"{GRAPH_BASE}/security/subjectRightsRequests"
 
     try:
         items = _paginate(sess, url, max_pages=10)
@@ -625,20 +625,15 @@ def get_info_barrier_policies(token: str) -> list[dict[str, Any]]:
 
 
 def get_dlp_policies(token: str) -> list[dict[str, Any]]:
-    """Return DLP policies (v1.0 with beta fallback)."""
+    """Return DLP policies (beta informationProtection API)."""
     sess = _session(token)
-    url = f"{GRAPH_BASE}/security/dataLossPrevention/policies"
+    url = f"{GRAPH_BETA}/security/informationProtection/dataLossPreventionPolicies"
 
     try:
         items = _paginate(sess, url)
     except requests.exceptions.RequestException as e:
-        log.warning("DLP policies (v1.0) failed: %s — trying beta", e)
-        try:
-            url = f"{GRAPH_BETA}/security/dataLossPrevention/policies"
-            items = _paginate(sess, url)
-        except requests.exceptions.RequestException as e2:
-            log.warning("DLP policies (beta) failed: %s", e2)
-            return []
+        log.warning("DLP policies failed: %s", e)
+        return []
 
     results = []
     for item in items:
@@ -706,20 +701,15 @@ def get_irm_policies(token: str) -> list[dict[str, Any]]:
 
 
 def get_sensitive_info_types(token: str) -> list[dict[str, Any]]:
-    """Return sensitive information types (v1.0 with beta fallback)."""
+    """Return sensitive information types (beta dataClassification API)."""
     sess = _session(token)
-    url = f"{GRAPH_BASE}/security/informationProtection/sensitiveTypes"
+    url = f"{GRAPH_BETA}/dataClassification/sensitiveTypes"
 
     try:
         items = _paginate(sess, url)
     except requests.exceptions.RequestException as e:
-        log.warning("sensitiveTypes (v1.0) failed: %s — trying beta", e)
-        try:
-            url = f"{GRAPH_BETA}/security/informationProtection/sensitiveTypes"
-            items = _paginate(sess, url)
-        except requests.exceptions.RequestException as e2:
-            log.warning("sensitiveTypes (beta) failed: %s", e2)
-            return []
+        log.warning("sensitiveTypes failed: %s", e)
+        return []
 
     results = []
     for item in items:
@@ -743,9 +733,9 @@ def get_sensitive_info_types(token: str) -> list[dict[str, Any]]:
 
 
 def get_compliance_assessments(token: str) -> list[dict[str, Any]]:
-    """Return compliance assessments (beta API)."""
+    """Return compliance assessments (beta complianceManagement API)."""
     sess = _session(token)
-    url = f"{GRAPH_BETA}/compliance/assessments"
+    url = f"{GRAPH_BETA}/security/complianceManagement/assessments"
 
     try:
         items = _paginate(sess, url)

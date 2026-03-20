@@ -51,12 +51,14 @@ class FunctionSettings(BaseSettings):
 
     @model_validator(mode="after")
     def resolve_keyvault_references(self) -> "FunctionSettings":
-        if _KV_REF_PATTERN.match(self.DATABASE_URL):
-            self.DATABASE_URL = _resolve_keyvault_reference(self.DATABASE_URL)
-        if _KV_REF_PATTERN.match(self.COLLECTOR_CLIENT_ID):
-            self.COLLECTOR_CLIENT_ID = _resolve_keyvault_reference(self.COLLECTOR_CLIENT_ID)
-        if _KV_REF_PATTERN.match(self.COLLECTOR_CLIENT_SECRET):
-            self.COLLECTOR_CLIENT_SECRET = _resolve_keyvault_reference(self.COLLECTOR_CLIENT_SECRET)
+        for field in ("DATABASE_URL", "COLLECTOR_CLIENT_ID", "COLLECTOR_CLIENT_SECRET"):
+            val = getattr(self, field)
+            if _KV_REF_PATTERN.match(val):
+                try:
+                    resolved = _resolve_keyvault_reference(val)
+                    object.__setattr__(self, field, resolved)
+                except Exception as exc:
+                    log.error("Failed to resolve Key Vault reference for %s: %s", field, exc)
         return self
 
     # Tenant allow-list (comma-separated GUIDs)
