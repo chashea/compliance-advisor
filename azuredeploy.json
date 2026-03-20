@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "434848768891615657"
+      "templateHash": "17451726840419202398"
     }
   },
   "parameters": {
@@ -98,7 +98,7 @@
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
       "scope": "[format('Microsoft.Storage/storageAccounts/{0}', variables('storageName'))]",
-      "name": "[guid(resourceGroup().id, variables('storageName'), variables('functionAppName'), 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b')]",
+      "name": "5290cfeb-9780-4e97-80e8-d7e9183d6d47",
       "properties": {
         "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b')]",
         "principalId": "[reference(resourceId('Microsoft.Resources/deployments', 'functionApp'), '2025-04-01').outputs.functionAppPrincipalId.value]",
@@ -113,7 +113,7 @@
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
       "scope": "[format('Microsoft.Storage/storageAccounts/{0}', variables('storageName'))]",
-      "name": "[guid(resourceGroup().id, variables('storageName'), variables('functionAppName'), '974c5e8b-45b9-4653-ba55-5f855dd0fb88')]",
+      "name": "410e6877-3c25-4c13-b582-85821cb4e201",
       "properties": {
         "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '974c5e8b-45b9-4653-ba55-5f855dd0fb88')]",
         "principalId": "[reference(resourceId('Microsoft.Resources/deployments', 'functionApp'), '2025-04-01').outputs.functionAppPrincipalId.value]",

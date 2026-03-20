@@ -144,7 +144,7 @@ resource kvRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' =
 
 // Storage Blob Data Owner (manage blobs: leases, secrets, timer state)
 resource storageBlobRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(resourceGroup().id, storageName, functionAppName, 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b')
+  name: '5290cfeb-9780-4e97-80e8-d7e9183d6d47'
   scope: storageAccount
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b')
@@ -155,7 +155,7 @@ resource storageBlobRoleAssignment 'Microsoft.Authorization/roleAssignments@2022
 
 // Storage Queue Data Contributor (function host queue operations)
 resource storageQueueRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(resourceGroup().id, storageName, functionAppName, '974c5e8b-45b9-4653-ba55-5f855dd0fb88')
+  name: '410e6877-3c25-4c13-b582-85821cb4e201'
   scope: storageAccount
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '974c5e8b-45b9-4653-ba55-5f855dd0fb88')
