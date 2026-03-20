@@ -5,7 +5,6 @@ param functionAppName string
 param appServicePlanName string
 param location string
 param storageAccountName string
-param storageAccountId string
 param appInsightsInstrumentationKey string
 param appInsightsConnectionString string
 param keyVaultUri string
@@ -51,7 +50,7 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         allowedOrigins: ['https://cadvisor-web-prod.azurewebsites.net']
       }
       appSettings: [
-        { name: 'AzureWebJobsStorage', value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=core.windows.net;AccountKey=${listKeys(storageAccountId, '2023-01-01').keys[0].value}' }
+        { name: 'AzureWebJobsStorage__accountName', value: storageAccountName }
         { name: 'FUNCTIONS_EXTENSION_VERSION', value: '~4' }
         { name: 'FUNCTIONS_WORKER_RUNTIME', value: 'python' }
         { name: 'AzureWebJobsFeatureFlags', value: 'EnableWorkerIndexing' }
