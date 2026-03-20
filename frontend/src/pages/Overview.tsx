@@ -273,12 +273,39 @@ export default function Overview() {
           <DataTable<ImprovementAction & Record<string, unknown>>
             columns={[
               { key: "title", label: "Title" },
-              { key: "control_category", label: "Category" },
-              { key: "current_score", label: "Score" },
-              { key: "max_score", label: "Max" },
+              {
+                key: "max_score",
+                label: "Score Impact",
+                render: (v) => `+${v} pts`,
+              },
+              {
+                key: "current_score",
+                label: "Points Achieved",
+                render: (v, row) => {
+                  const cur = v as number;
+                  const max = row.max_score as number;
+                  return `${cur} / ${max}`;
+                },
+              },
+              {
+                key: "state",
+                label: "Status",
+                render: (v) => {
+                  const s = String(v);
+                  const colors: Record<string, string> = {
+                    Completed: "bg-emerald-600/20 text-emerald-400",
+                    InProgress: "bg-amber-600/20 text-amber-400",
+                  };
+                  const label = s === "InProgress" ? "In Progress" : s || "Not Started";
+                  return (
+                    <span className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${colors[s] ?? "bg-navy-600/20 text-navy-300"}`}>
+                      {label}
+                    </span>
+                  );
+                },
+              },
               { key: "implementation_cost", label: "Cost" },
               { key: "user_impact", label: "Impact" },
-              { key: "state", label: "State" },
               { key: "tenant_name", label: "Tenant" },
             ]}
             data={actions.data.actions as (ImprovementAction & Record<string, unknown>)[]}
