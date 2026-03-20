@@ -93,6 +93,7 @@ try:
         upsert_tenant,
         upsert_trend,
         upsert_user_content_policies,
+        update_tenant_status,
     )
     from shared.validation import validate_ingestion_request
 except Exception as e:
@@ -556,6 +557,7 @@ def tenant_consent_callback(req: func.HttpRequest) -> func.HttpResponse:
             tenant_id=tenant_id,
             display_name=f"Tenant {tenant_id[:8]}",
             department="Pending",
+            status="pending",
         )
 
         _trigger_collection_async(tenant_id, f"Tenant {tenant_id[:8]}", "Pending")
@@ -1198,10 +1200,12 @@ def _collect_single_tenant(
             "improvement_actions": len(actions),
         }
         log.info("_collect_single_tenant: tenant=%s dept=%s counts=%s", tid, department, counts)
+        update_tenant_status(tid, "active")
         return {"status": "ok", "tenant_id": tid, "record_counts": counts}
 
     except Exception as e:
         log.exception("_collect_single_tenant: failed for tenant=%s: %s", tid, e)
+        update_tenant_status(tid, "error")
         return {"status": "error", "tenant_id": tid, "error": str(e)}
 
 

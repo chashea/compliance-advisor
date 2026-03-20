@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS tenants (
     display_name    TEXT NOT NULL,
     department      TEXT NOT NULL,
     risk_tier       TEXT DEFAULT 'Medium',
+    status          TEXT DEFAULT 'pending',
+    collected_at    TIMESTAMPTZ,
     created_at      TIMESTAMPTZ DEFAULT now()
 );
 

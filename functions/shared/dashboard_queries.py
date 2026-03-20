@@ -48,7 +48,9 @@ def get_overview(department: str | None = None, tenant_id: str | None = None) ->
     # Tenants
     tenants = query(
         f"""
-        SELECT t.tenant_id, t.display_name, t.department
+        SELECT t.tenant_id, t.display_name, t.department,
+               COALESCE(t.status, 'pending') AS status,
+               t.collected_at::text
         FROM tenants t
         {where_clause}
         ORDER BY t.display_name

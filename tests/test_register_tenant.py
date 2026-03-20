@@ -173,6 +173,7 @@ def test_consent_callback_success(mock_upsert, mock_trigger):
         tenant_id=TENANT_ID,
         display_name=f"Tenant {TENANT_ID[:8]}",
         department="Pending",
+        status="pending",
     )
     mock_trigger.assert_called_once_with(TENANT_ID, f"Tenant {TENANT_ID[:8]}", "Pending")
 

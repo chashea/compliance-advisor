@@ -104,17 +104,47 @@ def record_ingestion(tenant_id: str, snapshot_date: str, payload_hash: str, coun
 # ── Write Operations ───────────────────────────────────────────────
 
 
-def upsert_tenant(tenant_id: str, display_name: str, department: str, risk_tier: str = "Medium") -> None:
+def upsert_tenant(
+    tenant_id: str,
+    display_name: str,
+    department: str,
+    risk_tier: str = "Medium",
+    status: str | None = None,
+) -> None:
+    if status:
+        execute(
+            """
+            INSERT INTO tenants (tenant_id, display_name, department, risk_tier, status)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (tenant_id) DO UPDATE SET
+                display_name = EXCLUDED.display_name,
+                department = EXCLUDED.department,
+                risk_tier = EXCLUDED.risk_tier,
+                status = EXCLUDED.status
+            """,
+            (tenant_id, display_name, department, risk_tier, status),
+        )
+    else:
+        execute(
+            """
+            INSERT INTO tenants (tenant_id, display_name, department, risk_tier)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (tenant_id) DO UPDATE SET
+                display_name = EXCLUDED.display_name,
+                department = EXCLUDED.department,
+                risk_tier = EXCLUDED.risk_tier
+            """,
+            (tenant_id, display_name, department, risk_tier),
+        )
+
+
+def update_tenant_status(tenant_id: str, status: str) -> None:
     execute(
         """
-        INSERT INTO tenants (tenant_id, display_name, department, risk_tier)
-        VALUES (%s, %s, %s, %s)
-        ON CONFLICT (tenant_id) DO UPDATE SET
-            display_name = EXCLUDED.display_name,
-            department = EXCLUDED.department,
-            risk_tier = EXCLUDED.risk_tier
+        UPDATE tenants SET status = %s, collected_at = now()
+        WHERE tenant_id = %s
         """,
-        (tenant_id, display_name, department, risk_tier),
+        (status, tenant_id),
     )
 
 

@@ -67,6 +67,7 @@ def test_skips_when_collector_imports_failed(mock_get_settings, mock_query):
 
 @patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
 @patch("functions.function_app._COLLECTOR_IMPORT_ERROR", None)
+@patch("functions.function_app.update_tenant_status")
 @patch("functions.function_app.upsert_tenant")
 @patch("functions.function_app.upsert_ediscovery_case")
 @patch("functions.function_app.upsert_sensitivity_label")

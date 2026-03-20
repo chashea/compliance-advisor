@@ -12,7 +12,6 @@ import IRM from "./pages/IRM";
 import SubjectRights from "./pages/SubjectRights";
 import CommCompliance from "./pages/CommCompliance";
 import Trend from "./pages/Trend";
-import DLPPolicies from "./pages/DLPPolicies";
 import IRMPolicies from "./pages/IRMPolicies";
 import SensitiveInfoTypes from "./pages/SensitiveInfoTypes";
 import Assessments from "./pages/Assessments";
@@ -34,7 +33,6 @@ export default function App() {
             <Route path="irm" element={<IRM />} />
             <Route path="subject-rights" element={<SubjectRights />} />
             <Route path="comm-compliance" element={<CommCompliance />} />
-            <Route path="dlp-policies" element={<DLPPolicies />} />
             <Route path="irm-policies" element={<IRMPolicies />} />
             <Route path="sensitive-info" element={<SensitiveInfoTypes />} />
             <Route path="assessments" element={<Assessments />} />
