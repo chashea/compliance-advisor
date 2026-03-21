@@ -11,8 +11,8 @@ from shared.dashboard_queries import (
     get_irm,
     get_labels,
     get_overview,
-    get_purview_insights,
     get_purview_incidents,
+    get_purview_insights,
     get_status,
     get_trend,
 )
@@ -258,7 +258,13 @@ def test_get_purview_insights_shape_and_metrics(mock_qo, mock_q):
             }
         ],
         [
-            {"owner": "analyst@contoso.com", "total_alerts": 3, "open_alerts": 2, "high_severity": 1, "avg_age_days": 1.5}
+            {
+                "owner": "analyst@contoso.com",
+                "total_alerts": 3,
+                "open_alerts": 2,
+                "high_severity": 1,
+                "avg_age_days": 1.5,
+            }
         ],
         [
             {"applicable_to": "email, file", "total": 10, "protected": 7},

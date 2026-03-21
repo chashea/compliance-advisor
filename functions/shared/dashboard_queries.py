@@ -6,8 +6,8 @@ Each function returns a dict matching exactly what the corresponding
 POST /api/advisor/* endpoint should return.
 """
 
-import logging
 import json
+import logging
 from datetime import date, datetime, timedelta, timezone
 
 from shared.db import query, query_one
@@ -1702,13 +1702,14 @@ def get_purview_insights(department: str | None = None, tenant_id: str | None = 
         )
         top_assessment = assessments[0] if assessments else {}
         for action in open_actions[:3]:
+            score_gap = float(action.get("max_score") or 0) - float(action.get("current_score") or 0)
             controls.append(
                 {
                     "framework": framework,
                     "control_id": action.get("control_id") or "",
                     "control_title": action.get("title") or "",
                     "status": action.get("state") or "Unknown",
-                    "priority": "High" if (float(action.get("max_score") or 0) - float(action.get("current_score") or 0)) >= 8 else "Medium",
+                    "priority": "High" if score_gap >= 8 else "Medium",
                     "owner": default_owner,
                     "completion_percentage": float(top_assessment.get("completion_percentage") or 0),
                     "evidence_links": [
