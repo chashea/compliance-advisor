@@ -43,6 +43,7 @@ var postgresServerName = '${prefix}-pg-${uniqueSuffix}'
 var webAppName = '${prefix}-web-${environmentName}'
 var webAppPlanName = '${prefix}-wasp-${environmentName}'
 var openAiName = '${prefix}-oai-${uniqueSuffix}'
+var vnetName = '${prefix}-vnet-${environmentName}'
 
 // ── Storage Account (for Azure Functions runtime) ───────────────
 // Functions runtime requires a storage account for triggers/bindings
@@ -99,6 +100,17 @@ module openai 'modules/openai.bicep' = {
   }
 }
 
+// ── Networking (VNet + Key Vault Private Endpoint) ──────────────
+module network 'modules/network.bicep' = {
+  name: 'network'
+  params: {
+    vnetName: vnetName
+    location: location
+    keyVaultId: keyVault.outputs.keyVaultId
+    keyVaultName: keyVaultName
+  }
+}
+
 // ── Function App ────────────────────────────────────────────────
 module functionApp 'modules/function-app.bicep' = {
   name: 'functionApp'
@@ -113,6 +125,7 @@ module functionApp 'modules/function-app.bicep' = {
     allowedTenantIds: allowedTenantIds
     entraClientId: entraClientId
     azureOpenAiEndpoint: openai.outputs.openAiEndpoint
+    virtualNetworkSubnetId: network.outputs.funcIntegrationSubnetId
   }
 }
 

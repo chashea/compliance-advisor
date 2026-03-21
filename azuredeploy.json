@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "4907255681815986080"
+      "templateHash": "6384347192915306036"
     }
   },
   "parameters": {
@@ -62,7 +62,8 @@
     "postgresServerName": "[format('{0}-pg-{1}', variables('prefix'), variables('uniqueSuffix'))]",
     "webAppName": "[format('{0}-web-{1}', variables('prefix'), parameters('environmentName'))]",
     "webAppPlanName": "[format('{0}-wasp-{1}', variables('prefix'), parameters('environmentName'))]",
-    "openAiName": "[format('{0}-oai-{1}', variables('prefix'), variables('uniqueSuffix'))]"
+    "openAiName": "[format('{0}-oai-{1}', variables('prefix'), variables('uniqueSuffix'))]",
+    "vnetName": "[format('{0}-vnet-{1}', variables('prefix'), parameters('environmentName'))]"
   },
   "resources": [
     {
@@ -375,7 +376,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "15375469440122094582"
+              "templateHash": "6100113764702628651"
             }
           },
           "parameters": {
@@ -409,9 +410,9 @@
                 "enableSoftDelete": true,
                 "softDeleteRetentionInDays": 90,
                 "enablePurgeProtection": true,
-                "publicNetworkAccess": "Enabled",
+                "publicNetworkAccess": "Disabled",
                 "networkAcls": {
-                  "defaultAction": "Allow",
+                  "defaultAction": "Deny",
                   "bypass": "AzureServices"
                 }
               }
@@ -646,6 +647,183 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
+      "name": "network",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "vnetName": {
+            "value": "[variables('vnetName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "keyVaultId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyvault'), '2025-04-01').outputs.keyVaultId.value]"
+          },
+          "keyVaultName": {
+            "value": "[variables('keyVaultName')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.39.26.7824",
+              "templateHash": "8209242036545610103"
+            }
+          },
+          "parameters": {
+            "vnetName": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "keyVaultId": {
+              "type": "string"
+            },
+            "keyVaultName": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "vnetAddressPrefix": "10.0.0.0/16",
+            "funcIntegrationSubnetName": "snet-func-integration",
+            "funcIntegrationSubnetPrefix": "10.0.1.0/24",
+            "privateEndpointsSubnetName": "snet-private-endpoints",
+            "privateEndpointsSubnetPrefix": "10.0.2.0/24"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2024-01-01",
+              "name": "[parameters('vnetName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "[variables('vnetAddressPrefix')]"
+                  ]
+                },
+                "subnets": [
+                  {
+                    "name": "[variables('funcIntegrationSubnetName')]",
+                    "properties": {
+                      "addressPrefix": "[variables('funcIntegrationSubnetPrefix')]",
+                      "delegations": [
+                        {
+                          "name": "delegation-web",
+                          "properties": {
+                            "serviceName": "Microsoft.Web/serverFarms"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "name": "[variables('privateEndpointsSubnetName')]",
+                    "properties": {
+                      "addressPrefix": "[variables('privateEndpointsSubnetPrefix')]"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2024-06-01",
+              "name": "privatelink.vaultcore.azure.net",
+              "location": "global"
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+              "apiVersion": "2024-06-01",
+              "name": "[format('{0}/{1}', 'privatelink.vaultcore.azure.net', format('{0}-link', parameters('vnetName')))]",
+              "location": "global",
+              "properties": {
+                "registrationEnabled": false,
+                "virtualNetwork": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.vaultcore.azure.net')]",
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateEndpoints",
+              "apiVersion": "2024-01-01",
+              "name": "[format('{0}-pe', parameters('keyVaultName'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "subnet": {
+                  "id": "[reference(resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName')), '2024-01-01').subnets[1].id]"
+                },
+                "privateLinkServiceConnections": [
+                  {
+                    "name": "[format('{0}-connection', parameters('keyVaultName'))]",
+                    "properties": {
+                      "privateLinkServiceId": "[parameters('keyVaultId')]",
+                      "groupIds": [
+                        "vault"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+              "apiVersion": "2024-01-01",
+              "name": "[format('{0}/{1}', format('{0}-pe', parameters('keyVaultName')), 'default')]",
+              "properties": {
+                "privateDnsZoneConfigs": [
+                  {
+                    "name": "privatelink-vaultcore-azure-net",
+                    "properties": {
+                      "privateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.vaultcore.azure.net')]"
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateEndpoints', format('{0}-pe', parameters('keyVaultName')))]",
+                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.vaultcore.azure.net')]"
+              ]
+            }
+          ],
+          "outputs": {
+            "vnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+            },
+            "funcIntegrationSubnetId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName')), '2024-01-01').subnets[0].id]"
+            },
+            "privateEndpointsSubnetId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName')), '2024-01-01').subnets[1].id]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'keyvault')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
       "name": "functionApp",
       "properties": {
         "expressionEvaluationOptions": {
@@ -682,6 +860,9 @@
           },
           "azureOpenAiEndpoint": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'openai'), '2025-04-01').outputs.openAiEndpoint.value]"
+          },
+          "virtualNetworkSubnetId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'network'), '2025-04-01').outputs.funcIntegrationSubnetId.value]"
           }
         },
         "template": {
@@ -691,7 +872,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "1246567901397167684"
+              "templateHash": "18227992381304395868"
             }
           },
           "parameters": {
@@ -720,6 +901,10 @@
               "type": "string"
             },
             "azureOpenAiEndpoint": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "virtualNetworkSubnetId": {
               "type": "string",
               "defaultValue": ""
             },
@@ -759,6 +944,8 @@
               "properties": {
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('appServicePlanName'))]",
                 "httpsOnly": true,
+                "virtualNetworkSubnetId": "[if(not(empty(parameters('virtualNetworkSubnetId'))), parameters('virtualNetworkSubnetId'), null())]",
+                "vnetRouteAllEnabled": "[not(empty(parameters('virtualNetworkSubnetId')))]",
                 "siteConfig": {
                   "alwaysOn": true,
                   "healthCheckPath": "/api/health",
@@ -831,6 +1018,10 @@
                     {
                       "name": "COLLECTOR_CLIENT_SECRET",
                       "value": "[format('@Microsoft.KeyVault(SecretUri={0}secrets/gcc-password/)', parameters('keyVaultUri'))]"
+                    },
+                    {
+                      "name": "WEBSITE_CONTENTOVERVNET",
+                      "value": "[if(not(empty(parameters('virtualNetworkSubnetId'))), '1', '0')]"
                     }
                   ]
                 }
@@ -892,6 +1083,7 @@
       "dependsOn": [
         "[resourceId('Microsoft.Resources/deployments', 'keyvault')]",
         "[resourceId('Microsoft.Resources/deployments', 'monitoring')]",
+        "[resourceId('Microsoft.Resources/deployments', 'network')]",
         "[resourceId('Microsoft.Resources/deployments', 'openai')]",
         "[resourceId('Microsoft.Storage/storageAccounts', variables('storageName'))]"
       ]

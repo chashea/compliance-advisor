@@ -13,6 +13,9 @@ param allowedTenantIds string
 // Azure OpenAI
 param azureOpenAiEndpoint string = ''
 
+// VNet integration
+param virtualNetworkSubnetId string = ''
+
 // EasyAuth params
 param entraClientId string = ''
 param entraTenantId string = subscription().tenantId
@@ -40,6 +43,8 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
   properties: {
     serverFarmId: appServicePlan.id
     httpsOnly: true
+    virtualNetworkSubnetId: !empty(virtualNetworkSubnetId) ? virtualNetworkSubnetId : null
+    vnetRouteAllEnabled: !empty(virtualNetworkSubnetId)
     siteConfig: {
       alwaysOn: true
       healthCheckPath: '/api/health'
@@ -66,6 +71,7 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         { name: 'AZURE_OPENAI_ENDPOINT', value: azureOpenAiEndpoint }
         { name: 'COLLECTOR_CLIENT_ID', value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/gcc-client-id/)' }
         { name: 'COLLECTOR_CLIENT_SECRET', value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/gcc-password/)' }
+        { name: 'WEBSITE_CONTENTOVERVNET', value: !empty(virtualNetworkSubnetId) ? '1' : '0' }
       ]
     }
   }
