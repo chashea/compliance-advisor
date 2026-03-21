@@ -40,7 +40,6 @@ class CompliancePayload:
     audit_records: list[dict[str, Any]]
     dlp_alerts: list[dict[str, Any]]
     irm_alerts: list[dict[str, Any]]
-    comm_compliance_policies: list[dict[str, Any]]
     info_barrier_policies: list[dict[str, Any]]
     protection_scopes: list[dict[str, Any]]
     secure_scores: list[dict[str, Any]]

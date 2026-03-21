@@ -32,7 +32,6 @@ PAYLOAD_SCHEMA: dict = {
         "audit_records",
         "dlp_alerts",
         "irm_alerts",
-        "comm_compliance_policies",
         "info_barrier_policies",
         "protection_scopes",
         "secure_scores",
@@ -123,14 +122,6 @@ PAYLOAD_SCHEMA: dict = {
                     "mitre_techniques": {"type": "string"},
                     "evidence": {"type": "array", "items": {"type": "object"}},
                 },
-            },
-        },
-        "comm_compliance_policies": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "required": ["policy_id"],
-                "properties": {"policy_id": {"type": "string", "minLength": 1}},
             },
         },
         "info_barrier_policies": {

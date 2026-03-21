@@ -41,14 +41,13 @@ React SPA (`cadvisor-web-prod`)
 | Data Security & Governance | Protection scopes | `/dataSecurityAndGovernance/protectionScopes/compute` |
 | Secure Score | Overall + Data category score | `/security/secureScores` + `/security/secureScoreControlProfiles` |
 | Improvement Actions | Secure Score control profiles (Data category) | `/security/secureScoreControlProfiles?$filter=controlCategory eq 'Data'` |
-| Communication Compliance | Policy monitoring | `/beta/security/communicationCompliance/policies` |
 | Information Barriers | Segment policies | `/beta/identityGovernance/informationBarriers/policies` |
 
 > **Note:** DLP and IRM alerts use the legacy `/v1.0/security/alerts` endpoint (not `alerts_v2`) because IRM alerts have no valid `serviceSource` enum in `alerts_v2` and DLP alerts surface more reliably via the Defender product name filter.
 
 ## Features
 
-- **React SPA frontend** with 11 pages: Overview, eDiscovery, Labels, Audit, DLP, IRM, Comm Compliance, Info Barriers, Governance, Trend, Actions
+- **React SPA frontend** with 10 pages: Overview, eDiscovery, Labels, Audit, DLP, IRM, Info Barriers, Governance, Trend, Actions
 - Secure Score Data category KPI showing `current / max` points and percentage
 - Improvement Actions filtered to Data category by default with category/cost/tier filters
 - Agency/department dropdown filter with active filter state summary and clear reset
@@ -220,7 +219,6 @@ All endpoints are `POST` to `/api/advisor/*`.
 | `/api/advisor/governance` | `{department?}` | Protection scopes, Secure Score (overall + Data category) |
 | `/api/advisor/trend` | `{department?, days?}` | Compliance workload counts over time |
 | `/api/advisor/actions` | `{department?}` | Secure Score + improvement actions |
-| `/api/advisor/comm-compliance` | `{department?}` | Communication compliance policies |
 | `/api/advisor/info-barriers` | `{department?}` | Information barrier policies |
 | `/api/advisor/briefing` | `{department?}` | AI-generated executive compliance briefing |
 | `/api/advisor/ask` | `{question, department?}` | AI-powered compliance Q&A |

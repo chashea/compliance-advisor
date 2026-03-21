@@ -175,18 +175,6 @@ CREATE TABLE IF NOT EXISTS improvement_actions (
 );
 
 
--- Communication Compliance policies
-CREATE TABLE IF NOT EXISTS comm_compliance_policies (
-    id              SERIAL PRIMARY KEY,
-    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
-    policy_id       TEXT NOT NULL,
-    display_name    TEXT,
-    status          TEXT,
-    policy_type     TEXT,
-    review_pending_count INT DEFAULT 0,
-    snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
-    UNIQUE (tenant_id, policy_id, snapshot_date)
-);
 
 -- Information Barrier policies
 CREATE TABLE IF NOT EXISTS info_barrier_policies (
@@ -363,8 +351,6 @@ CREATE INDEX IF NOT EXISTS idx_irm_alerts_severity
     ON irm_alerts(severity);
 
 
-CREATE INDEX IF NOT EXISTS idx_comm_compliance_policies_tenant
-    ON comm_compliance_policies(tenant_id, snapshot_date DESC);
 
 CREATE INDEX IF NOT EXISTS idx_info_barrier_policies_tenant
     ON info_barrier_policies(tenant_id, snapshot_date DESC);

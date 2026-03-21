@@ -473,30 +473,6 @@ def upsert_irm_alert(
 
 
 
-def upsert_comm_compliance_policy(
-    tenant_id: str,
-    policy_id: str,
-    display_name: str,
-    status: str,
-    policy_type: str,
-    review_pending_count: int,
-    snapshot_date: str,
-) -> None:
-    execute(
-        """
-        INSERT INTO comm_compliance_policies
-            (tenant_id, policy_id, display_name, status, policy_type,
-             review_pending_count, snapshot_date)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (tenant_id, policy_id, snapshot_date) DO UPDATE SET
-            display_name = EXCLUDED.display_name,
-            status = EXCLUDED.status,
-            policy_type = EXCLUDED.policy_type,
-            review_pending_count = EXCLUDED.review_pending_count
-        """,
-        (tenant_id, policy_id, display_name, status, policy_type, review_pending_count, snapshot_date),
-    )
-
 
 def upsert_info_barrier_policy(
     tenant_id: str,

@@ -195,19 +195,7 @@ export interface TrendResponse {
 
 
 
-// /api/advisor/comm-compliance
-export interface CommCompliancePolicy {
-  policy_id: string;
-  display_name: string;
-  status: string;
-  policy_type: string;
-  review_pending_count: number;
-  tenant_name: string;
-}
 
-export interface CommComplianceResponse {
-  policies: CommCompliancePolicy[];
-}
 
 // /api/advisor/actions
 export interface SecureScore {

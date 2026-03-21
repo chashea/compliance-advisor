@@ -689,38 +689,6 @@ def get_irm(department: str | None = None, tenant_id: str | None = None) -> dict
 
 
 
-def get_comm_compliance(department: str | None = None, tenant_id: str | None = None) -> dict:
-    """POST /api/advisor/comm-compliance — Communication Compliance policies."""
-    dept_filter = ""
-    tenant_filter = ""
-    params: dict = {}
-    if department:
-        dept_filter = "AND t.department = %(dept)s"
-        params["dept"] = department
-    if tenant_id:
-        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
-        params["tenant_id"] = tenant_id
-
-    policies = query(
-        f"""
-        SELECT cc.policy_id, cc.display_name, cc.status, cc.policy_type,
-               cc.review_pending_count, t.display_name AS tenant_name
-        FROM comm_compliance_policies cc
-        JOIN tenants t ON t.tenant_id = cc.tenant_id
-        WHERE cc.snapshot_date = (
-                SELECT MAX(snapshot_date) FROM comm_compliance_policies _sub
-                WHERE _sub.tenant_id = cc.tenant_id
-            )
-          {dept_filter}
-          {tenant_filter}
-        ORDER BY cc.display_name
-        LIMIT 1000
-        """,
-        params,
-    )
-
-    return {"policies": policies}
-
 
 def get_info_barriers(department: str | None = None, tenant_id: str | None = None) -> dict:
     """POST /api/advisor/info-barriers — Information Barrier policies."""

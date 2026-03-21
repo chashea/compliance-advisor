@@ -14,8 +14,6 @@ import type {
   IRMResponse,
   IRMAlert,
   EvidenceSummary,
-  CommComplianceResponse,
-  CommCompliancePolicy,
   TrendResponse,
   TrendPoint,
   ActionsResponse,
@@ -102,12 +100,6 @@ const irmAlerts: IRMAlert[] = [
   { alert_id: "irm-3", title: "Anomalous access pattern detected", severity: "Low", status: "Resolved", category: "InsiderRisk", policy_name: "Security Policy Violations", created: daysAgo(20), resolved: daysAgo(14), tenant_name: "Northwind Traders", classification: "falsePositive", determination: "securityTesting", recommended_actions: "", incident_id: "", mitre_techniques: "", evidence: [{ type: "ipEvidence", remediation_status: "none", verdict: "noThreatsFound", roles: ["source"], detailed_roles: ["VPN IP address"] }] },
 ];
 
-
-const commCompliancePolicies: CommCompliancePolicy[] = [
-  { policy_id: "cc-1", display_name: "Offensive Language Detection", status: "Active", policy_type: "OffensiveLanguage", review_pending_count: 12, tenant_name: "Contoso Ltd" },
-  { policy_id: "cc-2", display_name: "Regulatory Compliance — FINRA", status: "Active", policy_type: "RegulatoryCompliance", review_pending_count: 3, tenant_name: "Fabrikam Inc" },
-  { policy_id: "cc-3", display_name: "Conflict of Interest", status: "Inactive", policy_type: "CustomPolicy", review_pending_count: 0, tenant_name: "Northwind Traders" },
-];
 
 const improvementActions: ImprovementAction[] = [
   { control_id: "ia-1", title: "Turn on audit data recording", control_category: "Data", max_score: 10, current_score: 10, implementation_cost: "Low", user_impact: "Low", tier: "Tier 1", service: "Microsoft 365", threats: "Data exfiltration", remediation: "Enable unified audit logging in the compliance portal.", state: "Completed", rank: 1, tenant_name: "Contoso Ltd" },
@@ -306,11 +298,6 @@ export function getDemoData(endpoint: string, body?: Record<string, unknown>): u
         classification_breakdown: Object.entries(cls).map(([classification, count]) => ({ classification, count })),
       } satisfies IRMResponse;
     }
-
-    case "comm-compliance":
-      return {
-        policies: filterByDept(commCompliancePolicies, dept || undefined),
-      } satisfies CommComplianceResponse;
 
     case "trend":
       return { trend: trendData } satisfies TrendResponse;

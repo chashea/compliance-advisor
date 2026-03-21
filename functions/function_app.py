@@ -52,7 +52,6 @@ try:
     from shared.ai_advisor import AdvisorAIError, ask_advisor, generate_briefing
     from shared.dashboard_queries import (
         get_audit,
-        get_comm_compliance,
         get_compliance_assessments,
         get_dlp,
         get_dlp_policies,
@@ -74,7 +73,6 @@ try:
         record_ingestion,
         update_tenant_status,
         upsert_audit_record,
-        upsert_comm_compliance_policy,
         upsert_compliance_assessment,
         upsert_dlp_alert,
         upsert_dlp_policy,
@@ -105,9 +103,6 @@ try:
     from collector.auth import get_graph_token
     from collector.compliance_client import (
         get_audit_log_records as collect_audit_log_records,
-    )
-    from collector.compliance_client import (
-        get_comm_compliance_policies as collect_comm_compliance,
     )
     from collector.compliance_client import (
         get_compliance_assessments as collect_assessments,
@@ -292,18 +287,6 @@ def advisor_irm(req: func.HttpRequest) -> func.HttpResponse:
         log.exception("advisor/irm error: %s", e)
         return _json_response({"error": str(e)}, 500)
 
-
-
-@app.function_name("advisor_comm_compliance")
-@app.route(route="advisor/comm-compliance", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
-def advisor_comm_compliance(req: func.HttpRequest) -> func.HttpResponse:
-    try:
-        _ensure_dependencies_loaded()
-        body = _get_body(req)
-        return _json_response(get_comm_compliance(department=body.get("department"), tenant_id=body.get("tenant_id")))
-    except Exception as e:
-        log.exception("advisor/comm-compliance error: %s", e)
-        return _json_response({"error": str(e)}, 500)
 
 
 @app.function_name("advisor_info_barriers")
@@ -747,17 +730,6 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
             )
 
 
-        # Upsert communication compliance policies
-        for cc in payload.get("comm_compliance_policies", []):
-            upsert_comm_compliance_policy(
-                tenant_id=tenant_id,
-                policy_id=cc.get("policy_id", ""),
-                display_name=cc.get("display_name", ""),
-                status=cc.get("status", ""),
-                policy_type=cc.get("policy_type", ""),
-                review_pending_count=cc.get("review_pending_count", 0),
-                snapshot_date=snapshot_date,
-            )
 
         # Upsert information barrier policies
         for ib in payload.get("info_barrier_policies", []):
@@ -886,7 +858,6 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
             "audit_records": len(payload.get("audit_records", [])),
             "dlp_alerts": len(payload.get("dlp_alerts", [])),
             "irm_alerts": len(payload.get("irm_alerts", [])),
-            "comm_compliance_policies": len(payload.get("comm_compliance_policies", [])),
             "info_barrier_policies": len(payload.get("info_barrier_policies", [])),
             "protection_scopes": len(payload.get("protection_scopes", [])),
             "dlp_policies": len(payload.get("dlp_policies", [])),
@@ -899,7 +870,7 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
 
         log.info(
             "Ingested: tenant=%s dept=%s ediscovery=%d labels=%d audit=%d dlp=%d "
-            "irm=%d comm_compliance=%d info_barriers=%d scopes=%d scores=%d actions=%d "
+            "irm=%d info_barriers=%d scopes=%d scores=%d actions=%d "
             "dlp_policies=%d irm_policies=%d sit=%d assessments=%d threats=%d",
             tenant_id,
             payload["department"],
@@ -908,7 +879,6 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
             counts["audit_records"],
             counts["dlp_alerts"],
             counts["irm_alerts"],
-            counts["comm_compliance_policies"],
             counts["info_barrier_policies"],
             counts["protection_scopes"],
             len(payload.get("secure_scores", [])),
@@ -969,7 +939,6 @@ def _collect_single_tenant(
         scopes = collect_protection_scopes(token)
         scores = collect_secure_scores(token)
         actions = collect_improvement_actions(token)
-        cc = collect_comm_compliance(token)
         ib = collect_info_barriers(token)
         ucp = collect_user_content_policies(token)
         dlp_pol = collect_dlp_policies(token)
@@ -1093,16 +1062,6 @@ def _collect_single_tenant(
                 incident_id=ia.get("incident_id", ""),
                 mitre_techniques=ia.get("mitre_techniques", ""),
                 evidence=ia.get("evidence", []),
-            )
-        for c in cc:
-            upsert_comm_compliance_policy(
-                tenant_id=tid,
-                policy_id=c.get("policy_id", ""),
-                display_name=c.get("display_name", ""),
-                status=c.get("status", ""),
-                policy_type=c.get("policy_type", ""),
-                review_pending_count=c.get("review_pending_count", 0),
-                snapshot_date=today,
             )
         for b in ib:
             upsert_info_barrier_policy(

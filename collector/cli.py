@@ -15,7 +15,6 @@ import click
 from collector.auth import get_graph_token
 from collector.compliance_client import (
     get_audit_log_records,
-    get_comm_compliance_policies,
     get_compliance_assessments,
     get_dlp_alerts,
     get_dlp_policies,
@@ -128,8 +127,6 @@ def main(
     irm_alerts = get_irm_alerts(token)
 
 
-    click.echo("  Communication Compliance Policies...")
-    comm_compliance_policies = get_comm_compliance_policies(token)
 
     click.echo("  Information Barrier Policies...")
     info_barrier_policies = get_info_barrier_policies(token)
@@ -165,7 +162,6 @@ def main(
         f"\neDiscovery: {len(ediscovery_cases)} | Labels: {len(sensitivity_labels)} "
         f"| Retention Events: {len(retention_events)} "
         f"| Audit: {len(audit_records)} | DLP: {len(dlp_alerts)} | IRM: {len(irm_alerts)} "
-        f"| CommCompliance: {len(comm_compliance_policies)} "
         f"| InfoBarriers: {len(info_barrier_policies)} "
         f"| Scopes: {len(protection_scopes)} | Secure Score: {len(secure_scores)} "
         f"| Improvement Actions: {len(improvement_actions)} "
@@ -188,7 +184,6 @@ def main(
         audit_records=audit_records,
         dlp_alerts=dlp_alerts,
         irm_alerts=irm_alerts,
-        comm_compliance_policies=comm_compliance_policies,
         info_barrier_policies=info_barrier_policies,
         protection_scopes=protection_scopes,
         secure_scores=secure_scores,

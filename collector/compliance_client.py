@@ -24,7 +24,6 @@ Required Microsoft Graph Application permissions:
 - SecurityAlert.Read.All                  — DLP + IRM alerts (alerts_v2)
 - DataSecurityAndGovernance.Read.All      — protection scopes, user content policies
 - SecurityEvents.Read.All                 — Secure Score + improvement actions
-- CommunicationCompliance.Read.All        — communication compliance policies
 - InformationBarrierPolicy.Read.All       — information barrier policies
 - InsiderRiskManagement.Read.All          — IRM policies
 - ComplianceManager.Read.All              — compliance assessments
@@ -612,36 +611,6 @@ def get_improvement_actions(token: str, services: set[str] | None = None) -> lis
 
     log.info("Retrieved %d improvement actions", len(actions))
     return actions
-
-
-# ── Communication Compliance ──────────────────────────────────────
-
-
-def get_comm_compliance_policies(token: str) -> list[dict[str, Any]]:
-    """Return Communication Compliance policies from Graph beta API."""
-    sess = _session(token)
-    url = f"{GRAPH_BETA}/security/communicationCompliance/policies"
-
-    try:
-        items = _paginate(sess, url, max_pages=10)
-    except requests.exceptions.RequestException as e:
-        _log_api_error("communicationCompliance policies", e, "CommunicationCompliance.Read.All")
-        return []
-
-    results = []
-    for item in items:
-        results.append(
-            {
-                "policy_id": item.get("id", ""),
-                "display_name": item.get("displayName", ""),
-                "status": item.get("status", ""),
-                "policy_type": item.get("policyType", ""),
-                "review_pending_count": item.get("pendingReviewCount", 0),
-            }
-        )
-
-    log.info("Retrieved %d communication compliance policies", len(results))
-    return results
 
 
 # ── Information Barriers ──────────────────────────────────────────
