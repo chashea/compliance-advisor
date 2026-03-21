@@ -72,6 +72,19 @@ CREATE TABLE IF NOT EXISTS retention_events (
     UNIQUE (tenant_id, event_id, snapshot_date)
 );
 
+-- Retention event types (Records Management)
+CREATE TABLE IF NOT EXISTS retention_event_types (
+    id              SERIAL PRIMARY KEY,
+    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
+    event_type_id   TEXT NOT NULL,
+    display_name    TEXT,
+    description     TEXT,
+    created         TEXT,
+    modified        TEXT,
+    snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+    UNIQUE (tenant_id, event_type_id, snapshot_date)
+);
+
 -- Audit log records
 CREATE TABLE IF NOT EXISTS audit_records (
     id              SERIAL PRIMARY KEY,
@@ -341,6 +354,9 @@ CREATE INDEX IF NOT EXISTS idx_retention_labels_tenant
 CREATE INDEX IF NOT EXISTS idx_retention_events_tenant
     ON retention_events(tenant_id, snapshot_date DESC);
 
+CREATE INDEX IF NOT EXISTS idx_retention_event_types_tenant
+    ON retention_event_types(tenant_id, snapshot_date DESC);
+
 CREATE INDEX IF NOT EXISTS idx_audit_records_tenant
     ON audit_records(tenant_id, snapshot_date DESC);
 
@@ -410,3 +426,11 @@ CREATE INDEX IF NOT EXISTS idx_dlp_alerts_snapshot
 
 CREATE INDEX IF NOT EXISTS idx_compliance_trend_snapshot
     ON compliance_trend(snapshot_date);
+
+-- ── Schema migrations ────────────────────────────────────────────
+-- File plan descriptor fields on retention_labels
+ALTER TABLE retention_labels ADD COLUMN IF NOT EXISTS file_plan_authority TEXT;
+ALTER TABLE retention_labels ADD COLUMN IF NOT EXISTS file_plan_citation TEXT;
+ALTER TABLE retention_labels ADD COLUMN IF NOT EXISTS file_plan_department TEXT;
+ALTER TABLE retention_labels ADD COLUMN IF NOT EXISTS file_plan_category TEXT;
+ALTER TABLE retention_labels ADD COLUMN IF NOT EXISTS file_plan_subcategory TEXT;

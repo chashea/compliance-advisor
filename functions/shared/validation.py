@@ -29,6 +29,7 @@ PAYLOAD_SCHEMA: dict = {
         "sensitivity_labels",
         "retention_labels",
         "retention_events",
+        "retention_event_types",
         "audit_records",
         "dlp_alerts",
         "irm_alerts",
@@ -82,6 +83,14 @@ PAYLOAD_SCHEMA: dict = {
                 "type": "object",
                 "required": ["event_id"],
                 "properties": {"event_id": {"type": "string", "minLength": 1}},
+            },
+        },
+        "retention_event_types": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["event_type_id"],
+                "properties": {"event_type_id": {"type": "string", "minLength": 1}},
             },
         },
         "audit_records": {

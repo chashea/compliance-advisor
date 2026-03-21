@@ -37,6 +37,7 @@ class CompliancePayload:
     sensitivity_labels: list[dict[str, Any]]
     retention_labels: list[dict[str, Any]]
     retention_events: list[dict[str, Any]]
+    retention_event_types: list[dict[str, Any]]
     audit_records: list[dict[str, Any]]
     dlp_alerts: list[dict[str, Any]]
     irm_alerts: list[dict[str, Any]]

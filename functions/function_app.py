@@ -86,6 +86,7 @@ try:
         upsert_irm_policy,
         upsert_protection_scope,
         upsert_retention_event,
+        upsert_retention_event_type,
         upsert_retention_label,
         upsert_secure_score,
         upsert_sensitive_info_type,
@@ -137,6 +138,9 @@ try:
     )
     from collector.compliance_client import (
         get_protection_scopes as collect_protection_scopes,
+    )
+    from collector.compliance_client import (
+        get_retention_event_types as collect_retention_event_types,
     )
     from collector.compliance_client import (
         get_retention_events as collect_retention_events,
@@ -673,6 +677,11 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 is_in_use=rl.get("is_in_use", False),
                 status=rl.get("status", ""),
                 snapshot_date=snapshot_date,
+                file_plan_authority=rl.get("file_plan_authority", ""),
+                file_plan_citation=rl.get("file_plan_citation", ""),
+                file_plan_department=rl.get("file_plan_department", ""),
+                file_plan_category=rl.get("file_plan_category", ""),
+                file_plan_subcategory=rl.get("file_plan_subcategory", ""),
             )
 
         # Upsert retention events
@@ -684,6 +693,18 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 event_type=re_.get("event_type", ""),
                 created=re_.get("created", ""),
                 event_status=re_.get("event_status", ""),
+                snapshot_date=snapshot_date,
+            )
+
+        # Upsert retention event types
+        for ret in payload.get("retention_event_types", []):
+            upsert_retention_event_type(
+                tenant_id=tenant_id,
+                event_type_id=ret.get("event_type_id", ""),
+                display_name=ret.get("display_name", ""),
+                description=ret.get("description", ""),
+                created=ret.get("created", ""),
+                modified=ret.get("modified", ""),
                 snapshot_date=snapshot_date,
             )
 
@@ -982,6 +1003,7 @@ def _collect_single_tenant(
         sensitivity = collect_sensitivity_labels(token)
         retention = collect_retention_labels(token)
         ret_events = collect_retention_events(token)
+        ret_event_types = collect_retention_event_types(token)
         audit = collect_audit_log_records(token, days=audit_days)
         dlp = collect_dlp_alerts(token)
         irm = collect_irm_alerts(token)
@@ -1036,6 +1058,11 @@ def _collect_single_tenant(
                 is_in_use=rl.get("is_in_use", False),
                 status=rl.get("status", ""),
                 snapshot_date=today,
+                file_plan_authority=rl.get("file_plan_authority", ""),
+                file_plan_citation=rl.get("file_plan_citation", ""),
+                file_plan_department=rl.get("file_plan_department", ""),
+                file_plan_category=rl.get("file_plan_category", ""),
+                file_plan_subcategory=rl.get("file_plan_subcategory", ""),
             )
         for re_ in ret_events:
             upsert_retention_event(
@@ -1045,6 +1072,16 @@ def _collect_single_tenant(
                 event_type=re_.get("event_type", ""),
                 created=re_.get("created", ""),
                 event_status=re_.get("event_status", ""),
+                snapshot_date=today,
+            )
+        for ret in ret_event_types:
+            upsert_retention_event_type(
+                tenant_id=tid,
+                event_type_id=ret.get("event_type_id", ""),
+                display_name=ret.get("display_name", ""),
+                description=ret.get("description", ""),
+                created=ret.get("created", ""),
+                modified=ret.get("modified", ""),
                 snapshot_date=today,
             )
         for ar in audit:

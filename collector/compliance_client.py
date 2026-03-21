@@ -210,8 +210,9 @@ def get_retention_labels(token: str) -> list[dict[str, Any]]:
         items = _paginate(sess, url)
     except requests.exceptions.RequestException as e:
         _log_api_error(
-            "retentionLabels", e,
-            "RecordsManagement.Read.All (NOTE: delegated only — app-only auth is not supported by this API)"
+            "retentionLabels",
+            e,
+            "RecordsManagement.Read.All (NOTE: delegated only — app-only auth is not supported by this API)",
         )
         return []
 
@@ -288,6 +289,39 @@ def get_retention_events(token: str) -> list[dict[str, Any]]:
 
     log.info("Retrieved %d retention events", len(events))
     return events
+
+
+# ── Records Management (retention event types) ────────────────────
+
+
+def get_retention_event_types(token: str) -> list[dict[str, Any]]:
+    """Return retention event types.
+
+    Required Graph permission (Application): RecordsManagement.Read.All
+    """
+    sess = _session(token)
+    url = f"{GRAPH_BASE}/security/triggerTypes/retentionEventTypes"
+
+    try:
+        items = _paginate(sess, url)
+    except requests.exceptions.RequestException as e:
+        _log_api_error("retentionEventTypes", e, "RecordsManagement.Read.All")
+        return []
+
+    event_types = []
+    for item in items:
+        event_types.append(
+            {
+                "event_type_id": item.get("id", ""),
+                "display_name": item.get("displayName", ""),
+                "description": item.get("description", ""),
+                "created": item.get("createdDateTime", ""),
+                "modified": item.get("lastModifiedDateTime", ""),
+            }
+        )
+
+    log.info("Retrieved %d retention event types", len(event_types))
+    return event_types
 
 
 # ── Audit Log (async query API) ───────────────────────────────────

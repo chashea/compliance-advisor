@@ -218,20 +218,32 @@ def upsert_retention_label(
     is_in_use: bool,
     status: str,
     snapshot_date: str,
+    file_plan_authority: str = "",
+    file_plan_citation: str = "",
+    file_plan_department: str = "",
+    file_plan_category: str = "",
+    file_plan_subcategory: str = "",
 ) -> None:
     execute(
         """
         INSERT INTO retention_labels
             (tenant_id, label_id, display_name, retention_duration, retention_trigger,
-             action_after_retention, is_in_use, status, snapshot_date)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+             action_after_retention, is_in_use, status, snapshot_date,
+             file_plan_authority, file_plan_citation, file_plan_department,
+             file_plan_category, file_plan_subcategory)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (tenant_id, label_id, snapshot_date) DO UPDATE SET
             display_name = EXCLUDED.display_name,
             retention_duration = EXCLUDED.retention_duration,
             retention_trigger = EXCLUDED.retention_trigger,
             action_after_retention = EXCLUDED.action_after_retention,
             is_in_use = EXCLUDED.is_in_use,
-            status = EXCLUDED.status
+            status = EXCLUDED.status,
+            file_plan_authority = EXCLUDED.file_plan_authority,
+            file_plan_citation = EXCLUDED.file_plan_citation,
+            file_plan_department = EXCLUDED.file_plan_department,
+            file_plan_category = EXCLUDED.file_plan_category,
+            file_plan_subcategory = EXCLUDED.file_plan_subcategory
         """,
         (
             tenant_id,
@@ -243,6 +255,11 @@ def upsert_retention_label(
             is_in_use,
             status,
             snapshot_date,
+            file_plan_authority,
+            file_plan_citation,
+            file_plan_department,
+            file_plan_category,
+            file_plan_subcategory,
         ),
     )
 
@@ -268,6 +285,30 @@ def upsert_retention_event(
             event_status = EXCLUDED.event_status
         """,
         (tenant_id, event_id, display_name, event_type, created, event_status, snapshot_date),
+    )
+
+
+def upsert_retention_event_type(
+    tenant_id: str,
+    event_type_id: str,
+    display_name: str,
+    description: str,
+    created: str,
+    modified: str,
+    snapshot_date: str,
+) -> None:
+    execute(
+        """
+        INSERT INTO retention_event_types
+            (tenant_id, event_type_id, display_name, description, created, modified, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (tenant_id, event_type_id, snapshot_date) DO UPDATE SET
+            display_name = EXCLUDED.display_name,
+            description = EXCLUDED.description,
+            created = EXCLUDED.created,
+            modified = EXCLUDED.modified
+        """,
+        (tenant_id, event_type_id, display_name, description, created, modified, snapshot_date),
     )
 
 
