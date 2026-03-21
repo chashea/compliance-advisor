@@ -8,6 +8,7 @@ from shared.dashboard_queries import (
     get_dlp,
     get_ediscovery,
     get_governance,
+    get_irm,
     get_labels,
     get_overview,
     get_status,
@@ -130,8 +131,15 @@ def test_get_audit_returns_three_sections(mock_q):
 
 @patch("shared.dashboard_queries.query")
 def test_get_dlp_returns_all_sections(mock_q):
+    evidence_item = {
+        "type": "mailboxEvidence",
+        "remediation_status": "remediated",
+        "verdict": "malicious",
+        "roles": ["source"],
+        "detailed_roles": [],
+    }
     mock_q.side_effect = [
-        [{"alert_id": "a1", "severity": "high", "evidence": [{"type": "mailboxEvidence", "remediation_status": "remediated", "verdict": "malicious", "roles": ["source"], "detailed_roles": []}]}],
+        [{"alert_id": "a1", "severity": "high", "evidence": [evidence_item]}],
         [{"severity": "high", "total": 1, "active": 1}],
         [{"policy_name": "DLP-1", "total": 1}],
         [{"classification": "truePositive", "count": 1}],

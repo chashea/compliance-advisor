@@ -126,19 +126,6 @@ export default function Alerts() {
       {/* DLP Alerts */}
       {tab === "dlp-alerts" && da && (
         <>
-          {da.severity_breakdown.length > 0 && (
-            <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5">
-              <h3 className="mb-3 text-sm font-semibold text-navy-200">DLP Alerts by Severity</h3>
-              <BarChart data={da.severity_breakdown} xKey="severity" yKey="total" color="#dc2626" height={250} />
-            </div>
-          )}
-          {da.policy_breakdown.length > 0 && (
-            <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5">
-              <h3 className="mb-3 text-sm font-semibold text-navy-200">DLP Alerts by Policy</h3>
-              <BarChart data={da.policy_breakdown} xKey="policy_name" yKey="total" color="#3b82f6" height={250} />
-            </div>
-          )}
-          {da.evidence_summary && <EvidenceSummaryPanel summary={da.evidence_summary} />}
           <DataTable<DLPAlert & Record<string, unknown>>
             columns={[
               { key: "title", label: "Title" },
@@ -170,6 +157,19 @@ export default function Alerts() {
             data={da.alerts as (DLPAlert & Record<string, unknown>)[]}
             keyField="alert_id"
           />
+          {da.severity_breakdown.length > 0 && (
+            <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5">
+              <h3 className="mb-3 text-sm font-semibold text-navy-200">DLP Alerts by Severity</h3>
+              <BarChart data={da.severity_breakdown} xKey="severity" yKey="total" color="#dc2626" height={250} />
+            </div>
+          )}
+          {da.policy_breakdown.length > 0 && (
+            <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5">
+              <h3 className="mb-3 text-sm font-semibold text-navy-200">DLP Alerts by Policy</h3>
+              <BarChart data={da.policy_breakdown} xKey="policy_name" yKey="total" color="#3b82f6" height={250} />
+            </div>
+          )}
+          {da.evidence_summary && <EvidenceSummaryPanel summary={da.evidence_summary} />}
         </>
       )}
 
@@ -201,13 +201,6 @@ export default function Alerts() {
       {/* IRM Alerts */}
       {tab === "irm-alerts" && ia && (
         <>
-          {ia.severity_breakdown.length > 0 && (
-            <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5">
-              <h3 className="mb-3 text-sm font-semibold text-navy-200">IRM Alerts by Severity</h3>
-              <BarChart data={ia.severity_breakdown} xKey="severity" yKey="total" color="#f59e0b" height={250} />
-            </div>
-          )}
-          {ia.evidence_summary && <EvidenceSummaryPanel summary={ia.evidence_summary} />}
           <DataTable<IRMAlert & Record<string, unknown>>
             columns={[
               { key: "title", label: "Title" },
@@ -239,6 +232,13 @@ export default function Alerts() {
             data={ia.alerts as (IRMAlert & Record<string, unknown>)[]}
             keyField="alert_id"
           />
+          {ia.severity_breakdown.length > 0 && (
+            <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5">
+              <h3 className="mb-3 text-sm font-semibold text-navy-200">IRM Alerts by Severity</h3>
+              <BarChart data={ia.severity_breakdown} xKey="severity" yKey="total" color="#f59e0b" height={250} />
+            </div>
+          )}
+          {ia.evidence_summary && <EvidenceSummaryPanel summary={ia.evidence_summary} />}
         </>
       )}
 

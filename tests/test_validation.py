@@ -201,6 +201,33 @@ def test_dlp_alert_missing_severity_rejected(mock_get):
 
 
 @patch("shared.validation.get_settings")
+def test_dlp_alert_with_evidence_accepted(mock_get):
+    mock_get.return_value = _mock_settings("")
+    payload = {
+        **VALID_PAYLOAD,
+        "dlp_alerts": [
+            {
+                "alert_id": "a1",
+                "severity": "high",
+                "classification": "truePositive",
+                "determination": "maliciousUserActivity",
+                "recommended_actions": "Review and revoke",
+                "incident_id": "inc-1",
+                "mitre_techniques": "T1567",
+                "evidence": [
+                    {"type": "mailboxEvidence", "remediation_status": "remediated", "verdict": "malicious"},
+                ],
+            }
+        ],
+    }
+    req = _mock_request(payload)
+    result = validate_ingestion_request(req)
+    assert len(result["dlp_alerts"]) == 1
+    assert result["dlp_alerts"][0]["classification"] == "truePositive"
+    assert len(result["dlp_alerts"][0]["evidence"]) == 1
+
+
+@patch("shared.validation.get_settings")
 def test_ediscovery_case_missing_case_id_rejected(mock_get):
     mock_get.return_value = _mock_settings("")
     payload = {**VALID_PAYLOAD, "ediscovery_cases": [{"display_name": "Case 1"}]}
