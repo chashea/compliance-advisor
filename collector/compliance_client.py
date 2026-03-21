@@ -6,6 +6,7 @@ Pulls data from:
 - GET  /beta/security/informationProtection/sensitivityLabels    — sensitivity labels
 - GET  /v1.0/security/labels/retentionLabels                     — retention labels
 - GET  /v1.0/security/triggers/retentionEvents                   — retention events
+- GET  /v1.0/security/triggerTypes/retentionEventTypes           — retention event types
 - POST /v1.0/security/auditLog/queries + GET records             — audit log (async)
 - GET  /v1.0/security/alerts_v2?$filter=serviceSource             — DLP + IRM alerts
 - POST /v1.0/dataSecurityAndGovernance/protectionScopes/compute  — protection scopes
@@ -19,7 +20,7 @@ Required Microsoft Graph Application permissions:
 - eDiscovery.Read.All                     — eDiscovery cases
 - InformationProtectionPolicy.Read.All    — sensitivity labels (beta endpoint)
 - SensitivityLabel.Read                   — sensitivity labels (v1.0 fallback)
-- RecordsManagement.Read.All              — retention labels (delegated only!), retention events
+- RecordsManagement.Read.All              — retention labels (delegated only!), retention events, retention event types
 - AuditLogsQuery.Read.All                 — audit log queries
 - SecurityAlert.Read.All                  — DLP + IRM alerts (alerts_v2)
 - DataSecurityAndGovernance.Read.All      — protection scopes, user content policies
@@ -223,6 +224,7 @@ def get_retention_labels(token: str) -> list[dict[str, Any]]:
         elif duration:
             duration_str = str(duration)
 
+        descriptors = item.get("descriptors") or {}
         labels.append(
             {
                 "label_id": item.get("id", ""),
@@ -232,6 +234,11 @@ def get_retention_labels(token: str) -> list[dict[str, Any]]:
                 "action_after_retention": item.get("actionAfterRetentionPeriod", ""),
                 "is_in_use": item.get("isInUse", False),
                 "status": item.get("status", ""),
+                "file_plan_authority": (descriptors.get("authorityTemplate") or {}).get("displayName", ""),
+                "file_plan_citation": (descriptors.get("citationTemplate") or {}).get("displayName", ""),
+                "file_plan_department": (descriptors.get("departmentTemplate") or {}).get("displayName", ""),
+                "file_plan_category": (descriptors.get("categoryTemplate") or {}).get("displayName", ""),
+                "file_plan_subcategory": (descriptors.get("subcategoryTemplate") or {}).get("displayName", ""),
             }
         )
 

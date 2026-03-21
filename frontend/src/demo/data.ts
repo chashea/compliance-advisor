@@ -26,8 +26,6 @@ import type {
   DLPPolicy,
   IRMPoliciesResponse,
   IRMPolicy,
-  SensitiveInfoTypesResponse,
-  SensitiveInfoType,
   AssessmentsResponse,
   Assessment,
   ThreatAssessmentsResponse,
@@ -145,14 +143,6 @@ const irmPolicies: IRMPolicy[] = [
   { policy_id: "ip-2", display_name: "General Data Leaks", status: "Active", policy_type: "DataLeaks", created: "2025-09-15", triggers: "DLP policy match", tenant_name: "Fabrikam Inc" },
   { policy_id: "ip-3", display_name: "Security Policy Violations", status: "Active", policy_type: "SecurityPolicyViolation", created: "2026-01-05", triggers: "Defender alert", tenant_name: "Northwind Traders" },
   { policy_id: "ip-4", display_name: "Patient Data Misuse", status: "Inactive", policy_type: "DataTheft", created: "2025-11-20", triggers: "Sensitivity label match", tenant_name: "Contoso Ltd" },
-];
-
-const sensitiveInfoTypes: SensitiveInfoType[] = [
-  { type_id: "sit-1", name: "U.S. Social Security Number (SSN)", description: "Detects US SSNs", is_custom: false, category: "PII", scope: "Tenant", state: "Enabled", tenant_name: "Contoso Ltd" },
-  { type_id: "sit-2", name: "Credit Card Number", description: "Detects major credit card formats", is_custom: false, category: "Financial", scope: "Tenant", state: "Enabled", tenant_name: "Contoso Ltd" },
-  { type_id: "sit-3", name: "Contoso Employee ID", description: "Custom pattern for Contoso employee IDs", is_custom: true, category: "HR", scope: "Tenant", state: "Enabled", tenant_name: "Contoso Ltd" },
-  { type_id: "sit-4", name: "IBAN", description: "International Bank Account Number", is_custom: false, category: "Financial", scope: "Tenant", state: "Enabled", tenant_name: "Fabrikam Inc" },
-  { type_id: "sit-5", name: "Northwind Case Number", description: "Custom case tracking number", is_custom: true, category: "Legal", scope: "Tenant", state: "Enabled", tenant_name: "Northwind Traders" },
 ];
 
 const complianceAssessments: Assessment[] = [
@@ -338,15 +328,6 @@ export function getDemoData(endpoint: string, body?: Record<string, unknown>): u
       return {
         policies: filterByDept(irmPolicies, dept || undefined),
       } satisfies IRMPoliciesResponse;
-
-    case "sensitive-info-types": {
-      const types = filterByDept(sensitiveInfoTypes, dept || undefined);
-      return {
-        types,
-        custom_count: types.filter((t) => t.is_custom).length,
-        builtin_count: types.filter((t) => !t.is_custom).length,
-      } satisfies SensitiveInfoTypesResponse;
-    }
 
     case "assessments": {
       const assessments = filterByDept(complianceAssessments, dept || undefined);
