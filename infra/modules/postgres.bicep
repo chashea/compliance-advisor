@@ -36,16 +36,9 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-06-01-pr
       activeDirectoryAuth: 'Enabled'
       passwordAuth: 'Enabled'
     }
-  }
-}
-
-// Allow Azure services to connect
-resource firewallRule 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2023-06-01-preview' = {
-  parent: postgresServer
-  name: 'AllowAzureServices'
-  properties: {
-    startIpAddress: '0.0.0.0'
-    endIpAddress: '0.0.0.0'
+    network: {
+      publicNetworkAccess: 'Disabled'
+    }
   }
 }
 

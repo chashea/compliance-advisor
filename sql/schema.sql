@@ -279,6 +279,25 @@ CREATE TABLE IF NOT EXISTS threat_assessment_requests (
     UNIQUE (tenant_id, request_id, snapshot_date)
 );
 
+-- Purview-prioritized incidents (derived from Graph security incidents correlated to DLP/IRM alerts)
+CREATE TABLE IF NOT EXISTS purview_incidents (
+    id                  SERIAL PRIMARY KEY,
+    tenant_id           TEXT NOT NULL REFERENCES tenants(tenant_id),
+    incident_id         TEXT NOT NULL,
+    display_name        TEXT,
+    severity            TEXT,
+    status              TEXT,
+    classification      TEXT,
+    determination       TEXT,
+    created             TEXT,
+    last_update         TEXT,
+    assigned_to         TEXT,
+    alerts_count        INT DEFAULT 0,
+    purview_alerts_count INT DEFAULT 0,
+    snapshot_date       DATE NOT NULL DEFAULT CURRENT_DATE,
+    UNIQUE (tenant_id, incident_id, snapshot_date)
+);
+
 -- Daily compliance trend (computed by timer trigger)
 CREATE TABLE IF NOT EXISTS compliance_trend (
     id                  SERIAL PRIMARY KEY,
@@ -369,6 +388,9 @@ CREATE INDEX IF NOT EXISTS idx_compliance_assessments_tenant
 
 CREATE INDEX IF NOT EXISTS idx_threat_assessment_requests_tenant
     ON threat_assessment_requests(tenant_id, snapshot_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_purview_incidents_tenant
+    ON purview_incidents(tenant_id, snapshot_date DESC);
 
 CREATE INDEX IF NOT EXISTS idx_ingestion_log_lookup
     ON ingestion_log(tenant_id, snapshot_date, payload_hash);

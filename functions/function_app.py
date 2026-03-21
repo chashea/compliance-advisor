@@ -63,6 +63,7 @@ try:
         get_irm_policies,
         get_labels,
         get_overview,
+        get_purview_incidents,
         get_status,
         get_threat_assessments,
         get_trend,
@@ -82,6 +83,7 @@ try:
         upsert_irm_alert,
         upsert_irm_policy,
         upsert_protection_scope,
+        upsert_purview_incident,
         upsert_retention_event,
         upsert_retention_event_type,
         upsert_secure_score,
@@ -114,7 +116,7 @@ try:
         get_dlp_policies as collect_dlp_policies,
     )
     from collector.compliance_client import (
-        get_ediscovery_cases as collect_ediscovery,
+        get_ediscovery_cases_with_diagnostics as collect_ediscovery_with_diagnostics,
     )
     from collector.compliance_client import (
         get_improvement_actions as collect_improvement_actions,
@@ -130,6 +132,9 @@ try:
     )
     from collector.compliance_client import (
         get_protection_scopes as collect_protection_scopes,
+    )
+    from collector.compliance_client import (
+        get_purview_incidents as collect_purview_incidents,
     )
     from collector.compliance_client import (
         get_retention_event_types as collect_retention_event_types,
@@ -287,6 +292,17 @@ def advisor_irm(req: func.HttpRequest) -> func.HttpResponse:
         log.exception("advisor/irm error: %s", e)
         return _json_response({"error": str(e)}, 500)
 
+
+@app.function_name("advisor_purview_incidents")
+@app.route(route="advisor/purview-incidents", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_purview_incidents(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        _ensure_dependencies_loaded()
+        body = _get_body(req)
+        return _json_response(get_purview_incidents(department=body.get("department"), tenant_id=body.get("tenant_id")))
+    except Exception as e:
+        log.exception("advisor/purview-incidents error: %s", e)
+        return _json_response({"error": str(e)}, 500)
 
 
 @app.function_name("advisor_info_barriers")
@@ -729,8 +745,6 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 evidence=ia.get("evidence", []),
             )
 
-
-
         # Upsert information barrier policies
         for ib in payload.get("info_barrier_policies", []):
             upsert_info_barrier_policy(
@@ -852,6 +866,24 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 snapshot_date=snapshot_date,
             )
 
+        # Upsert Purview-prioritized incidents
+        for pi in payload.get("purview_incidents", []):
+            upsert_purview_incident(
+                tenant_id=tenant_id,
+                incident_id=pi.get("incident_id", ""),
+                display_name=pi.get("display_name", ""),
+                severity=pi.get("severity", ""),
+                status=pi.get("status", ""),
+                classification=pi.get("classification", ""),
+                determination=pi.get("determination", ""),
+                created=pi.get("created", ""),
+                last_update=pi.get("last_update", ""),
+                assigned_to=pi.get("assigned_to", ""),
+                alerts_count=pi.get("alerts_count", 0),
+                purview_alerts_count=pi.get("purview_alerts_count", 0),
+                snapshot_date=snapshot_date,
+            )
+
         counts = {
             "ediscovery_cases": len(payload.get("ediscovery_cases", [])),
             "sensitivity_labels": len(payload.get("sensitivity_labels", [])),
@@ -865,13 +897,14 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
             "sensitive_info_types": len(payload.get("sensitive_info_types", [])),
             "compliance_assessments": len(payload.get("compliance_assessments", [])),
             "threat_assessment_requests": len(payload.get("threat_assessment_requests", [])),
+            "purview_incidents": len(payload.get("purview_incidents", [])),
         }
         record_ingestion(tenant_id, snapshot_date, payload_hash, counts)
 
         log.info(
             "Ingested: tenant=%s dept=%s ediscovery=%d labels=%d audit=%d dlp=%d "
             "irm=%d info_barriers=%d scopes=%d scores=%d actions=%d "
-            "dlp_policies=%d irm_policies=%d sit=%d assessments=%d threats=%d",
+            "dlp_policies=%d irm_policies=%d sit=%d assessments=%d threats=%d incidents=%d",
             tenant_id,
             payload["department"],
             counts["ediscovery_cases"],
@@ -888,6 +921,7 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
             counts["sensitive_info_types"],
             counts["compliance_assessments"],
             counts["threat_assessment_requests"],
+            counts["purview_incidents"],
         )
         return _json_response({"status": "ok", "tenant_id": tenant_id, **counts})
 
@@ -929,13 +963,14 @@ def _collect_single_tenant(
         )
         token = get_graph_token(auth_settings)
 
-        ediscovery = collect_ediscovery(token)
+        ediscovery, ediscovery_diagnostics = collect_ediscovery_with_diagnostics(token)
         sensitivity = collect_sensitivity_labels(token)
         ret_events = collect_retention_events(token)
         ret_event_types = collect_retention_event_types(token)
         audit = collect_audit_log_records(token, days=audit_days)
         dlp = collect_dlp_alerts(token)
         irm = collect_irm_alerts(token)
+        incidents = collect_purview_incidents(token, [*dlp, *irm])
         scopes = collect_protection_scopes(token)
         scores = collect_secure_scores(token)
         actions = collect_improvement_actions(token)
@@ -1063,6 +1098,22 @@ def _collect_single_tenant(
                 mitre_techniques=ia.get("mitre_techniques", ""),
                 evidence=ia.get("evidence", []),
             )
+        for pi in incidents:
+            upsert_purview_incident(
+                tenant_id=tid,
+                incident_id=pi.get("incident_id", ""),
+                display_name=pi.get("display_name", ""),
+                severity=pi.get("severity", ""),
+                status=pi.get("status", ""),
+                classification=pi.get("classification", ""),
+                determination=pi.get("determination", ""),
+                created=pi.get("created", ""),
+                last_update=pi.get("last_update", ""),
+                assigned_to=pi.get("assigned_to", ""),
+                alerts_count=pi.get("alerts_count", 0),
+                purview_alerts_count=pi.get("purview_alerts_count", 0),
+                snapshot_date=today,
+            )
         for b in ib:
             upsert_info_barrier_policy(
                 tenant_id=tid,
@@ -1173,13 +1224,29 @@ def _collect_single_tenant(
             "secure_scores": len(scores),
             "improvement_actions": len(actions),
             "threat_assessments": len(threats),
+            "purview_incidents": len(incidents),
         }
+        diagnostics = {"ediscovery": ediscovery_diagnostics}
         log.info("_collect_single_tenant: tenant=%s dept=%s counts=%s", tid, department, counts)
+        if ediscovery_diagnostics.get("status") == "error":
+            log.warning(
+                "_collect_single_tenant: eDiscovery failed tenant=%s status=%s code=%s message=%s",
+                tid,
+                ediscovery_diagnostics.get("http_status"),
+                ediscovery_diagnostics.get("error_code"),
+                ediscovery_diagnostics.get("message"),
+            )
+        elif counts["ediscovery"] == 0:
+            log.warning(
+                "_collect_single_tenant: eDiscovery returned zero cases tenant=%s endpoint=%s",
+                tid,
+                ediscovery_diagnostics.get("endpoint"),
+            )
         try:
             update_tenant_status(tid, "active")
         except Exception:
             log.debug("update_tenant_status not available yet (run schema migration)")
-        return {"status": "ok", "tenant_id": tid, "record_counts": counts}
+        return {"status": "ok", "tenant_id": tid, "record_counts": counts, "diagnostics": diagnostics}
 
     except Exception as e:
         log.exception("_collect_single_tenant: failed for tenant=%s: %s", tid, e)

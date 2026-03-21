@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "6384347192915306036"
+      "templateHash": "7176901088444248913"
     }
   },
   "parameters": {
@@ -240,7 +240,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "4418842047152619301"
+              "templateHash": "17508938254123587662"
             }
           },
           "parameters": {
@@ -297,20 +297,11 @@
                 "authConfig": {
                   "activeDirectoryAuth": "Enabled",
                   "passwordAuth": "Enabled"
+                },
+                "network": {
+                  "publicNetworkAccess": "Disabled"
                 }
               }
-            },
-            {
-              "type": "Microsoft.DBforPostgreSQL/flexibleServers/firewallRules",
-              "apiVersion": "2023-06-01-preview",
-              "name": "[format('{0}/{1}', parameters('serverName'), 'AllowAzureServices')]",
-              "properties": {
-                "startIpAddress": "0.0.0.0",
-                "endIpAddress": "0.0.0.0"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', parameters('serverName'))]"
-              ]
             },
             {
               "type": "Microsoft.DBforPostgreSQL/flexibleServers/databases",
@@ -665,6 +656,12 @@
           },
           "keyVaultName": {
             "value": "[variables('keyVaultName')]"
+          },
+          "postgresServerId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'postgres'), '2025-04-01').outputs.serverId.value]"
+          },
+          "postgresServerName": {
+            "value": "[variables('postgresServerName')]"
           }
         },
         "template": {
@@ -674,7 +671,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "8209242036545610103"
+              "templateHash": "17854087780543558709"
             }
           },
           "parameters": {
@@ -688,6 +685,12 @@
               "type": "string"
             },
             "keyVaultName": {
+              "type": "string"
+            },
+            "postgresServerId": {
+              "type": "string"
+            },
+            "postgresServerName": {
               "type": "string"
             }
           },
@@ -799,6 +802,72 @@
                 "[resourceId('Microsoft.Network/privateEndpoints', format('{0}-pe', parameters('keyVaultName')))]",
                 "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.vaultcore.azure.net')]"
               ]
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2024-06-01",
+              "name": "privatelink.postgres.database.azure.com",
+              "location": "global"
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+              "apiVersion": "2024-06-01",
+              "name": "[format('{0}/{1}', 'privatelink.postgres.database.azure.com', format('{0}-link', parameters('vnetName')))]",
+              "location": "global",
+              "properties": {
+                "registrationEnabled": false,
+                "virtualNetwork": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.postgres.database.azure.com')]",
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateEndpoints",
+              "apiVersion": "2024-01-01",
+              "name": "[format('{0}-pe', parameters('postgresServerName'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "subnet": {
+                  "id": "[reference(resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName')), '2024-01-01').subnets[1].id]"
+                },
+                "privateLinkServiceConnections": [
+                  {
+                    "name": "[format('{0}-connection', parameters('postgresServerName'))]",
+                    "properties": {
+                      "privateLinkServiceId": "[parameters('postgresServerId')]",
+                      "groupIds": [
+                        "postgresqlServer"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+              "apiVersion": "2024-01-01",
+              "name": "[format('{0}/{1}', format('{0}-pe', parameters('postgresServerName')), 'default')]",
+              "properties": {
+                "privateDnsZoneConfigs": [
+                  {
+                    "name": "privatelink-postgres-database-azure-com",
+                    "properties": {
+                      "privateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.postgres.database.azure.com')]"
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.postgres.database.azure.com')]",
+                "[resourceId('Microsoft.Network/privateEndpoints', format('{0}-pe', parameters('postgresServerName')))]"
+              ]
             }
           ],
           "outputs": {
@@ -818,7 +887,8 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'keyvault')]"
+        "[resourceId('Microsoft.Resources/deployments', 'keyvault')]",
+        "[resourceId('Microsoft.Resources/deployments', 'postgres')]"
       ]
     },
     {
@@ -1109,6 +1179,9 @@
           },
           "functionAppUrl": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'functionApp'), '2025-04-01').outputs.functionAppUrl.value]"
+          },
+          "virtualNetworkSubnetId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'network'), '2025-04-01').outputs.funcIntegrationSubnetId.value]"
           }
         },
         "template": {
@@ -1118,7 +1191,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "12011377014637672871"
+              "templateHash": "14761027419549838652"
             }
           },
           "parameters": {
@@ -1133,6 +1206,10 @@
             },
             "functionAppUrl": {
               "type": "string"
+            },
+            "virtualNetworkSubnetId": {
+              "type": "string",
+              "defaultValue": ""
             }
           },
           "resources": [
@@ -1159,6 +1236,8 @@
               "properties": {
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('webAppPlanName'))]",
                 "httpsOnly": true,
+                "virtualNetworkSubnetId": "[if(not(empty(parameters('virtualNetworkSubnetId'))), parameters('virtualNetworkSubnetId'), null())]",
+                "vnetRouteAllEnabled": "[not(empty(parameters('virtualNetworkSubnetId')))]",
                 "siteConfig": {
                   "alwaysOn": true,
                   "linuxFxVersion": "NODE|20-lts",
@@ -1169,6 +1248,10 @@
                     {
                       "name": "VITE_API_BASE_URL",
                       "value": "[parameters('functionAppUrl')]"
+                    },
+                    {
+                      "name": "WEBSITE_VNET_ROUTE_ALL",
+                      "value": "[if(not(empty(parameters('virtualNetworkSubnetId'))), '1', '0')]"
                     }
                   ]
                 }
@@ -1191,7 +1274,8 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'functionApp')]"
+        "[resourceId('Microsoft.Resources/deployments', 'functionApp')]",
+        "[resourceId('Microsoft.Resources/deployments', 'network')]"
       ]
     }
   ],

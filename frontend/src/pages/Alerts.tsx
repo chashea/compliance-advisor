@@ -1,17 +1,26 @@
 import { useState } from "react";
-import { useTenant } from "../hooks/useTenant";
 import BarChart from "../components/BarChart";
 import DataTable from "../components/DataTable";
 import ErrorBanner from "../components/ErrorBanner";
 import Loading from "../components/Loading";
+import { useTenant } from "../hooks/useTenant";
 import { useApi } from "../hooks/useApi";
 import type {
-  DLPAlert, DLPResponse, DLPPolicy, DLPPoliciesResponse,
-  IRMAlert, IRMResponse, IRMPolicy, IRMPoliciesResponse,
+  DLPAlert,
+  DLPPoliciesResponse,
+  DLPPolicy,
+  DLPResponse,
   EvidenceSummary,
+  IRMAlert,
+  IRMPoliciesResponse,
+  IRMPolicy,
+  IRMResponse,
+  PurviewIncident,
+  PurviewIncidentsResponse,
 } from "../types";
 
 const SEVERITY_COLORS: Record<string, string> = {
+  critical: "text-red-500",
   high: "text-red-400",
   medium: "text-amber-400",
   low: "text-navy-400",
@@ -50,32 +59,39 @@ function EvidenceSummaryPanel({ summary }: { summary: EvidenceSummary }) {
   );
 }
 
-type Tab = "dlp-alerts" | "dlp-policies" | "irm-alerts" | "irm-policies";
+type Tab = "purview-incidents" | "dlp-alerts" | "dlp-policies" | "irm-alerts" | "irm-policies";
 
 export default function Alerts() {
-  const [tab, setTab] = useState<Tab>("dlp-alerts");
+  const [tab, setTab] = useState<Tab>("purview-incidents");
   const { tenantId } = useTenant();
   const body: Record<string, unknown> = {};
   if (tenantId) body.tenant_id = tenantId;
 
+  const incidents = useApi<PurviewIncidentsResponse>("purview-incidents", body, [tenantId]);
   const dlpAlerts = useApi<DLPResponse>("dlp", body, [tenantId]);
   const dlpPolicies = useApi<DLPPoliciesResponse>("dlp-policies", body, [tenantId]);
   const irmAlerts = useApi<IRMResponse>("irm", body, [tenantId]);
   const irmPolicies = useApi<IRMPoliciesResponse>("irm-policies", body, [tenantId]);
 
-  if (dlpAlerts.loading || dlpPolicies.loading || irmAlerts.loading || irmPolicies.loading) return <Loading />;
+  if (incidents.loading || dlpAlerts.loading || dlpPolicies.loading || irmAlerts.loading || irmPolicies.loading) {
+    return <Loading />;
+  }
+  if (incidents.error) return <ErrorBanner message={incidents.error} />;
   if (dlpAlerts.error) return <ErrorBanner message={dlpAlerts.error} />;
   if (irmAlerts.error) return <ErrorBanner message={irmAlerts.error} />;
 
+  const pi = incidents.data;
   const da = dlpAlerts.data;
   const dp = dlpPolicies.data;
   const ia = irmAlerts.data;
   const ip = irmPolicies.data;
 
+  const incidentHigh = pi?.severity_breakdown.find((s) => s.severity === "high" || s.severity === "critical")?.total ?? 0;
   const dlpHigh = da?.severity_breakdown.find((s) => s.severity === "high")?.total ?? 0;
   const irmHigh = ia?.severity_breakdown.find((s) => s.severity === "high")?.total ?? 0;
 
   const tabs: [Tab, string][] = [
+    ["purview-incidents", `Purview Incidents${pi ? ` (${pi.incidents.length})` : ""}`],
     ["dlp-alerts", `DLP Alerts${da ? ` (${da.alerts.length})` : ""}`],
     ["dlp-policies", `DLP Policies${dp ? ` (${dp.policies.length})` : ""}`],
     ["irm-alerts", `IRM Alerts${ia ? ` (${ia.alerts.length})` : ""}`],
@@ -86,8 +102,12 @@ export default function Alerts() {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-white">Security Alerts</h2>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+        <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-4 text-center">
+          <p className="text-2xl font-bold text-violet-400">{pi?.incidents.length ?? 0}</p>
+          <p className="text-xs text-navy-300">Purview Incidents</p>
+          {incidentHigh > 0 && <p className="mt-1 text-xs text-red-400">{incidentHigh} high/critical</p>}
+        </div>
         <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-4 text-center">
           <p className="text-2xl font-bold text-red-400">{da?.alerts.length ?? 0}</p>
           <p className="text-xs text-navy-300">DLP Alerts</p>
@@ -108,8 +128,7 @@ export default function Alerts() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 rounded-lg bg-navy-800 p-1 w-fit">
+      <div className="flex w-fit gap-1 rounded-lg bg-navy-800 p-1">
         {tabs.map(([key, label]) => (
           <button
             key={key}
@@ -123,7 +142,41 @@ export default function Alerts() {
         ))}
       </div>
 
-      {/* DLP Alerts */}
+      {tab === "purview-incidents" && pi && (
+        <>
+          <DataTable<PurviewIncident & Record<string, unknown>>
+            columns={[
+              { key: "display_name", label: "Incident" },
+              {
+                key: "severity",
+                label: "Severity",
+                render: (v) => (
+                  <span className={`font-medium ${SEVERITY_COLORS[String(v).toLowerCase()] ?? ""}`}>{String(v)}</span>
+                ),
+              },
+              { key: "status", label: "Status" },
+              { key: "purview_alerts_count", label: "Purview Alerts" },
+              { key: "last_update", label: "Last Update" },
+              { key: "tenant_name", label: "Tenant" },
+            ]}
+            data={pi.incidents as (PurviewIncident & Record<string, unknown>)[]}
+            keyField="incident_id"
+          />
+          {pi.severity_breakdown.length > 0 && (
+            <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5">
+              <h3 className="mb-3 text-sm font-semibold text-navy-200">Purview Incidents by Severity</h3>
+              <BarChart data={pi.severity_breakdown} xKey="severity" yKey="total" color="#8b5cf6" height={250} />
+            </div>
+          )}
+          {pi.status_breakdown.length > 0 && (
+            <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5">
+              <h3 className="mb-3 text-sm font-semibold text-navy-200">Purview Incidents by Status</h3>
+              <BarChart data={pi.status_breakdown} xKey="status" yKey="total" color="#0ea5e9" height={250} />
+            </div>
+          )}
+        </>
+      )}
+
       {tab === "dlp-alerts" && da && (
         <>
           <DataTable<DLPAlert & Record<string, unknown>>
@@ -144,7 +197,9 @@ export default function Alerts() {
                   const cls = String(v || "");
                   if (!cls) return <span className="text-navy-500">—</span>;
                   return (
-                    <span className={`rounded px-2 py-0.5 text-xs font-medium ${CLASSIFICATION_COLORS[cls] ?? "bg-navy-600/40 text-navy-300"}`}>
+                    <span
+                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASSIFICATION_COLORS[cls] ?? "bg-navy-600/40 text-navy-300"}`}
+                    >
                       {cls}
                     </span>
                   );
@@ -173,7 +228,6 @@ export default function Alerts() {
         </>
       )}
 
-      {/* DLP Policies */}
       {tab === "dlp-policies" && dp && (
         <>
           {dp.status_breakdown.length > 0 && (
@@ -198,7 +252,6 @@ export default function Alerts() {
         </>
       )}
 
-      {/* IRM Alerts */}
       {tab === "irm-alerts" && ia && (
         <>
           <DataTable<IRMAlert & Record<string, unknown>>
@@ -219,7 +272,9 @@ export default function Alerts() {
                   const cls = String(v || "");
                   if (!cls) return <span className="text-navy-500">—</span>;
                   return (
-                    <span className={`rounded px-2 py-0.5 text-xs font-medium ${CLASSIFICATION_COLORS[cls] ?? "bg-navy-600/40 text-navy-300"}`}>
+                    <span
+                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASSIFICATION_COLORS[cls] ?? "bg-navy-600/40 text-navy-300"}`}
+                    >
                       {cls}
                     </span>
                   );
@@ -242,7 +297,6 @@ export default function Alerts() {
         </>
       )}
 
-      {/* IRM Policies */}
       {tab === "irm-policies" && ip && (
         <DataTable<IRMPolicy & Record<string, unknown>>
           columns={[

@@ -30,6 +30,7 @@ VALID_PAYLOAD = {
     "sensitive_info_types": [],
     "compliance_assessments": [],
     "threat_assessment_requests": [],
+    "purview_incidents": [],
     "collector_version": "4.0.0",
 }
 
@@ -77,6 +78,7 @@ def test_schema_requires_all_fields():
         "sensitive_info_types",
         "compliance_assessments",
         "threat_assessment_requests",
+        "purview_incidents",
         "collector_version",
     }
 

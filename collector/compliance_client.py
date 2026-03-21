@@ -8,6 +8,7 @@ Pulls data from:
 - GET  /v1.0/security/triggerTypes/retentionEventTypes           — retention event types
 - POST /v1.0/security/auditLog/queries + GET records             — audit log (async)
 - GET  /v1.0/security/alerts_v2?$filter=serviceSource             — DLP + IRM alerts
+- GET  /v1.0/security/incidents                                   — Purview-prioritized incidents
 - POST /v1.0/dataSecurityAndGovernance/protectionScopes/compute  — protection scopes
 - POST /v1.0/users/{id}/dataSecurityAndGovernance/processContent — user content policies
 - GET  /beta/security/informationProtection/dataLossPreventionPolicies — DLP policies
@@ -22,6 +23,7 @@ Required Microsoft Graph Application permissions:
 - RecordsManagement.Read.All              — retention labels (delegated only!), retention events, retention event types
 - AuditLogsQuery.Read.All                 — audit log queries
 - SecurityAlert.Read.All                  — DLP + IRM alerts (alerts_v2)
+- SecurityIncident.Read.All               — incidents
 - DataSecurityAndGovernance.Read.All      — protection scopes, user content policies
 - SecurityEvents.Read.All                 — Secure Score + improvement actions
 - InformationBarrierPolicy.Read.All       — information barrier policies
@@ -106,6 +108,12 @@ def _log_api_error(label: str, exc: requests.exceptions.RequestException, hint: 
 
 def get_ediscovery_cases(token: str) -> list[dict[str, Any]]:
     """Return eDiscovery cases."""
+    cases, _ = get_ediscovery_cases_with_diagnostics(token)
+    return cases
+
+
+def get_ediscovery_cases_with_diagnostics(token: str) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Return eDiscovery cases plus diagnostic details for troubleshooting."""
     sess = _session(token)
     url = f"{GRAPH_BASE}/security/cases/ediscoveryCases"
 
@@ -113,7 +121,26 @@ def get_ediscovery_cases(token: str) -> list[dict[str, Any]]:
         items = _paginate(sess, url)
     except requests.exceptions.RequestException as e:
         _log_api_error("ediscoveryCases", e, "eDiscovery.Read.All")
-        return []
+        http_status = getattr(getattr(e, "response", None), "status_code", None)
+        error_code = ""
+        error_message = str(e)
+        if getattr(e, "response", None) is not None:
+            try:
+                body = e.response.json()
+                graph_error = body.get("error", {}) if isinstance(body, dict) else {}
+                if isinstance(graph_error, dict):
+                    error_code = str(graph_error.get("code", ""))
+                    error_message = str(graph_error.get("message", error_message))
+            except Exception:
+                pass
+
+        return [], {
+            "status": "error",
+            "endpoint": url,
+            "http_status": http_status,
+            "error_code": error_code,
+            "message": error_message,
+        }
 
     cases = []
     for item in items:
@@ -131,7 +158,16 @@ def get_ediscovery_cases(token: str) -> list[dict[str, Any]]:
         )
 
     log.info("Retrieved %d eDiscovery cases", len(cases))
-    return cases
+    return (
+        cases,
+        {
+            "status": "ok",
+            "endpoint": url,
+            "http_status": 200,
+            "count": len(cases),
+            "message": "No eDiscovery cases returned from Microsoft Graph." if not cases else "",
+        },
+    )
 
 
 # ── Information Protection (sensitivity labels) ───────────────────
@@ -447,6 +483,156 @@ def get_dlp_alerts(token: str) -> list[dict[str, Any]]:
 def get_irm_alerts(token: str) -> list[dict[str, Any]]:
     """Return IRM alerts (alerts_v2, serviceSource=microsoftInsiderRiskManagement)."""
     return _alerts_v2(token, "microsoftInsiderRiskManagement", "IRM")
+
+
+def _severity_rank(severity: str) -> int:
+    ranks = {"critical": 4, "high": 3, "medium": 2, "low": 1}
+    return ranks.get((severity or "").lower(), 0)
+
+
+def _extract_incident_alert_ids(item: dict[str, Any]) -> set[str]:
+    raw_alerts = item.get("alerts") or item.get("alertIds") or []
+    if not isinstance(raw_alerts, list):
+        return set()
+
+    alert_ids: set[str] = set()
+    for alert in raw_alerts:
+        if isinstance(alert, dict):
+            alert_id = alert.get("id") or alert.get("alertId")
+            if alert_id:
+                alert_ids.add(str(alert_id))
+        elif isinstance(alert, str):
+            alert_ids.add(alert)
+    return alert_ids
+
+
+def _derive_purview_incidents_from_alerts(purview_alerts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for alert in purview_alerts:
+        incident_id = str(alert.get("incident_id", "")).strip()
+        if not incident_id:
+            continue
+        grouped.setdefault(incident_id, []).append(alert)
+
+    incidents: list[dict[str, Any]] = []
+    for incident_id, alerts in grouped.items():
+        top_severity = max((_severity_rank(str(a.get("severity", ""))) for a in alerts), default=0)
+        severity = next(
+            (s for s in ("critical", "high", "medium", "low") if _severity_rank(s) == top_severity),
+            "unknown",
+        )
+        statuses = [str(a.get("status", "")).lower() for a in alerts]
+        is_active = any(status not in {"resolved", "dismissed"} for status in statuses)
+        created_values = [str(a.get("created", "")) for a in alerts if a.get("created")]
+        last_update_values = [
+            str(a.get("resolved", "") or a.get("created", ""))
+            for a in alerts
+            if a.get("resolved") or a.get("created")
+        ]
+        incidents.append(
+            {
+                "incident_id": incident_id,
+                "display_name": str(alerts[0].get("title", "")),
+                "severity": severity,
+                "status": "active" if is_active else "resolved",
+                "classification": next(
+                    (str(a.get("classification", "")) for a in alerts if a.get("classification")),
+                    "",
+                ),
+                "determination": next(
+                    (str(a.get("determination", "")) for a in alerts if a.get("determination")),
+                    "",
+                ),
+                "created": min(created_values) if created_values else "",
+                "last_update": max(last_update_values) if last_update_values else "",
+                "assigned_to": str(alerts[0].get("assigned_to", "")),
+                "alerts_count": len(alerts),
+                "purview_alerts_count": len(alerts),
+            }
+        )
+
+    incidents.sort(
+        key=lambda i: (_severity_rank(str(i.get("severity", ""))), str(i.get("last_update", ""))),
+        reverse=True,
+    )
+    return incidents
+
+
+def get_purview_incidents(token: str, purview_alerts: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    """Return Purview-prioritized incidents.
+
+    Incidents are scoped to those with DLP/IRM alert linkage. If the incidents API call fails
+    (for example missing SecurityIncident.Read.All), this falls back to incident-level rollups
+    derived from DLP/IRM alerts with incident IDs.
+    """
+    alerts = purview_alerts if purview_alerts is not None else [*get_dlp_alerts(token), *get_irm_alerts(token)]
+    if not alerts:
+        log.info("Retrieved 0 Purview incidents (no DLP/IRM alerts to correlate)")
+        return []
+
+    purview_alert_ids = {str(a.get("alert_id", "")).strip() for a in alerts if a.get("alert_id")}
+    purview_incident_ids = {str(a.get("incident_id", "")).strip() for a in alerts if a.get("incident_id")}
+
+    sess = _session(token)
+    url = f"{GRAPH_BASE}/security/incidents?$top=100"
+    try:
+        items = _paginate(sess, url, max_pages=5)
+    except requests.exceptions.RequestException as e:
+        _log_api_error("incidents", e, "SecurityIncident.Read.All")
+        derived = _derive_purview_incidents_from_alerts(alerts)
+        if derived:
+            log.warning("Falling back to incident rollups from Purview alerts (%d incidents)", len(derived))
+        return derived
+
+    incidents: list[dict[str, Any]] = []
+    for item in items:
+        incident_id = str(item.get("id", "")).strip()
+        if not incident_id:
+            continue
+
+        incident_alert_ids = _extract_incident_alert_ids(item)
+        matching_alert_ids = incident_alert_ids.intersection(purview_alert_ids)
+        has_purview_signal = incident_id in purview_incident_ids or bool(matching_alert_ids)
+        if not has_purview_signal:
+            continue
+
+        alert_count = len(incident_alert_ids)
+        if alert_count == 0:
+            alert_count = int(item.get("alertsCount", 0) or 0)
+
+        purview_alerts_count = len(matching_alert_ids)
+        if purview_alerts_count == 0 and incident_id in purview_incident_ids:
+            purview_alerts_count = sum(1 for a in alerts if str(a.get("incident_id", "")).strip() == incident_id)
+
+        incidents.append(
+            {
+                "incident_id": incident_id,
+                "display_name": item.get("displayName", "") or item.get("title", ""),
+                "severity": str(item.get("severity", "")).lower(),
+                "status": str(item.get("status", "")).lower(),
+                "classification": item.get("classification", ""),
+                "determination": item.get("determination", ""),
+                "created": item.get("createdDateTime", ""),
+                "last_update": item.get("lastUpdateDateTime", ""),
+                "assigned_to": item.get("assignedTo", ""),
+                "alerts_count": alert_count,
+                "purview_alerts_count": purview_alerts_count,
+            }
+        )
+
+    incidents.sort(
+        key=lambda i: (
+            _severity_rank(str(i.get("severity", ""))),
+            str(i.get("last_update", "")),
+            str(i.get("created", "")),
+        ),
+        reverse=True,
+    )
+    log.info("Retrieved %d Purview-prioritized incidents", len(incidents))
+
+    if incidents:
+        return incidents
+    return _derive_purview_incidents_from_alerts(alerts)
 
 
 # ── Data Security & Governance (protection scopes) ────────────────

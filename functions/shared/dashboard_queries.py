@@ -807,6 +807,96 @@ def get_irm_policies(department: str | None = None, tenant_id: str | None = None
     return {"policies": policies}
 
 
+def get_purview_incidents(department: str | None = None, tenant_id: str | None = None) -> dict:
+    """POST /api/advisor/purview-incidents — Purview-prioritized incidents."""
+    dept_filter = ""
+    tenant_filter = ""
+    params: dict = {}
+    if department:
+        dept_filter = "AND t.department = %(dept)s"
+        params["dept"] = department
+    if tenant_id:
+        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
+        params["tenant_id"] = tenant_id
+
+    incidents = query(
+        f"""
+        SELECT pi.incident_id, pi.display_name, pi.severity, pi.status,
+               pi.classification, pi.determination, pi.created, pi.last_update,
+               pi.assigned_to, pi.alerts_count, pi.purview_alerts_count,
+               t.display_name AS tenant_name
+        FROM purview_incidents pi
+        JOIN tenants t ON t.tenant_id = pi.tenant_id
+        WHERE pi.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM purview_incidents _sub
+                WHERE _sub.tenant_id = pi.tenant_id
+            )
+          {dept_filter}
+          {tenant_filter}
+        ORDER BY
+            CASE pi.severity
+                WHEN 'critical' THEN 1
+                WHEN 'high' THEN 2
+                WHEN 'medium' THEN 3
+                WHEN 'low' THEN 4
+                ELSE 5
+            END,
+            pi.last_update DESC,
+            pi.created DESC
+        LIMIT 1000
+        """,
+        params,
+    )
+
+    severity_breakdown = query(
+        f"""
+        SELECT pi.severity, COUNT(*)::int AS total,
+               COUNT(*) FILTER (WHERE pi.status NOT IN ('resolved', 'dismissed'))::int AS active
+        FROM purview_incidents pi
+        JOIN tenants t ON t.tenant_id = pi.tenant_id
+        WHERE pi.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM purview_incidents _sub
+                WHERE _sub.tenant_id = pi.tenant_id
+            )
+          {dept_filter}
+          {tenant_filter}
+        GROUP BY pi.severity
+        ORDER BY
+            CASE pi.severity
+                WHEN 'critical' THEN 1
+                WHEN 'high' THEN 2
+                WHEN 'medium' THEN 3
+                WHEN 'low' THEN 4
+                ELSE 5
+            END
+        """,
+        params,
+    )
+
+    status_breakdown = query(
+        f"""
+        SELECT pi.status, COUNT(*)::int AS total
+        FROM purview_incidents pi
+        JOIN tenants t ON t.tenant_id = pi.tenant_id
+        WHERE pi.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM purview_incidents _sub
+                WHERE _sub.tenant_id = pi.tenant_id
+            )
+          {dept_filter}
+          {tenant_filter}
+        GROUP BY pi.status
+        ORDER BY total DESC
+        """,
+        params,
+    )
+
+    return {
+        "incidents": incidents,
+        "severity_breakdown": severity_breakdown,
+        "status_breakdown": status_breakdown,
+    }
+
+
 def get_sensitive_info_types(department: str | None = None, tenant_id: str | None = None) -> dict:
     """POST /api/advisor/sensitive-info-types — Sensitive Information Types."""
     dept_filter = ""

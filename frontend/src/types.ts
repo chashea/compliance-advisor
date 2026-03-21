@@ -179,6 +179,28 @@ export interface IRMResponse {
   classification_breakdown: ClassificationBreakdown[];
 }
 
+// /api/advisor/purview-incidents
+export interface PurviewIncident {
+  incident_id: string;
+  display_name: string;
+  severity: string;
+  status: string;
+  classification: string;
+  determination: string;
+  created: string;
+  last_update: string;
+  assigned_to: string;
+  alerts_count: number;
+  purview_alerts_count: number;
+  tenant_name: string;
+}
+
+export interface PurviewIncidentsResponse {
+  incidents: PurviewIncident[];
+  severity_breakdown: SeverityBreakdown[];
+  status_breakdown: StatusBreakdown[];
+}
+
 // /api/advisor/trend
 export interface TrendPoint {
   snapshot_date: string;

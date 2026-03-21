@@ -22,6 +22,8 @@ import type {
   DLPPolicy,
   IRMPoliciesResponse,
   IRMPolicy,
+  PurviewIncidentsResponse,
+  PurviewIncident,
   AssessmentsResponse,
   Assessment,
   ThreatAssessmentsResponse,
@@ -98,6 +100,51 @@ const irmAlerts: IRMAlert[] = [
   { alert_id: "irm-1", title: "Unusual volume of file deletions", severity: "High", status: "Active", category: "InsiderRisk", policy_name: "Data Theft — Departing Employee", created: daysAgo(3), resolved: null, tenant_name: "Contoso Ltd", classification: "truePositive", determination: "maliciousUserActivity", recommended_actions: "Review user's recent file activity and interview manager", incident_id: "inc-201", mitre_techniques: "T1485", evidence: [{ type: "userEvidence", remediation_status: "none", verdict: "malicious", roles: ["compromised"], detailed_roles: ["Departing employee"] }, { type: "fileEvidence", remediation_status: "none", verdict: "malicious", roles: ["contextual"], detailed_roles: ["Deleted files"] }] },
   { alert_id: "irm-2", title: "Sequence of exfiltration activities", severity: "Medium", status: "Active", category: "InsiderRisk", policy_name: "General Data Leaks", created: daysAgo(7), resolved: null, tenant_name: "Fabrikam Inc", classification: "unknown", determination: "", recommended_actions: "Monitor user and restrict sharing permissions", incident_id: "inc-202", mitre_techniques: "T1567,T1048", evidence: [{ type: "userEvidence", remediation_status: "none", verdict: "suspicious", roles: ["source"], detailed_roles: ["User account"] }, { type: "cloudApplicationEvidence", remediation_status: "none", verdict: "suspicious", roles: ["destination"], detailed_roles: ["External cloud app"] }] },
   { alert_id: "irm-3", title: "Anomalous access pattern detected", severity: "Low", status: "Resolved", category: "InsiderRisk", policy_name: "Security Policy Violations", created: daysAgo(20), resolved: daysAgo(14), tenant_name: "Northwind Traders", classification: "falsePositive", determination: "securityTesting", recommended_actions: "", incident_id: "", mitre_techniques: "", evidence: [{ type: "ipEvidence", remediation_status: "none", verdict: "noThreatsFound", roles: ["source"], detailed_roles: ["VPN IP address"] }] },
+];
+
+const purviewIncidents: PurviewIncident[] = [
+  {
+    incident_id: "inc-101",
+    display_name: "Credit card numbers shared externally",
+    severity: "high",
+    status: "active",
+    classification: "truePositive",
+    determination: "maliciousUserActivity",
+    created: daysAgo(2),
+    last_update: daysAgo(1),
+    assigned_to: "soc@contoso.com",
+    alerts_count: 1,
+    purview_alerts_count: 1,
+    tenant_name: "Contoso Ltd",
+  },
+  {
+    incident_id: "inc-103",
+    display_name: "Sequence of exfiltration activities",
+    severity: "medium",
+    status: "active",
+    classification: "unknown",
+    determination: "",
+    created: daysAgo(2),
+    last_update: daysAgo(0),
+    assigned_to: "analyst@fabrikam.com",
+    alerts_count: 2,
+    purview_alerts_count: 2,
+    tenant_name: "Fabrikam Inc",
+  },
+  {
+    incident_id: "inc-105",
+    display_name: "Financial report uploaded to personal OneDrive",
+    severity: "medium",
+    status: "resolved",
+    classification: "truePositive",
+    determination: "maliciousUserActivity",
+    created: daysAgo(15),
+    last_update: daysAgo(12),
+    assigned_to: "soc@northwind.com",
+    alerts_count: 1,
+    purview_alerts_count: 1,
+    tenant_name: "Northwind Traders",
+  },
 ];
 
 
@@ -297,6 +344,24 @@ export function getDemoData(endpoint: string, body?: Record<string, unknown>): u
         evidence_summary: computeEvidenceSummary(alerts),
         classification_breakdown: Object.entries(cls).map(([classification, count]) => ({ classification, count })),
       } satisfies IRMResponse;
+    }
+
+    case "purview-incidents": {
+      const incidents = filterByDept(purviewIncidents, dept || undefined);
+      const sev: Record<string, { total: number; active: number }> = {};
+      const statusMap: Record<string, number> = {};
+      incidents.forEach((i) => {
+        const severity = i.severity.toLowerCase();
+        if (!sev[severity]) sev[severity] = { total: 0, active: 0 };
+        sev[severity].total++;
+        if (!["resolved", "dismissed"].includes(i.status.toLowerCase())) sev[severity].active++;
+        statusMap[i.status] = (statusMap[i.status] ?? 0) + 1;
+      });
+      return {
+        incidents,
+        severity_breakdown: Object.entries(sev).map(([severity, v]) => ({ severity, ...v })),
+        status_breakdown: Object.entries(statusMap).map(([status, total]) => ({ status, total })),
+      } satisfies PurviewIncidentsResponse;
     }
 
     case "trend":

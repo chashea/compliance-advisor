@@ -24,6 +24,7 @@ from collector.compliance_client import (
     get_irm_alerts,
     get_irm_policies,
     get_protection_scopes,
+    get_purview_incidents,
     get_retention_event_types,
     get_retention_events,
     get_secure_scores,
@@ -130,6 +131,9 @@ def main(
     click.echo("  IRM Alerts...")
     irm_alerts = get_irm_alerts(token)
 
+    click.echo("  Purview Incidents...")
+    purview_incidents = get_purview_incidents(token, [*dlp_alerts, *irm_alerts])
+
 
 
     click.echo("  Information Barrier Policies...")
@@ -172,7 +176,7 @@ def main(
         f"| UserContent: {len(user_content_policies)} "
         f"| DLP Policies: {len(dlp_policies)} | IRM Policies: {len(irm_policies)} "
         f"| SIT: {len(sensitive_info_types)} | Assessments: {len(compliance_assessments)}"
-        f" | Threats: {len(threat_assessment_requests)}"
+        f" | Threats: {len(threat_assessment_requests)} | Incidents: {len(purview_incidents)}"
     )
 
     # Build payload
@@ -199,6 +203,7 @@ def main(
         sensitive_info_types=sensitive_info_types,
         compliance_assessments=compliance_assessments,
         threat_assessment_requests=threat_assessment_requests,
+        purview_incidents=purview_incidents,
     )
 
     payload_dict = payload.to_dict()

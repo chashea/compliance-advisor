@@ -42,6 +42,7 @@ PAYLOAD_SCHEMA: dict = {
         "sensitive_info_types",
         "compliance_assessments",
         "threat_assessment_requests",
+        "purview_incidents",
         "collector_version",
     ],
     "properties": {
@@ -208,6 +209,14 @@ PAYLOAD_SCHEMA: dict = {
                 "type": "object",
                 "required": ["request_id"],
                 "properties": {"request_id": {"type": "string", "minLength": 1}},
+            },
+        },
+        "purview_incidents": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["incident_id"],
+                "properties": {"incident_id": {"type": "string", "minLength": 1}},
             },
         },
         "collector_version": {"type": "string"},

@@ -743,6 +743,58 @@ def upsert_threat_assessment_request(
     )
 
 
+def upsert_purview_incident(
+    tenant_id: str,
+    incident_id: str,
+    display_name: str,
+    severity: str,
+    status: str,
+    classification: str,
+    determination: str,
+    created: str,
+    last_update: str,
+    assigned_to: str,
+    alerts_count: int,
+    purview_alerts_count: int,
+    snapshot_date: str,
+) -> None:
+    execute(
+        """
+        INSERT INTO purview_incidents
+            (tenant_id, incident_id, display_name, severity, status,
+             classification, determination, created, last_update, assigned_to,
+             alerts_count, purview_alerts_count, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (tenant_id, incident_id, snapshot_date) DO UPDATE SET
+            display_name = EXCLUDED.display_name,
+            severity = EXCLUDED.severity,
+            status = EXCLUDED.status,
+            classification = EXCLUDED.classification,
+            determination = EXCLUDED.determination,
+            created = EXCLUDED.created,
+            last_update = EXCLUDED.last_update,
+            assigned_to = EXCLUDED.assigned_to,
+            alerts_count = EXCLUDED.alerts_count,
+            purview_alerts_count = EXCLUDED.purview_alerts_count
+        """,
+        (
+            tenant_id,
+            incident_id,
+            display_name,
+            severity,
+            status,
+            classification,
+            determination,
+            created,
+            last_update,
+            assigned_to,
+            alerts_count,
+            purview_alerts_count,
+            snapshot_date,
+        ),
+    )
+
+
 def upsert_improvement_action(
     tenant_id: str,
     control_id: str,

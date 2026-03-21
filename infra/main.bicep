@@ -108,6 +108,8 @@ module network 'modules/network.bicep' = {
     location: location
     keyVaultId: keyVault.outputs.keyVaultId
     keyVaultName: keyVaultName
+    postgresServerId: postgres.outputs.serverId
+    postgresServerName: postgresServerName
   }
 }
 
@@ -137,6 +139,7 @@ module webApp 'modules/webapp.bicep' = {
     webAppPlanName: webAppPlanName
     location: location
     functionAppUrl: functionApp.outputs.functionAppUrl
+    virtualNetworkSubnetId: network.outputs.funcIntegrationSubnetId
   }
 }
 

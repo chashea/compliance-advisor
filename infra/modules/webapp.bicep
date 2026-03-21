@@ -4,6 +4,7 @@ param webAppName string
 param webAppPlanName string
 param location string
 param functionAppUrl string
+param virtualNetworkSubnetId string = ''
 
 resource webAppPlan 'Microsoft.Web/serverfarms@2023-01-01' = {
   name: webAppPlanName
@@ -25,6 +26,8 @@ resource webApp 'Microsoft.Web/sites@2023-01-01' = {
   properties: {
     serverFarmId: webAppPlan.id
     httpsOnly: true
+    virtualNetworkSubnetId: !empty(virtualNetworkSubnetId) ? virtualNetworkSubnetId : null
+    vnetRouteAllEnabled: !empty(virtualNetworkSubnetId)
     siteConfig: {
       alwaysOn: true
       linuxFxVersion: 'NODE|20-lts'
@@ -33,6 +36,7 @@ resource webApp 'Microsoft.Web/sites@2023-01-01' = {
       appCommandLine: 'pm2 serve /home/site/wwwroot --no-daemon --spa'
       appSettings: [
         { name: 'VITE_API_BASE_URL', value: functionAppUrl }
+        { name: 'WEBSITE_VNET_ROUTE_ALL', value: !empty(virtualNetworkSubnetId) ? '1' : '0' }
       ]
     }
   }

@@ -74,18 +74,25 @@ def test_skips_when_collector_imports_failed(mock_get_settings, mock_query):
 @patch("functions.function_app.upsert_secure_score")
 @patch("functions.function_app.upsert_user_content_policies")
 @patch(
-    "functions.function_app.collect_ediscovery",
-    return_value=[
+    "functions.function_app.collect_ediscovery_with_diagnostics",
+    return_value=(
+        [
+            {
+                "case_id": "c1",
+                "display_name": "Case 1",
+                "status": "active",
+                "created": "",
+                "closed": "",
+                "external_id": "",
+                "custodian_count": 0,
+            }
+        ],
         {
-            "case_id": "c1",
-            "display_name": "Case 1",
-            "status": "active",
-            "created": "",
-            "closed": "",
-            "external_id": "",
-            "custodian_count": 0,
-        }
-    ],
+            "status": "ok",
+            "endpoint": "https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases",
+            "http_status": 200,
+        },
+    ),
 )
 @patch(
     "functions.function_app.collect_sensitivity_labels",
@@ -106,6 +113,7 @@ def test_skips_when_collector_imports_failed(mock_get_settings, mock_query):
 @patch("functions.function_app.collect_audit_log_records", return_value=[])
 @patch("functions.function_app.collect_dlp_alerts", return_value=[])
 @patch("functions.function_app.collect_irm_alerts", return_value=[])
+@patch("functions.function_app.collect_purview_incidents", return_value=[])
 @patch("functions.function_app.collect_protection_scopes", return_value=[])
 @patch(
     "functions.function_app.collect_secure_scores",
@@ -145,6 +153,7 @@ def test_collects_and_upserts(
     mock_actions,
     mock_scores,
     mock_scopes,
+    mock_incidents,
     mock_irm,
     mock_dlp,
     mock_audit,
@@ -178,12 +187,23 @@ def test_collects_and_upserts(
 @patch("functions.function_app._COLLECTOR_IMPORT_ERROR", None)
 @patch("functions.function_app.update_tenant_status")
 @patch("functions.function_app.upsert_tenant")
-@patch("functions.function_app.collect_ediscovery", return_value=[])
+@patch(
+    "functions.function_app.collect_ediscovery_with_diagnostics",
+    return_value=(
+        [],
+        {
+            "status": "ok",
+            "endpoint": "https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases",
+            "http_status": 200,
+        },
+    ),
+)
 @patch("functions.function_app.collect_sensitivity_labels", return_value=[])
 @patch("functions.function_app.collect_retention_events", return_value=[])
 @patch("functions.function_app.collect_audit_log_records", return_value=[])
 @patch("functions.function_app.collect_dlp_alerts", return_value=[])
 @patch("functions.function_app.collect_irm_alerts", return_value=[])
+@patch("functions.function_app.collect_purview_incidents", return_value=[])
 @patch("functions.function_app.collect_protection_scopes", return_value=[])
 @patch("functions.function_app.collect_secure_scores", return_value=[])
 @patch("functions.function_app.collect_improvement_actions", return_value=[])
@@ -209,6 +229,7 @@ def test_per_tenant_error_isolation(
     mock_actions,
     mock_scores,
     mock_scopes,
+    mock_incidents,
     mock_irm,
     mock_dlp,
     mock_audit,

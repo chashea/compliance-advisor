@@ -11,6 +11,7 @@ from shared.dashboard_queries import (
     get_irm,
     get_labels,
     get_overview,
+    get_purview_incidents,
     get_status,
     get_trend,
 )
@@ -167,6 +168,19 @@ def test_get_irm_returns_all_sections(mock_q):
     assert "evidence_summary" in result
     assert "classification_breakdown" in result
     assert result["evidence_summary"]["total_evidence_items"] == 0
+
+
+@patch("shared.dashboard_queries.query")
+def test_get_purview_incidents_returns_all_sections(mock_q):
+    mock_q.side_effect = [
+        [{"incident_id": "inc-1", "severity": "high"}],
+        [{"severity": "high", "total": 1, "active": 1}],
+        [{"status": "active", "total": 1}],
+    ]
+    result = get_purview_incidents()
+    assert "incidents" in result
+    assert "severity_breakdown" in result
+    assert "status_breakdown" in result
 
 
 # ── get_governance ────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-// Virtual Network with Private Endpoint for Key Vault
+// Virtual Network with Private Endpoints for Key Vault + PostgreSQL
 //
 // Provides:
 // - VNet with two subnets (function-app integration + private endpoints)
@@ -9,6 +9,8 @@ param vnetName string
 param location string
 param keyVaultId string
 param keyVaultName string
+param postgresServerId string
+param postgresServerName string
 
 var vnetAddressPrefix = '10.0.0.0/16'
 var funcIntegrationSubnetName = 'snet-func-integration'
@@ -96,6 +98,59 @@ resource privateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneG
         name: 'privatelink-vaultcore-azure-net'
         properties: {
           privateDnsZoneId: privateDnsZone.id
+        }
+      }
+    ]
+  }
+}
+
+// ── Private DNS Zone for PostgreSQL ───────────────────────────────
+resource postgresPrivateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = {
+  name: 'privatelink.postgres.database.azure.com'
+  location: 'global'
+}
+
+resource postgresDnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = {
+  parent: postgresPrivateDnsZone
+  name: '${vnetName}-link'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: vnet.id
+    }
+  }
+}
+
+// ── Private Endpoint for PostgreSQL ───────────────────────────────
+resource postgresPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = {
+  name: '${postgresServerName}-pe'
+  location: location
+  properties: {
+    subnet: {
+      id: vnet.properties.subnets[1].id
+    }
+    privateLinkServiceConnections: [
+      {
+        name: '${postgresServerName}-connection'
+        properties: {
+          privateLinkServiceId: postgresServerId
+          groupIds: ['postgresqlServer']
+        }
+      }
+    ]
+  }
+}
+
+resource postgresPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-01-01' = {
+  parent: postgresPrivateEndpoint
+  name: 'default'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'privatelink-postgres-database-azure-com'
+        properties: {
+          privateDnsZoneId: postgresPrivateDnsZone.id
         }
       }
     ]
