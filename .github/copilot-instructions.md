@@ -32,7 +32,7 @@ You are a **Senior Full-Stack Developer** building a multi-tenant compliance das
 | Azure OpenAI | `cadvisor-oai-{uniqueSuffix}` |
 | PostgreSQL | `cadvisor-pg-{uniqueSuffix}` |
 | App Registration | `compliance-advisor-collector` (28ce4587-...) |
-| Version | v0.32.0 |
+| Version | v0.33.0 |
 
 ## Build & Run Commands
 

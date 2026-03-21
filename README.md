@@ -42,20 +42,21 @@ React SPA (`cadvisor-web-prod`)
 | Secure Score | Overall + Data category score | `/security/secureScores` + `/security/secureScoreControlProfiles` |
 | Improvement Actions | Secure Score control profiles (Data category) | `/security/secureScoreControlProfiles?$filter=controlCategory eq 'Data'` |
 | Information Barriers | Segment policies | `/beta/identityGovernance/informationBarriers/policies` |
+| Purview Incidents | Security incidents with Purview-correlated alerts | `/security/incidents` filtered by Purview service sources |
 
 > **Note:** DLP and IRM alerts use the legacy `/v1.0/security/alerts` endpoint (not `alerts_v2`) because IRM alerts have no valid `serviceSource` enum in `alerts_v2` and DLP alerts surface more reliably via the Defender product name filter.
 
 ## Features
 
-- **React SPA frontend** with 10 pages: Overview, eDiscovery, Labels, Audit, DLP, IRM, Info Barriers, Governance, Trend, Actions
+- **React SPA frontend** with 10 pages: Overview, eDiscovery, Labels, Audit, Alerts (DLP + IRM + Purview Incidents), Info Barriers, Governance, Trend, Actions
 - Secure Score Data category KPI showing `current / max` points and percentage
 - Improvement Actions filtered to Data category by default with category/cost/tier filters
 - Agency/department dropdown filter with active filter state summary and clear reset
 - DLP alert monitoring with inline severity chart and severity/status/tenant filters
 - Insider Risk Management alert monitoring with severity/status filters
+- Purview Incidents tracking with severity, status, classification, and alert correlation
 - eDiscovery case tracking with custodian counts
 - Sensitivity and retention label inventory
-- Communication Compliance policy monitoring
 - Information Barriers policy visibility
 - Audit log activity summaries by service and operation
 - Data governance protection scope visibility
@@ -83,6 +84,7 @@ All permissions are **Application** type (not delegated) granted to the multi-te
 | `AuditLogsQuery.Read.All` | Audit log queries |
 | `SecurityEvents.Read.All` | Secure Score, Improvement Actions |
 | `SecurityAlert.Read.All` | DLP alerts, IRM alerts |
+| `SecurityIncident.Read.All` | Purview incidents |
 | `Policy.Read.All` | Information barriers, DLP/IRM policies, protection scopes |
 | `User.Read.All` | User enumeration (for content policy probing) |
 | `MailboxSettings.Read` | User content policies |
@@ -334,7 +336,7 @@ compliance-advisor/
 ├── frontend/          React 18 + TypeScript + Vite SPA
 ├── collector/          Per-tenant data collector (Python CLI)
 ├── functions/          Azure Functions v2 API backend
-├── sql/                PostgreSQL schema (17 tables)
+├── sql/                PostgreSQL schema (18 tables)
 ├── infra/              Bicep IaC templates (PostgreSQL, Function App, Key Vault, OpenAI, Monitoring)
 ├── tests/              pytest test suite
 └── .github/workflows/  CI/CD (deploy + app-hours scheduler)

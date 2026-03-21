@@ -35,7 +35,7 @@ Project-specific guidance. Global conventions (communication style, git workflow
 | Azure OpenAI | `cadvisor-oai-{uniqueSuffix}` |
 | PostgreSQL | `cadvisor-pg-{uniqueSuffix}` |
 | App Registration | `compliance-advisor-collector` (28ce4587-...) |
-| Version | v0.32.0 |
+| Version | v0.33.0 |
 
 ## Build & Run Commands
 
