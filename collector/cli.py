@@ -24,6 +24,7 @@ from collector.compliance_client import (
     get_irm_alerts,
     get_irm_policies,
     get_protection_scopes,
+    get_retention_event_types,
     get_retention_events,
     get_secure_scores,
     get_sensitive_info_types,
@@ -117,6 +118,9 @@ def main(
     click.echo("  Retention Events...")
     retention_events = get_retention_events(token)
 
+    click.echo("  Retention Event Types...")
+    retention_event_types = get_retention_event_types(token)
+
     click.echo("  Audit Log Records...")
     audit_records = get_audit_log_records(token, days=settings.AUDIT_LOG_DAYS)
 
@@ -181,6 +185,7 @@ def main(
         ediscovery_cases=ediscovery_cases,
         sensitivity_labels=sensitivity_labels,
         retention_events=retention_events,
+        retention_event_types=retention_event_types,
         audit_records=audit_records,
         dlp_alerts=dlp_alerts,
         irm_alerts=irm_alerts,
