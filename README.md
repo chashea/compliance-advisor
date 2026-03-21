@@ -103,8 +103,12 @@ Connect-IPPSSession
 # Register the service principal (use the SP Object ID from Entra in that tenant)
 New-ServicePrincipal -AppId <CLIENT_ID> -ObjectId <SP_OBJECT_ID> -DisplayName "compliance-advisor-collector"
 
+# Add as eDiscovery Case Admin (required for app-only eDiscovery API access)
+Add-eDiscoveryCaseAdmin -User <SP_OBJECT_ID>
+
 # Verify
 Get-ServicePrincipal
+Get-eDiscoveryCaseAdmin
 ```
 
 Then add the service principal to the **eDiscovery Administrator** role group in the [Microsoft Purview portal](https://purview.microsoft.com) → Roles & Scopes → Permissions.
