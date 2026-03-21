@@ -345,6 +345,81 @@ def get_audit(department: str | None = None, tenant_id: str | None = None) -> di
     }
 
 
+def _compute_evidence_summary(alerts: list[dict]) -> dict:
+    """Compute evidence summary from alert rows that include an evidence JSONB column."""
+    remediation_counts: dict[str, int] = {}
+    verdict_counts: dict[str, int] = {}
+    type_counts: dict[str, int] = {}
+    total = 0
+
+    for alert in alerts:
+        evidence = alert.get("evidence") or []
+        if isinstance(evidence, str):
+            import json as _json
+
+            try:
+                evidence = _json.loads(evidence)
+            except (ValueError, TypeError):
+                evidence = []
+        for e in evidence:
+            total += 1
+            rs = e.get("remediation_status", "") or ""
+            if rs:
+                remediation_counts[rs] = remediation_counts.get(rs, 0) + 1
+            v = e.get("verdict", "") or ""
+            if v:
+                verdict_counts[v] = verdict_counts.get(v, 0) + 1
+            et = e.get("type", "") or ""
+            if et:
+                type_counts[et] = type_counts.get(et, 0) + 1
+
+    return {
+        "remediation_breakdown": [{"status": k, "count": v} for k, v in remediation_counts.items()],
+        "verdict_breakdown": [{"verdict": k, "count": v} for k, v in verdict_counts.items()],
+        "evidence_type_breakdown": [{"type": k, "count": v} for k, v in type_counts.items()],
+        "total_evidence_items": total,
+    }
+
+
+def _evidence_summary_sql(table: str, alias: str, dept_filter: str, tenant_filter: str) -> str:
+    """Return SQL for evidence summary from a JSONB evidence column."""
+    latest = f"SELECT MAX(snapshot_date) FROM {table} _sub WHERE _sub.tenant_id = {alias}.tenant_id"
+    return f"""
+        WITH latest_alerts AS (
+            SELECT {alias}.evidence
+            FROM {table} {alias}
+            JOIN tenants t ON t.tenant_id = {alias}.tenant_id
+            WHERE {alias}.snapshot_date = ({latest})
+              {dept_filter}
+              {tenant_filter}
+        ),
+        evidence_items AS (
+            SELECT e->>'type' AS etype,
+                   e->>'remediation_status' AS remediation_status,
+                   e->>'verdict' AS verdict
+            FROM latest_alerts, jsonb_array_elements(evidence) AS e
+        )
+        SELECT
+            COALESCE(json_agg(DISTINCT jsonb_build_object('status', remediation_status, 'count', rem_cnt))
+                     FILTER (WHERE remediation_status IS NOT NULL AND remediation_status != ''), '[]'::json)
+                AS remediation_breakdown,
+            COALESCE(json_agg(DISTINCT jsonb_build_object('verdict', verdict, 'count', verd_cnt))
+                     FILTER (WHERE verdict IS NOT NULL AND verdict != ''), '[]'::json)
+                AS verdict_breakdown,
+            COALESCE(json_agg(DISTINCT jsonb_build_object('type', etype, 'count', type_cnt))
+                     FILTER (WHERE etype IS NOT NULL AND etype != ''), '[]'::json)
+                AS evidence_type_breakdown,
+            COUNT(*)::int AS total_evidence_items
+        FROM (
+            SELECT remediation_status, verdict, etype,
+                   COUNT(*) OVER (PARTITION BY remediation_status) AS rem_cnt,
+                   COUNT(*) OVER (PARTITION BY verdict) AS verd_cnt,
+                   COUNT(*) OVER (PARTITION BY etype) AS type_cnt
+            FROM evidence_items
+        ) sub
+    """
+
+
 def get_dlp(department: str | None = None, tenant_id: str | None = None) -> dict:
     """POST /api/advisor/dlp — DLP alerts."""
     dept_filter = ""
@@ -361,7 +436,9 @@ def get_dlp(department: str | None = None, tenant_id: str | None = None) -> dict
         f"""
         SELECT da.alert_id, da.title, da.severity, da.status, da.category,
                da.policy_name, da.created, da.resolved, da.description,
-               da.assigned_to, t.display_name AS tenant_name
+               da.assigned_to, da.classification, da.determination,
+               da.recommended_actions, da.incident_id, da.mitre_techniques,
+               da.evidence, t.display_name AS tenant_name
         FROM dlp_alerts da
         JOIN tenants t ON t.tenant_id = da.tenant_id
         WHERE da.snapshot_date = (
@@ -426,10 +503,32 @@ def get_dlp(department: str | None = None, tenant_id: str | None = None) -> dict
         params,
     )
 
+    classification_breakdown = query(
+        f"""
+        SELECT da.classification, COUNT(*)::int AS count
+        FROM dlp_alerts da
+        JOIN tenants t ON t.tenant_id = da.tenant_id
+        WHERE da.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM dlp_alerts _sub
+                WHERE _sub.tenant_id = da.tenant_id
+            )
+          AND da.classification != ''
+          {dept_filter}
+          {tenant_filter}
+        GROUP BY da.classification
+        ORDER BY count DESC
+        """,
+        params,
+    )
+
+    evidence_summary = _compute_evidence_summary(alerts)
+
     return {
         "alerts": alerts,
         "severity_breakdown": severity_breakdown,
         "policy_breakdown": policy_breakdown,
+        "evidence_summary": evidence_summary,
+        "classification_breakdown": classification_breakdown,
     }
 
 
@@ -513,7 +612,9 @@ def get_irm(department: str | None = None, tenant_id: str | None = None) -> dict
         f"""
         SELECT ia.alert_id, ia.title, ia.severity, ia.status, ia.category,
                ia.policy_name, ia.created, ia.resolved, ia.description,
-               ia.assigned_to, t.display_name AS tenant_name
+               ia.assigned_to, ia.classification, ia.determination,
+               ia.recommended_actions, ia.incident_id, ia.mitre_techniques,
+               ia.evidence, t.display_name AS tenant_name
         FROM irm_alerts ia
         JOIN tenants t ON t.tenant_id = ia.tenant_id
         WHERE ia.snapshot_date = (
@@ -559,7 +660,32 @@ def get_irm(department: str | None = None, tenant_id: str | None = None) -> dict
         params,
     )
 
-    return {"alerts": alerts, "severity_breakdown": severity_breakdown}
+    classification_breakdown = query(
+        f"""
+        SELECT ia.classification, COUNT(*)::int AS count
+        FROM irm_alerts ia
+        JOIN tenants t ON t.tenant_id = ia.tenant_id
+        WHERE ia.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM irm_alerts _sub
+                WHERE _sub.tenant_id = ia.tenant_id
+            )
+          AND ia.classification != ''
+          {dept_filter}
+          {tenant_filter}
+        GROUP BY ia.classification
+        ORDER BY count DESC
+        """,
+        params,
+    )
+
+    evidence_summary = _compute_evidence_summary(alerts)
+
+    return {
+        "alerts": alerts,
+        "severity_breakdown": severity_breakdown,
+        "evidence_summary": evidence_summary,
+        "classification_breakdown": classification_breakdown,
+    }
 
 
 

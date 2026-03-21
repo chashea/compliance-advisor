@@ -327,13 +327,21 @@ def upsert_dlp_alert(
     snapshot_date: str,
     description: str = "",
     assigned_to: str = "",
+    classification: str = "",
+    determination: str = "",
+    recommended_actions: str = "",
+    incident_id: str = "",
+    mitre_techniques: str = "",
+    evidence: list | None = None,
 ) -> None:
     execute(
         """
         INSERT INTO dlp_alerts
             (tenant_id, alert_id, title, severity, status, category,
-             policy_name, created, resolved, description, assigned_to, snapshot_date)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             policy_name, created, resolved, description, assigned_to,
+             classification, determination, recommended_actions,
+             incident_id, mitre_techniques, evidence, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (tenant_id, alert_id, snapshot_date) DO UPDATE SET
             title = EXCLUDED.title,
             severity = EXCLUDED.severity,
@@ -343,7 +351,13 @@ def upsert_dlp_alert(
             created = EXCLUDED.created,
             resolved = EXCLUDED.resolved,
             description = EXCLUDED.description,
-            assigned_to = EXCLUDED.assigned_to
+            assigned_to = EXCLUDED.assigned_to,
+            classification = EXCLUDED.classification,
+            determination = EXCLUDED.determination,
+            recommended_actions = EXCLUDED.recommended_actions,
+            incident_id = EXCLUDED.incident_id,
+            mitre_techniques = EXCLUDED.mitre_techniques,
+            evidence = EXCLUDED.evidence
         """,
         (
             tenant_id,
@@ -357,6 +371,12 @@ def upsert_dlp_alert(
             resolved,
             description,
             assigned_to,
+            classification,
+            determination,
+            recommended_actions,
+            incident_id,
+            mitre_techniques,
+            Json(evidence or []),
             snapshot_date,
         ),
     )
@@ -397,13 +417,21 @@ def upsert_irm_alert(
     snapshot_date: str,
     description: str = "",
     assigned_to: str = "",
+    classification: str = "",
+    determination: str = "",
+    recommended_actions: str = "",
+    incident_id: str = "",
+    mitre_techniques: str = "",
+    evidence: list | None = None,
 ) -> None:
     execute(
         """
         INSERT INTO irm_alerts
             (tenant_id, alert_id, title, severity, status, category,
-             policy_name, created, resolved, description, assigned_to, snapshot_date)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             policy_name, created, resolved, description, assigned_to,
+             classification, determination, recommended_actions,
+             incident_id, mitre_techniques, evidence, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (tenant_id, alert_id, snapshot_date) DO UPDATE SET
             title = EXCLUDED.title,
             severity = EXCLUDED.severity,
@@ -413,7 +441,13 @@ def upsert_irm_alert(
             created = EXCLUDED.created,
             resolved = EXCLUDED.resolved,
             description = EXCLUDED.description,
-            assigned_to = EXCLUDED.assigned_to
+            assigned_to = EXCLUDED.assigned_to,
+            classification = EXCLUDED.classification,
+            determination = EXCLUDED.determination,
+            recommended_actions = EXCLUDED.recommended_actions,
+            incident_id = EXCLUDED.incident_id,
+            mitre_techniques = EXCLUDED.mitre_techniques,
+            evidence = EXCLUDED.evidence
         """,
         (
             tenant_id,
@@ -427,6 +461,12 @@ def upsert_irm_alert(
             resolved,
             description,
             assigned_to,
+            classification,
+            determination,
+            recommended_actions,
+            incident_id,
+            mitre_techniques,
+            Json(evidence or []),
             snapshot_date,
         ),
     )

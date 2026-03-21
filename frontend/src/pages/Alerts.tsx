@@ -8,6 +8,7 @@ import { useApi } from "../hooks/useApi";
 import type {
   DLPAlert, DLPResponse, DLPPolicy, DLPPoliciesResponse,
   IRMAlert, IRMResponse, IRMPolicy, IRMPoliciesResponse,
+  EvidenceSummary,
 } from "../types";
 
 const SEVERITY_COLORS: Record<string, string> = {
@@ -15,6 +16,39 @@ const SEVERITY_COLORS: Record<string, string> = {
   medium: "text-amber-400",
   low: "text-navy-400",
 };
+
+const CLASSIFICATION_COLORS: Record<string, string> = {
+  truePositive: "bg-red-500/20 text-red-400",
+  falsePositive: "bg-emerald-500/20 text-emerald-400",
+  informationalExpectedActivity: "bg-sky-500/20 text-sky-400",
+  unknown: "bg-navy-600/40 text-navy-300",
+};
+
+function EvidenceSummaryPanel({ summary }: { summary: EvidenceSummary }) {
+  if (summary.total_evidence_items === 0) return null;
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {summary.verdict_breakdown.length > 0 && (
+        <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5">
+          <h3 className="mb-3 text-sm font-semibold text-navy-200">Evidence by Verdict</h3>
+          <BarChart data={summary.verdict_breakdown} xKey="verdict" yKey="count" color="#8b5cf6" height={200} />
+        </div>
+      )}
+      {summary.remediation_breakdown.length > 0 && (
+        <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5">
+          <h3 className="mb-3 text-sm font-semibold text-navy-200">Remediation Status</h3>
+          <BarChart data={summary.remediation_breakdown} xKey="status" yKey="count" color="#10b981" height={200} />
+        </div>
+      )}
+      {summary.evidence_type_breakdown.length > 0 && (
+        <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5">
+          <h3 className="mb-3 text-sm font-semibold text-navy-200">Evidence Types</h3>
+          <BarChart data={summary.evidence_type_breakdown} xKey="type" yKey="count" color="#06b6d4" height={200} />
+        </div>
+      )}
+    </div>
+  );
+}
 
 type Tab = "dlp-alerts" | "dlp-policies" | "irm-alerts" | "irm-policies";
 
@@ -104,6 +138,7 @@ export default function Alerts() {
               <BarChart data={da.policy_breakdown} xKey="policy_name" yKey="total" color="#3b82f6" height={250} />
             </div>
           )}
+          {da.evidence_summary && <EvidenceSummaryPanel summary={da.evidence_summary} />}
           <DataTable<DLPAlert & Record<string, unknown>>
             columns={[
               { key: "title", label: "Title" },
@@ -115,6 +150,19 @@ export default function Alerts() {
                 ),
               },
               { key: "status", label: "Status" },
+              {
+                key: "classification",
+                label: "Classification",
+                render: (v) => {
+                  const cls = String(v || "");
+                  if (!cls) return <span className="text-navy-500">—</span>;
+                  return (
+                    <span className={`rounded px-2 py-0.5 text-xs font-medium ${CLASSIFICATION_COLORS[cls] ?? "bg-navy-600/40 text-navy-300"}`}>
+                      {cls}
+                    </span>
+                  );
+                },
+              },
               { key: "policy_name", label: "Policy" },
               { key: "created", label: "Created" },
               { key: "tenant_name", label: "Tenant" },
@@ -159,6 +207,7 @@ export default function Alerts() {
               <BarChart data={ia.severity_breakdown} xKey="severity" yKey="total" color="#f59e0b" height={250} />
             </div>
           )}
+          {ia.evidence_summary && <EvidenceSummaryPanel summary={ia.evidence_summary} />}
           <DataTable<IRMAlert & Record<string, unknown>>
             columns={[
               { key: "title", label: "Title" },
@@ -170,6 +219,19 @@ export default function Alerts() {
                 ),
               },
               { key: "status", label: "Status" },
+              {
+                key: "classification",
+                label: "Classification",
+                render: (v) => {
+                  const cls = String(v || "");
+                  if (!cls) return <span className="text-navy-500">—</span>;
+                  return (
+                    <span className={`rounded px-2 py-0.5 text-xs font-medium ${CLASSIFICATION_COLORS[cls] ?? "bg-navy-600/40 text-navy-300"}`}>
+                      {cls}
+                    </span>
+                  );
+                },
+              },
               { key: "policy_name", label: "Policy" },
               { key: "created", label: "Created" },
               { key: "tenant_name", label: "Tenant" },

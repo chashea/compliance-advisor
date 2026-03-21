@@ -129,16 +129,36 @@ def test_get_audit_returns_three_sections(mock_q):
 
 
 @patch("shared.dashboard_queries.query")
-def test_get_dlp_returns_three_sections(mock_q):
+def test_get_dlp_returns_all_sections(mock_q):
     mock_q.side_effect = [
-        [{"alert_id": "a1", "severity": "high"}],
+        [{"alert_id": "a1", "severity": "high", "evidence": [{"type": "mailboxEvidence", "remediation_status": "remediated", "verdict": "malicious", "roles": ["source"], "detailed_roles": []}]}],
         [{"severity": "high", "total": 1, "active": 1}],
         [{"policy_name": "DLP-1", "total": 1}],
+        [{"classification": "truePositive", "count": 1}],
     ]
     result = get_dlp()
     assert "alerts" in result
     assert "severity_breakdown" in result
     assert "policy_breakdown" in result
+    assert "evidence_summary" in result
+    assert "classification_breakdown" in result
+    assert result["evidence_summary"]["total_evidence_items"] == 1
+    assert result["evidence_summary"]["verdict_breakdown"][0]["verdict"] == "malicious"
+
+
+@patch("shared.dashboard_queries.query")
+def test_get_irm_returns_all_sections(mock_q):
+    mock_q.side_effect = [
+        [{"alert_id": "i1", "severity": "high", "evidence": []}],
+        [{"severity": "high", "total": 1, "active": 1}],
+        [{"classification": "unknown", "count": 1}],
+    ]
+    result = get_irm()
+    assert "alerts" in result
+    assert "severity_breakdown" in result
+    assert "evidence_summary" in result
+    assert "classification_breakdown" in result
+    assert result["evidence_summary"]["total_evidence_items"] == 0
 
 
 # ── get_governance ────────────────────────────────────────────────

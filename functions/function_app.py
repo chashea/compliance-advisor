@@ -704,6 +704,12 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 snapshot_date=snapshot_date,
                 description=da.get("description", ""),
                 assigned_to=da.get("assigned_to", ""),
+                classification=da.get("classification", ""),
+                determination=da.get("determination", ""),
+                recommended_actions=da.get("recommended_actions", ""),
+                incident_id=da.get("incident_id", ""),
+                mitre_techniques=da.get("mitre_techniques", ""),
+                evidence=da.get("evidence", []),
             )
 
         # Upsert protection scopes
@@ -732,6 +738,12 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 snapshot_date=snapshot_date,
                 description=ia.get("description", ""),
                 assigned_to=ia.get("assigned_to", ""),
+                classification=ia.get("classification", ""),
+                determination=ia.get("determination", ""),
+                recommended_actions=ia.get("recommended_actions", ""),
+                incident_id=ia.get("incident_id", ""),
+                mitre_techniques=ia.get("mitre_techniques", ""),
+                evidence=ia.get("evidence", []),
             )
 
 
@@ -1045,6 +1057,12 @@ def _collect_single_tenant(
                 snapshot_date=today,
                 description=da.get("description", ""),
                 assigned_to=da.get("assigned_to", ""),
+                classification=da.get("classification", ""),
+                determination=da.get("determination", ""),
+                recommended_actions=da.get("recommended_actions", ""),
+                incident_id=da.get("incident_id", ""),
+                mitre_techniques=da.get("mitre_techniques", ""),
+                evidence=da.get("evidence", []),
             )
         for ps in scopes:
             upsert_protection_scope(
@@ -1069,6 +1087,12 @@ def _collect_single_tenant(
                 snapshot_date=today,
                 description=ia.get("description", ""),
                 assigned_to=ia.get("assigned_to", ""),
+                classification=ia.get("classification", ""),
+                determination=ia.get("determination", ""),
+                recommended_actions=ia.get("recommended_actions", ""),
+                incident_id=ia.get("incident_id", ""),
+                mitre_techniques=ia.get("mitre_techniques", ""),
+                evidence=ia.get("evidence", []),
             )
         for c in cc:
             upsert_comm_compliance_policy(

@@ -13,6 +13,7 @@ import type {
   DLPAlert,
   IRMResponse,
   IRMAlert,
+  EvidenceSummary,
   CommComplianceResponse,
   CommCompliancePolicy,
   TrendResponse,
@@ -88,17 +89,17 @@ const auditRecords: AuditRecord[] = [
 ];
 
 const dlpAlerts: DLPAlert[] = [
-  { alert_id: "dlp-1", title: "Credit card numbers shared externally", severity: "High", status: "Active", category: "DataLoss", policy_name: "PCI-DSS Protection", created: daysAgo(2), resolved: null, tenant_name: "Contoso Ltd" },
-  { alert_id: "dlp-2", title: "SSN detected in email attachment", severity: "High", status: "Resolved", category: "DataLoss", policy_name: "PII Protection", created: daysAgo(10), resolved: daysAgo(8), tenant_name: "Contoso Ltd" },
-  { alert_id: "dlp-3", title: "Bulk file download to USB", severity: "Medium", status: "Active", category: "DataExfiltration", policy_name: "Endpoint DLP", created: daysAgo(1), resolved: null, tenant_name: "Fabrikam Inc" },
-  { alert_id: "dlp-4", title: "Confidential label shared via Teams", severity: "Low", status: "Active", category: "DataLoss", policy_name: "Teams DLP", created: daysAgo(5), resolved: null, tenant_name: "Northwind Traders" },
-  { alert_id: "dlp-5", title: "Financial report uploaded to personal OneDrive", severity: "Medium", status: "Resolved", category: "DataExfiltration", policy_name: "PCI-DSS Protection", created: daysAgo(15), resolved: daysAgo(12), tenant_name: "Northwind Traders" },
+  { alert_id: "dlp-1", title: "Credit card numbers shared externally", severity: "High", status: "Active", category: "DataLoss", policy_name: "PCI-DSS Protection", created: daysAgo(2), resolved: null, tenant_name: "Contoso Ltd", classification: "truePositive", determination: "maliciousUserActivity", recommended_actions: "Review shared files and revoke external access", incident_id: "inc-101", mitre_techniques: "T1567", evidence: [{ type: "mailboxEvidence", remediation_status: "none", verdict: "malicious", roles: ["source"], detailed_roles: ["Sender"] }, { type: "fileEvidence", remediation_status: "blocked", verdict: "malicious", roles: ["contextual"], detailed_roles: ["Shared file"] }] },
+  { alert_id: "dlp-2", title: "SSN detected in email attachment", severity: "High", status: "Resolved", category: "DataLoss", policy_name: "PII Protection", created: daysAgo(10), resolved: daysAgo(8), tenant_name: "Contoso Ltd", classification: "truePositive", determination: "confirmedUserActivity", recommended_actions: "Ensure attachment is removed from recipient mailbox", incident_id: "inc-102", mitre_techniques: "T1048", evidence: [{ type: "mailboxEvidence", remediation_status: "remediated", verdict: "malicious", roles: ["source"], detailed_roles: ["Sender"] }] },
+  { alert_id: "dlp-3", title: "Bulk file download to USB", severity: "Medium", status: "Active", category: "DataExfiltration", policy_name: "Endpoint DLP", created: daysAgo(1), resolved: null, tenant_name: "Fabrikam Inc", classification: "unknown", determination: "", recommended_actions: "Investigate user activity and block USB access", incident_id: "inc-103", mitre_techniques: "T1052,T1041", evidence: [{ type: "deviceEvidence", remediation_status: "none", verdict: "suspicious", roles: ["source"], detailed_roles: ["Endpoint device"] }, { type: "userEvidence", remediation_status: "none", verdict: "suspicious", roles: ["compromised"], detailed_roles: ["User account"] }] },
+  { alert_id: "dlp-4", title: "Confidential label shared via Teams", severity: "Low", status: "Active", category: "DataLoss", policy_name: "Teams DLP", created: daysAgo(5), resolved: null, tenant_name: "Northwind Traders", classification: "informationalExpectedActivity", determination: "confirmedUserActivity", recommended_actions: "", incident_id: "", mitre_techniques: "", evidence: [{ type: "userEvidence", remediation_status: "none", verdict: "noThreatsFound", roles: ["contextual"], detailed_roles: [] }] },
+  { alert_id: "dlp-5", title: "Financial report uploaded to personal OneDrive", severity: "Medium", status: "Resolved", category: "DataExfiltration", policy_name: "PCI-DSS Protection", created: daysAgo(15), resolved: daysAgo(12), tenant_name: "Northwind Traders", classification: "truePositive", determination: "maliciousUserActivity", recommended_actions: "Remove file from personal OneDrive", incident_id: "inc-105", mitre_techniques: "T1567.002", evidence: [{ type: "fileEvidence", remediation_status: "remediated", verdict: "malicious", roles: ["contextual"], detailed_roles: ["Uploaded file"] }, { type: "cloudApplicationEvidence", remediation_status: "remediated", verdict: "suspicious", roles: ["destination"], detailed_roles: ["Personal OneDrive"] }] },
 ];
 
 const irmAlerts: IRMAlert[] = [
-  { alert_id: "irm-1", title: "Unusual volume of file deletions", severity: "High", status: "Active", category: "InsiderRisk", policy_name: "Data Theft — Departing Employee", created: daysAgo(3), resolved: null, tenant_name: "Contoso Ltd" },
-  { alert_id: "irm-2", title: "Sequence of exfiltration activities", severity: "Medium", status: "Active", category: "InsiderRisk", policy_name: "General Data Leaks", created: daysAgo(7), resolved: null, tenant_name: "Fabrikam Inc" },
-  { alert_id: "irm-3", title: "Anomalous access pattern detected", severity: "Low", status: "Resolved", category: "InsiderRisk", policy_name: "Security Policy Violations", created: daysAgo(20), resolved: daysAgo(14), tenant_name: "Northwind Traders" },
+  { alert_id: "irm-1", title: "Unusual volume of file deletions", severity: "High", status: "Active", category: "InsiderRisk", policy_name: "Data Theft — Departing Employee", created: daysAgo(3), resolved: null, tenant_name: "Contoso Ltd", classification: "truePositive", determination: "maliciousUserActivity", recommended_actions: "Review user's recent file activity and interview manager", incident_id: "inc-201", mitre_techniques: "T1485", evidence: [{ type: "userEvidence", remediation_status: "none", verdict: "malicious", roles: ["compromised"], detailed_roles: ["Departing employee"] }, { type: "fileEvidence", remediation_status: "none", verdict: "malicious", roles: ["contextual"], detailed_roles: ["Deleted files"] }] },
+  { alert_id: "irm-2", title: "Sequence of exfiltration activities", severity: "Medium", status: "Active", category: "InsiderRisk", policy_name: "General Data Leaks", created: daysAgo(7), resolved: null, tenant_name: "Fabrikam Inc", classification: "unknown", determination: "", recommended_actions: "Monitor user and restrict sharing permissions", incident_id: "inc-202", mitre_techniques: "T1567,T1048", evidence: [{ type: "userEvidence", remediation_status: "none", verdict: "suspicious", roles: ["source"], detailed_roles: ["User account"] }, { type: "cloudApplicationEvidence", remediation_status: "none", verdict: "suspicious", roles: ["destination"], detailed_roles: ["External cloud app"] }] },
+  { alert_id: "irm-3", title: "Anomalous access pattern detected", severity: "Low", status: "Resolved", category: "InsiderRisk", policy_name: "Security Policy Violations", created: daysAgo(20), resolved: daysAgo(14), tenant_name: "Northwind Traders", classification: "falsePositive", determination: "securityTesting", recommended_actions: "", incident_id: "", mitre_techniques: "", evidence: [{ type: "ipEvidence", remediation_status: "none", verdict: "noThreatsFound", roles: ["source"], detailed_roles: ["VPN IP address"] }] },
 ];
 
 
@@ -179,6 +180,27 @@ const threatAssessmentRequests: (ThreatAssessmentRequest & { tenant_name: string
   { request_id: "ta-5", category: "spam", content_type: "mail", status: "pending", created: "2026-03-14T16:45:00Z", result_type: "", result_message: "", tenant_name: "Northwind Traders" },
 ];
 
+function computeEvidenceSummary(alerts: (DLPAlert | IRMAlert)[]): EvidenceSummary {
+  const rem: Record<string, number> = {};
+  const verd: Record<string, number> = {};
+  const typ: Record<string, number> = {};
+  let total = 0;
+  for (const a of alerts) {
+    for (const e of a.evidence) {
+      total++;
+      if (e.remediation_status) rem[e.remediation_status] = (rem[e.remediation_status] ?? 0) + 1;
+      if (e.verdict) verd[e.verdict] = (verd[e.verdict] ?? 0) + 1;
+      if (e.type) typ[e.type] = (typ[e.type] ?? 0) + 1;
+    }
+  }
+  return {
+    remediation_breakdown: Object.entries(rem).map(([status, count]) => ({ status, count })),
+    verdict_breakdown: Object.entries(verd).map(([verdict, count]) => ({ verdict, count })),
+    evidence_type_breakdown: Object.entries(typ).map(([type, count]) => ({ type, count })),
+    total_evidence_items: total,
+  };
+}
+
 // --- Main export ---
 
 export function getDemoData(endpoint: string, body?: Record<string, unknown>): unknown {
@@ -250,30 +272,38 @@ export function getDemoData(endpoint: string, body?: Record<string, unknown>): u
       const alerts = filterByDept(dlpAlerts, dept || undefined);
       const sev: Record<string, { total: number; active: number }> = {};
       const pol: Record<string, number> = {};
+      const cls: Record<string, number> = {};
       alerts.forEach((a) => {
         if (!sev[a.severity]) sev[a.severity] = { total: 0, active: 0 };
         sev[a.severity].total++;
         if (a.status === "Active") sev[a.severity].active++;
         pol[a.policy_name] = (pol[a.policy_name] ?? 0) + 1;
+        if (a.classification) cls[a.classification] = (cls[a.classification] ?? 0) + 1;
       });
       return {
         alerts,
         severity_breakdown: Object.entries(sev).map(([severity, v]) => ({ severity, ...v })),
         policy_breakdown: Object.entries(pol).map(([policy_name, total]) => ({ policy_name, total })),
+        evidence_summary: computeEvidenceSummary(alerts),
+        classification_breakdown: Object.entries(cls).map(([classification, count]) => ({ classification, count })),
       } satisfies DLPResponse;
     }
 
     case "irm": {
       const alerts = filterByDept(irmAlerts, dept || undefined);
       const sev: Record<string, { total: number; active: number }> = {};
+      const cls: Record<string, number> = {};
       alerts.forEach((a) => {
         if (!sev[a.severity]) sev[a.severity] = { total: 0, active: 0 };
         sev[a.severity].total++;
         if (a.status === "Active") sev[a.severity].active++;
+        if (a.classification) cls[a.classification] = (cls[a.classification] ?? 0) + 1;
       });
       return {
         alerts,
         severity_breakdown: Object.entries(sev).map(([severity, v]) => ({ severity, ...v })),
+        evidence_summary: computeEvidenceSummary(alerts),
+        classification_breakdown: Object.entries(cls).map(([classification, count]) => ({ classification, count })),
       } satisfies IRMResponse;
     }
 

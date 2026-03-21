@@ -4,7 +4,6 @@ import ActionDrawer from "../components/ActionDrawer";
 import DataTable from "../components/DataTable";
 import ErrorBanner from "../components/ErrorBanner";
 import KPICard from "../components/KPICard";
-import LineChart from "../components/LineChart";
 import Loading from "../components/Loading";
 import ScoreGauge from "../components/ScoreGauge";
 import TenantCard from "../components/TenantCard";
@@ -12,7 +11,6 @@ import { useApi } from "../hooks/useApi";
 import type {
   OverviewResponse,
   StatusResponse,
-  TrendResponse,
   ActionsResponse,
   ImprovementAction,
 } from "../types";
@@ -65,7 +63,6 @@ export default function Overview() {
 
   const status = useApi<StatusResponse>("status", {}, []);
   const overview = useApi<OverviewResponse>("overview", body, [tenantId]);
-  const trend = useApi<TrendResponse>("trend", { ...body, days: 30 }, [tenantId]);
   const actions = useApi<ActionsResponse>("actions", body, [tenantId]);
 
   if (status.loading || overview.loading) return <Loading />;
@@ -244,26 +241,6 @@ export default function Overview() {
               />
             ))}
           </div>
-        </div>
-      )}
-
-      {/* ── 30-Day Trend chart ─────────────────────────────────────── */}
-      {trend.data && trend.data.trend.length > 0 && (
-        <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5">
-          <h3 className="mb-4 text-sm font-semibold text-navy-200">
-            30-Day Compliance Trend
-          </h3>
-          <LineChart
-            data={trend.data.trend}
-            xKey="snapshot_date"
-            series={[
-              { key: "ediscovery_cases", color: "#4a90d9", label: "eDiscovery" },
-              { key: "dlp_alerts", color: "#dc2626", label: "DLP" },
-              { key: "sensitivity_labels", color: "#14b8a6", label: "Sensitivity" },
-              { key: "audit_records", color: "#b8860b", label: "Audit" },
-            ]}
-            height={300}
-          />
         </div>
       )}
 

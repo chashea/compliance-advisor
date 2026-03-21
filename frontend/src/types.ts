@@ -96,6 +96,26 @@ export interface AuditResponse {
 }
 
 // /api/advisor/dlp
+export interface AlertEvidence {
+  type: string;
+  remediation_status: string;
+  verdict: string;
+  roles: string[];
+  detailed_roles: string[];
+}
+
+export interface EvidenceSummary {
+  remediation_breakdown: { status: string; count: number }[];
+  verdict_breakdown: { verdict: string; count: number }[];
+  evidence_type_breakdown: { type: string; count: number }[];
+  total_evidence_items: number;
+}
+
+export interface ClassificationBreakdown {
+  classification: string;
+  count: number;
+}
+
 export interface DLPAlert {
   alert_id: string;
   title: string;
@@ -106,6 +126,12 @@ export interface DLPAlert {
   created: string;
   resolved: string | null;
   tenant_name: string;
+  classification: string;
+  determination: string;
+  recommended_actions: string;
+  incident_id: string;
+  mitre_techniques: string;
+  evidence: AlertEvidence[];
 }
 
 export interface SeverityBreakdown {
@@ -123,6 +149,8 @@ export interface DLPResponse {
   alerts: DLPAlert[];
   severity_breakdown: SeverityBreakdown[];
   policy_breakdown: PolicyBreakdown[];
+  evidence_summary: EvidenceSummary;
+  classification_breakdown: ClassificationBreakdown[];
 }
 
 // /api/advisor/irm
@@ -136,11 +164,19 @@ export interface IRMAlert {
   created: string;
   resolved: string | null;
   tenant_name: string;
+  classification: string;
+  determination: string;
+  recommended_actions: string;
+  incident_id: string;
+  mitre_techniques: string;
+  evidence: AlertEvidence[];
 }
 
 export interface IRMResponse {
   alerts: IRMAlert[];
   severity_breakdown: SeverityBreakdown[];
+  evidence_summary: EvidenceSummary;
+  classification_breakdown: ClassificationBreakdown[];
 }
 
 // /api/advisor/trend

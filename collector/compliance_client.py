@@ -400,6 +400,18 @@ def _alerts_v2(token: str, service_source: str, label: str) -> list[dict[str, An
 
     alerts = []
     for item in items:
+        evidence_raw = item.get("evidence") or []
+        evidence = [
+            {
+                "type": (e.get("@odata.type") or "").replace("#microsoft.graph.security.", ""),
+                "remediation_status": e.get("remediationStatus", ""),
+                "verdict": e.get("verdict", ""),
+                "roles": e.get("roles") or [],
+                "detailed_roles": e.get("detailedRoles") or [],
+            }
+            for e in evidence_raw
+        ]
+        mitre = item.get("mitreTechniques") or []
         alerts.append(
             {
                 "alert_id": item.get("id", ""),
@@ -412,6 +424,12 @@ def _alerts_v2(token: str, service_source: str, label: str) -> list[dict[str, An
                 "policy_name": item.get("alertPolicyId", ""),
                 "description": item.get("description", ""),
                 "assigned_to": item.get("assignedTo", ""),
+                "classification": item.get("classification", ""),
+                "determination": item.get("determination", ""),
+                "recommended_actions": item.get("recommendedActions", ""),
+                "incident_id": item.get("incidentId", ""),
+                "mitre_techniques": ",".join(mitre) if mitre else "",
+                "evidence": evidence,
             }
         )
 

@@ -398,3 +398,18 @@ CREATE INDEX IF NOT EXISTS idx_compliance_trend_snapshot
     ON compliance_trend(snapshot_date);
 
 -- ── Schema migrations ────────────────────────────────────────────
+
+-- v0.33: Add alert evidence + classification fields to DLP and IRM alert tables
+ALTER TABLE dlp_alerts ADD COLUMN IF NOT EXISTS classification TEXT DEFAULT '';
+ALTER TABLE dlp_alerts ADD COLUMN IF NOT EXISTS determination TEXT DEFAULT '';
+ALTER TABLE dlp_alerts ADD COLUMN IF NOT EXISTS recommended_actions TEXT DEFAULT '';
+ALTER TABLE dlp_alerts ADD COLUMN IF NOT EXISTS incident_id TEXT DEFAULT '';
+ALTER TABLE dlp_alerts ADD COLUMN IF NOT EXISTS mitre_techniques TEXT DEFAULT '';
+ALTER TABLE dlp_alerts ADD COLUMN IF NOT EXISTS evidence JSONB DEFAULT '[]'::jsonb;
+
+ALTER TABLE irm_alerts ADD COLUMN IF NOT EXISTS classification TEXT DEFAULT '';
+ALTER TABLE irm_alerts ADD COLUMN IF NOT EXISTS determination TEXT DEFAULT '';
+ALTER TABLE irm_alerts ADD COLUMN IF NOT EXISTS recommended_actions TEXT DEFAULT '';
+ALTER TABLE irm_alerts ADD COLUMN IF NOT EXISTS incident_id TEXT DEFAULT '';
+ALTER TABLE irm_alerts ADD COLUMN IF NOT EXISTS mitre_techniques TEXT DEFAULT '';
+ALTER TABLE irm_alerts ADD COLUMN IF NOT EXISTS evidence JSONB DEFAULT '[]'::jsonb;
