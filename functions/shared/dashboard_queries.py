@@ -1403,7 +1403,7 @@ def get_purview_insights(department: str | None = None, tenant_id: str | None = 
                 ss.snapshot_date,
                 CASE
                     WHEN SUM(ss.data_max_score) = 0 THEN 0
-                    ELSE ROUND((SUM(ss.data_current_score) / SUM(ss.data_max_score)) * 100.0, 2)
+                    ELSE ROUND((((SUM(ss.data_current_score) / SUM(ss.data_max_score)) * 100.0)::numeric), 2)
                 END::real AS data_score_pct
             FROM secure_scores ss
             JOIN tenants t ON t.tenant_id = ss.tenant_id
