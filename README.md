@@ -71,7 +71,7 @@ React SPA (`cadvisor-web-prod`)
 - Azure subscription (Commercial)
 - Access to Microsoft 365 tenant(s) with compliance workloads
 - Multi-tenant Entra app registration with client credentials (client secret)
-- App service principal registered in Exchange Online and added to **eDiscovery Administrator** role group (via PowerShell)
+- App service principal registered via `Connect-IPPSSession` and added to **eDiscovery Administrator** role group in Purview
 - Azure CLI (`az`)
 
 ### Required Graph API Permissions (Application)
@@ -91,22 +91,25 @@ All permissions are **Application** type (not delegated) granted to the multi-te
 | `User.Read.All` | User enumeration (for content policy probing) |
 | `MailboxSettings.Read` | User content policies |
 
-Additionally, the app's service principal must be registered in Exchange Online and assigned to the **eDiscovery Administrator** role group in each tenant. This is required for the eDiscovery Graph API to work with app-only auth:
+Additionally, the app's service principal must be registered in the **Security & Compliance PowerShell** context and assigned to the **eDiscovery Administrator** role group in each tenant. This is required for the eDiscovery Graph API to work with app-only auth:
 
 ```powershell
 # Install module if needed: Install-Module ExchangeOnlineManagement
-Connect-ExchangeOnline
+Import-Module ExchangeOnlineManagement
+
+# Connect to Security & Compliance (NOT Connect-ExchangeOnline)
+Connect-IPPSSession
 
 # Register the service principal (use the SP Object ID from Entra in that tenant)
 New-ServicePrincipal -AppId <CLIENT_ID> -ObjectId <SP_OBJECT_ID> -DisplayName "compliance-advisor-collector"
 
-# Add to eDiscovery Administrator role group
-Add-RoleGroupMember -Identity "eDiscovery Administrator" -Member <SP_OBJECT_ID>
-
-Disconnect-ExchangeOnline
+# Verify
+Get-ServicePrincipal
 ```
 
-> **Note:** To find the SP Object ID in each tenant: `az ad sp show --id <CLIENT_ID> --query id -o tsv` (or use Graph API for cross-tenant). Role changes can take up to 60 minutes to propagate.
+Then add the service principal to the **eDiscovery Administrator** role group in the [Microsoft Purview portal](https://purview.microsoft.com) → Roles & Scopes → Permissions.
+
+> **Note:** To find the SP Object ID in each tenant: `az ad sp show --id <CLIENT_ID> --query id -o tsv`. Role changes can take up to 60 minutes to propagate. The `Connect-IPPSSession` step is critical — registering via `Connect-ExchangeOnline` alone is not sufficient.
 
 ## Local Development
 
@@ -301,7 +304,7 @@ Required secrets:
 1. Grant admin consent for the `compliance-advisor-collector` app in the target tenant:
    - Navigate to `https://login.microsoftonline.com/<TENANT_ID>/adminconsent?client_id=<CLIENT_ID>`
    - Or use the Entra admin center → Enterprise applications → Grant admin consent
-2. Register the app's service principal in Exchange Online and add it to the **eDiscovery Administrator** role group (see PowerShell steps above)
+2. Register the app's service principal via `Connect-IPPSSession` + `New-ServicePrincipal` and add it to the **eDiscovery Administrator** role group in Purview (see PowerShell steps above)
 3. Add the tenant GUID to `ALLOWED_TENANT_IDS` in the Function App config (if allowlist is enabled)
 4. Run the collector:
    ```bash
