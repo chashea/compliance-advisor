@@ -27,7 +27,6 @@ PAYLOAD_SCHEMA: dict = {
         "timestamp",
         "ediscovery_cases",
         "sensitivity_labels",
-        "retention_labels",
         "retention_events",
         "retention_event_types",
         "audit_records",
@@ -61,14 +60,6 @@ PAYLOAD_SCHEMA: dict = {
             },
         },
         "sensitivity_labels": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "required": ["label_id"],
-                "properties": {"label_id": {"type": "string", "minLength": 1}},
-            },
-        },
-        "retention_labels": {
             "type": "array",
             "items": {
                 "type": "object",

@@ -14,7 +14,7 @@ export interface Tenant {
 export interface OverviewResponse {
   tenants: Tenant[];
   ediscovery_summary: { total_cases: number; active_cases: number };
-  labels_summary: { sensitivity_labels: number; protected_labels: number; retention_labels: number };
+  labels_summary: { sensitivity_labels: number; protected_labels: number };
   dlp_summary: { total_dlp_alerts: number; high_alerts: number; medium_alerts: number; active_alerts: number };
   audit_summary: { total_records: number };
   threat_summary: { total_requests: number; spam: number; phishing: number; malware: number };
@@ -59,17 +59,6 @@ export interface SensitivityLabel {
   tenant_name: string;
 }
 
-export interface RetentionLabel {
-  label_id: string;
-  display_name: string;
-  retention_duration: string;
-  retention_trigger: string;
-  action_after_retention: string;
-  is_in_use: boolean;
-  status: string;
-  tenant_name: string;
-}
-
 export interface RetentionEvent {
   event_id: string;
   display_name: string;
@@ -81,7 +70,6 @@ export interface RetentionEvent {
 
 export interface LabelsResponse {
   sensitivity_labels: SensitivityLabel[];
-  retention_labels: RetentionLabel[];
   retention_events: RetentionEvent[];
 }
 
@@ -160,7 +148,6 @@ export interface TrendPoint {
   snapshot_date: string;
   ediscovery_cases: number;
   sensitivity_labels: number;
-  retention_labels: number;
   dlp_alerts: number;
   audit_records: number;
   tenant_count: number;

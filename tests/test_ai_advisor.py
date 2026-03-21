@@ -31,8 +31,6 @@ def test_build_context_with_data(mock_query):
         [{"title": "DLP Alert 1", "severity": "High", "status": "New"}],
         # audit count
         [{"cnt": 42}],
-        # retention labels
-        [{"display_name": "Retain 7yr", "retention_duration": "7 years", "is_in_use": True}],
         # secure scores
         [
             {
@@ -60,17 +58,16 @@ def test_build_context_with_data(mock_query):
     assert "1 active" in ctx
     assert "DLP Alert 1" in ctx
     assert "42" in ctx
-    assert "1 in use" in ctx
     assert "100/200" in ctx
     assert "Enable MFA" in ctx
-    assert mock_query.call_count == 8
+    assert mock_query.call_count == 7
 
 
 @patch("shared.ai_advisor.query")
 def test_build_context_empty(mock_query):
     mock_query.return_value = []
     # The last query for audit count returns [] too, so handle that
-    mock_query.side_effect = [[], [], [], [], [{"cnt": 0}], [], [], []]
+    mock_query.side_effect = [[], [], [], [], [{"cnt": 0}], [], []]
     ctx = _build_context(department="NonExistent")
     assert "Tenants (0)" in ctx
 

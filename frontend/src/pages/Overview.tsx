@@ -23,11 +23,6 @@ const IconSearch = (
     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
   </svg>
 );
-const IconShield = (
-  <svg className="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-  </svg>
-);
 const IconTag = (
   <svg className="h-5 w-5 text-gold-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z" />
@@ -213,12 +208,6 @@ export default function Overview() {
             label="Sensitivity Labels"
             delta={`${o.labels_summary?.protected_labels ?? 0} protected`}
             deltaUp
-          />
-          <KPICard
-            icon={IconShield}
-            iconBg="bg-gold-500/20"
-            value={o.labels_summary?.retention_labels ?? 0}
-            label="Retention Labels"
           />
           <KPICard
             icon={IconClipboard}

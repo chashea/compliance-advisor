@@ -147,18 +147,6 @@ def _build_context(department: str | None = None, tenant_id: str | None = None) 
     )
     sections.append(f"\n## Audit Records: {audit_count[0]['cnt'] if audit_count else 0}")
 
-    # Retention labels
-    retention = query(
-        f"""SELECT rl.display_name, rl.retention_duration, rl.is_in_use
-            FROM retention_labels rl
-            JOIN tenants t ON rl.tenant_id = t.tenant_id
-            WHERE rl.snapshot_date = (SELECT MAX(snapshot_date) FROM retention_labels WHERE tenant_id = rl.tenant_id)
-            {dept_filter} {tenant_filter}""",
-        dept_params,
-    )
-    in_use = sum(1 for r in retention if r["is_in_use"])
-    sections.append(f"\n## Retention Labels ({len(retention)} total, {in_use} in use)")
-
     # Secure scores
     scores = query(
         f"""SELECT ss.current_score, ss.max_score, ss.data_current_score, ss.data_max_score, ss.score_date

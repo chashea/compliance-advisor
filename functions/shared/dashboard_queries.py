@@ -94,14 +94,7 @@ def get_overview(department: str | None = None, tenant_id: str | None = None) ->
                 WHERE _sub.tenant_id = sl.tenant_id
             )
                AND sl.has_protection = TRUE
-               {and_dept} {and_tenant}) AS protected_labels,
-            (SELECT COUNT(*)::int FROM retention_labels rl
-             JOIN tenants t ON t.tenant_id = rl.tenant_id
-             WHERE rl.snapshot_date = (
-                SELECT MAX(snapshot_date) FROM retention_labels _sub
-                WHERE _sub.tenant_id = rl.tenant_id
-            )
-               {and_dept} {and_tenant}) AS retention_labels
+               {and_dept} {and_tenant}) AS protected_labels
         """,
         params,
     )
@@ -255,25 +248,6 @@ def get_labels(department: str | None = None, tenant_id: str | None = None) -> d
         params,
     )
 
-    retention = query(
-        f"""
-        SELECT rl.label_id, rl.display_name, rl.retention_duration, rl.retention_trigger,
-               rl.action_after_retention, rl.is_in_use, rl.status,
-               t.display_name AS tenant_name
-        FROM retention_labels rl
-        JOIN tenants t ON t.tenant_id = rl.tenant_id
-        WHERE rl.snapshot_date = (
-                SELECT MAX(snapshot_date) FROM retention_labels _sub
-                WHERE _sub.tenant_id = rl.tenant_id
-            )
-          {dept_filter}
-          {tenant_filter}
-        ORDER BY rl.display_name
-        LIMIT 1000
-        """,
-        params,
-    )
-
     retention_events = query(
         f"""
         SELECT re.event_id, re.display_name, re.event_type, re.created, re.event_status,
@@ -294,7 +268,6 @@ def get_labels(department: str | None = None, tenant_id: str | None = None) -> d
 
     return {
         "sensitivity_labels": sensitivity,
-        "retention_labels": retention,
         "retention_events": retention_events,
     }
 
@@ -510,8 +483,6 @@ def get_trend(department: str | None = None, days: int = 30, tenant_id: str | No
                 AS ediscovery_cases,
             COALESCE((to_jsonb(ct) ->> 'sensitivity_labels')::int, (to_jsonb(ct) ->> 'sensitivity')::int, 0)
                 AS sensitivity_labels,
-            COALESCE((to_jsonb(ct) ->> 'retention_labels')::int, (to_jsonb(ct) ->> 'retention')::int, 0)
-                AS retention_labels,
             COALESCE((to_jsonb(ct) ->> 'dlp_alerts')::int, (to_jsonb(ct) ->> 'dlp')::int, 0) AS dlp_alerts,
             COALESCE((to_jsonb(ct) ->> 'audit_records')::int, (to_jsonb(ct) ->> 'audit')::int, 0) AS audit_records,
             COALESCE((to_jsonb(ct) ->> 'tenant_count')::int, (to_jsonb(ct) ->> 'tenants')::int, 0) AS tenant_count

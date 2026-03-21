@@ -4,7 +4,6 @@ Microsoft Graph API client for compliance workload data collection.
 Pulls data from:
 - GET  /v1.0/security/cases/ediscoveryCases                     — eDiscovery cases
 - GET  /v1.0/security/dataSecurityAndGovernance/sensitivityLabels — sensitivity labels (v1.0 GA)
-- GET  /v1.0/security/labels/retentionLabels                     — retention labels
 - GET  /v1.0/security/triggers/retentionEvents                   — retention events
 - GET  /v1.0/security/triggerTypes/retentionEventTypes           — retention event types
 - POST /v1.0/security/auditLog/queries + GET records             — audit log (async)

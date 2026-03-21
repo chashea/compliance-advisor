@@ -6,7 +6,6 @@ import type {
   EDiscoveryCase,
   LabelsResponse,
   SensitivityLabel,
-  RetentionLabel,
   RetentionEvent,
   AuditResponse,
   AuditRecord,
@@ -73,12 +72,6 @@ const sensitivityLabels: SensitivityLabel[] = [
   { label_id: "sl-2", name: "Public", description: "Safe for external sharing", color: "#388e3c", is_active: true, parent_id: "", priority: 3, tooltip: "No restrictions", has_protection: false, applicable_to: "email, file", application_mode: "manual", is_endpoint_protection_enabled: false, tenant_name: "Contoso Ltd" },
   { label_id: "sl-3", name: "Highly Confidential", description: "Executive-only", color: "#b71c1c", is_active: true, parent_id: "", priority: 0, tooltip: "Top secret", has_protection: true, applicable_to: "email, file, site, teamwork", application_mode: "automatic", is_endpoint_protection_enabled: true, tenant_name: "Fabrikam Inc" },
   { label_id: "sl-4", name: "Internal", description: "General internal use", color: "#1976d2", is_active: true, parent_id: "", priority: 2, tooltip: "Internal only", has_protection: false, applicable_to: "email, file", application_mode: "recommended", is_endpoint_protection_enabled: false, tenant_name: "Northwind Traders" },
-];
-
-const retentionLabels: RetentionLabel[] = [
-  { label_id: "rl-1", display_name: "7-Year Financial", retention_duration: "P2555D", retention_trigger: "DateCreated", action_after_retention: "Delete", is_in_use: true, status: "Active", tenant_name: "Contoso Ltd" },
-  { label_id: "rl-2", display_name: "3-Year HR Records", retention_duration: "P1095D", retention_trigger: "DateCreated", action_after_retention: "Delete", is_in_use: true, status: "Active", tenant_name: "Fabrikam Inc" },
-  { label_id: "rl-3", display_name: "1-Year Transient", retention_duration: "P365D", retention_trigger: "DateModified", action_after_retention: "Delete", is_in_use: false, status: "Active", tenant_name: "Northwind Traders" },
 ];
 
 const retentionEvents: RetentionEvent[] = [
@@ -153,7 +146,6 @@ const trendData: TrendPoint[] = Array.from({ length: 30 }, (_, i) => {
     snapshot_date: daysAgo(day),
     ediscovery_cases: 4 + Math.floor(i / 10),
     sensitivity_labels: 4,
-    retention_labels: 3,
     dlp_alerts: 3 + (i % 3),
     audit_records: 80 + (i % 20),
     tenant_count: 3,
@@ -201,13 +193,12 @@ export function getDemoData(endpoint: string, body?: Record<string, unknown>): u
       const cases = filterByDept(ediscoveryCases, dept || undefined);
       const dlp = filterByDept(dlpAlerts, dept || undefined);
       const sl = filterByDept(sensitivityLabels, dept || undefined);
-      const rl = filterByDept(retentionLabels, dept || undefined);
       const ar = filterByDept(auditRecords, dept || undefined);
       const ta = filterByDept(threatAssessmentRequests, dept || undefined);
       return {
         tenants,
         ediscovery_summary: { total_cases: cases.length, active_cases: cases.filter((c) => c.status === "Active").length },
-        labels_summary: { sensitivity_labels: sl.length, protected_labels: sl.filter((l) => l.has_protection).length, retention_labels: rl.length },
+        labels_summary: { sensitivity_labels: sl.length, protected_labels: sl.filter((l) => l.has_protection).length },
         dlp_summary: {
           total_dlp_alerts: dlp.length,
           high_alerts: dlp.filter((a) => a.severity === "High").length,
@@ -237,7 +228,6 @@ export function getDemoData(endpoint: string, body?: Record<string, unknown>): u
     case "labels":
       return {
         sensitivity_labels: filterByDept(sensitivityLabels, dept || undefined),
-        retention_labels: filterByDept(retentionLabels, dept || undefined),
         retention_events: filterByDept(retentionEvents, dept || undefined),
       } satisfies LabelsResponse;
 

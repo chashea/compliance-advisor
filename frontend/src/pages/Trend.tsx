@@ -42,7 +42,6 @@ export default function Trend() {
         series={[
           { key: "ediscovery_cases", color: "#4a90d9", label: "eDiscovery" },
           { key: "sensitivity_labels", color: "#14b8a6", label: "Sensitivity Labels" },
-          { key: "retention_labels", color: "#829ab1", label: "Retention Labels" },
           { key: "dlp_alerts", color: "#dc2626", label: "DLP Alerts" },
           { key: "audit_records", color: "#b8860b", label: "Audit Records" },
           { key: "tenant_count", color: "#bcccdc", label: "Tenants" },

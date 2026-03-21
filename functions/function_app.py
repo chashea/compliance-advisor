@@ -871,7 +871,6 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
         counts = {
             "ediscovery_cases": len(payload.get("ediscovery_cases", [])),
             "sensitivity_labels": len(payload.get("sensitivity_labels", [])),
-            "retention_labels": len(payload.get("retention_labels", [])),
             "audit_records": len(payload.get("audit_records", [])),
             "dlp_alerts": len(payload.get("dlp_alerts", [])),
             "irm_alerts": len(payload.get("irm_alerts", [])),
@@ -887,14 +886,13 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
         record_ingestion(tenant_id, snapshot_date, payload_hash, counts)
 
         log.info(
-            "Ingested: tenant=%s dept=%s ediscovery=%d labels=%d retention=%d audit=%d dlp=%d "
+            "Ingested: tenant=%s dept=%s ediscovery=%d labels=%d audit=%d dlp=%d "
             "irm=%d comm_compliance=%d info_barriers=%d scopes=%d scores=%d actions=%d "
             "dlp_policies=%d irm_policies=%d sit=%d assessments=%d threats=%d",
             tenant_id,
             payload["department"],
             counts["ediscovery_cases"],
             counts["sensitivity_labels"],
-            counts["retention_labels"],
             counts["audit_records"],
             counts["dlp_alerts"],
             counts["irm_alerts"],
@@ -1186,7 +1184,6 @@ def _collect_single_tenant(
         counts = {
             "ediscovery": len(ediscovery),
             "sensitivity_labels": len(sensitivity),
-            "retention_labels": 0,
             "audit_records": len(audit),
             "dlp_alerts": len(dlp),
             "irm_alerts": len(irm),
@@ -1379,12 +1376,6 @@ def compute_aggregates(timer: func.TimerRequest) -> None:
                      SELECT MAX(snapshot_date) FROM sensitivity_labels
                      WHERE tenant_id = t.tenant_id)
                 )::int AS sensitivity,
-                (SELECT COUNT(*) FROM retention_labels rl
-                 WHERE rl.tenant_id = t.tenant_id
-                   AND rl.snapshot_date = (
-                     SELECT MAX(snapshot_date) FROM retention_labels
-                     WHERE tenant_id = t.tenant_id)
-                )::int AS retention,
                 (SELECT COUNT(*) FROM dlp_alerts da
                  WHERE da.tenant_id = t.tenant_id
                    AND da.snapshot_date = (
@@ -1410,7 +1401,6 @@ def compute_aggregates(timer: func.TimerRequest) -> None:
             department=None,
             ediscovery_cases=sum(r["ediscovery"] for r in tenant_counts),
             sensitivity_labels=sum(r["sensitivity"] for r in tenant_counts),
-            retention_labels=sum(r["retention"] for r in tenant_counts),
             dlp_alerts=sum(r["dlp"] for r in tenant_counts),
             audit_records=sum(r["audit"] for r in tenant_counts),
             tenant_count=len(tenant_counts),
@@ -1429,7 +1419,6 @@ def compute_aggregates(timer: func.TimerRequest) -> None:
                 department=dept,
                 ediscovery_cases=sum(r["ediscovery"] for r in rows),
                 sensitivity_labels=sum(r["sensitivity"] for r in rows),
-                retention_labels=sum(r["retention"] for r in rows),
                 dlp_alerts=sum(r["dlp"] for r in rows),
                 audit_records=sum(r["audit"] for r in rows),
                 tenant_count=len(rows),

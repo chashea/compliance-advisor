@@ -26,7 +26,6 @@ from collector.compliance_client import (
     get_irm_policies,
     get_protection_scopes,
     get_retention_events,
-    get_retention_labels,
     get_secure_scores,
     get_sensitive_info_types,
     get_sensitivity_labels,
@@ -116,9 +115,6 @@ def main(
     click.echo("  Sensitivity Labels...")
     sensitivity_labels = get_sensitivity_labels(token)
 
-    click.echo("  Retention Labels...")
-    retention_labels = get_retention_labels(token)
-
     click.echo("  Retention Events...")
     retention_events = get_retention_events(token)
 
@@ -167,7 +163,7 @@ def main(
 
     click.echo(
         f"\neDiscovery: {len(ediscovery_cases)} | Labels: {len(sensitivity_labels)} "
-        f"| Retention: {len(retention_labels)} labels, {len(retention_events)} events "
+        f"| Retention Events: {len(retention_events)} "
         f"| Audit: {len(audit_records)} | DLP: {len(dlp_alerts)} | IRM: {len(irm_alerts)} "
         f"| CommCompliance: {len(comm_compliance_policies)} "
         f"| InfoBarriers: {len(info_barrier_policies)} "
@@ -188,7 +184,6 @@ def main(
         timestamp=CompliancePayload.now_iso(),
         ediscovery_cases=ediscovery_cases,
         sensitivity_labels=sensitivity_labels,
-        retention_labels=retention_labels,
         retention_events=retention_events,
         audit_records=audit_records,
         dlp_alerts=dlp_alerts,

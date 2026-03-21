@@ -221,62 +221,6 @@ def upsert_sensitivity_label(
     )
 
 
-def upsert_retention_label(
-    tenant_id: str,
-    label_id: str,
-    display_name: str,
-    retention_duration: str,
-    retention_trigger: str,
-    action_after_retention: str,
-    is_in_use: bool,
-    status: str,
-    snapshot_date: str,
-    file_plan_authority: str = "",
-    file_plan_citation: str = "",
-    file_plan_department: str = "",
-    file_plan_category: str = "",
-    file_plan_subcategory: str = "",
-) -> None:
-    execute(
-        """
-        INSERT INTO retention_labels
-            (tenant_id, label_id, display_name, retention_duration, retention_trigger,
-             action_after_retention, is_in_use, status, snapshot_date,
-             file_plan_authority, file_plan_citation, file_plan_department,
-             file_plan_category, file_plan_subcategory)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (tenant_id, label_id, snapshot_date) DO UPDATE SET
-            display_name = EXCLUDED.display_name,
-            retention_duration = EXCLUDED.retention_duration,
-            retention_trigger = EXCLUDED.retention_trigger,
-            action_after_retention = EXCLUDED.action_after_retention,
-            is_in_use = EXCLUDED.is_in_use,
-            status = EXCLUDED.status,
-            file_plan_authority = EXCLUDED.file_plan_authority,
-            file_plan_citation = EXCLUDED.file_plan_citation,
-            file_plan_department = EXCLUDED.file_plan_department,
-            file_plan_category = EXCLUDED.file_plan_category,
-            file_plan_subcategory = EXCLUDED.file_plan_subcategory
-        """,
-        (
-            tenant_id,
-            label_id,
-            display_name,
-            retention_duration,
-            retention_trigger,
-            action_after_retention,
-            is_in_use,
-            status,
-            snapshot_date,
-            file_plan_authority,
-            file_plan_citation,
-            file_plan_department,
-            file_plan_category,
-            file_plan_subcategory,
-        ),
-    )
-
-
 def upsert_retention_event(
     tenant_id: str,
     event_id: str,
@@ -541,7 +485,6 @@ def upsert_trend(
     department: str | None,
     ediscovery_cases: int,
     sensitivity_labels: int,
-    retention_labels: int,
     dlp_alerts: int,
     audit_records: int,
     tenant_count: int,
@@ -550,12 +493,11 @@ def upsert_trend(
         """
         INSERT INTO compliance_trend
             (snapshot_date, department, ediscovery_cases, sensitivity_labels,
-             retention_labels, dlp_alerts, audit_records, tenant_count)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+             dlp_alerts, audit_records, tenant_count)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (snapshot_date, department) DO UPDATE SET
             ediscovery_cases = EXCLUDED.ediscovery_cases,
             sensitivity_labels = EXCLUDED.sensitivity_labels,
-            retention_labels = EXCLUDED.retention_labels,
             dlp_alerts = EXCLUDED.dlp_alerts,
             audit_records = EXCLUDED.audit_records,
             tenant_count = EXCLUDED.tenant_count
@@ -565,7 +507,6 @@ def upsert_trend(
             department,
             ediscovery_cases,
             sensitivity_labels,
-            retention_labels,
             dlp_alerts,
             audit_records,
             tenant_count,

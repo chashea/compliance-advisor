@@ -48,21 +48,6 @@ CREATE TABLE IF NOT EXISTS sensitivity_labels (
     UNIQUE (tenant_id, label_id, snapshot_date)
 );
 
--- Retention labels (Records Management)
-CREATE TABLE IF NOT EXISTS retention_labels (
-    id                      SERIAL PRIMARY KEY,
-    tenant_id               TEXT NOT NULL REFERENCES tenants(tenant_id),
-    label_id                TEXT NOT NULL,
-    display_name            TEXT,
-    retention_duration      TEXT,
-    retention_trigger       TEXT,
-    action_after_retention  TEXT,
-    is_in_use               BOOLEAN DEFAULT FALSE,
-    status                  TEXT,
-    snapshot_date           DATE NOT NULL DEFAULT CURRENT_DATE,
-    UNIQUE (tenant_id, label_id, snapshot_date)
-);
-
 -- Retention events (Records Management)
 CREATE TABLE IF NOT EXISTS retention_events (
     id              SERIAL PRIMARY KEY,
@@ -313,7 +298,7 @@ CREATE TABLE IF NOT EXISTS compliance_trend (
     department          TEXT,
     ediscovery_cases    INT DEFAULT 0,
     sensitivity_labels  INT DEFAULT 0,
-    retention_labels    INT DEFAULT 0,
+
     dlp_alerts          INT DEFAULT 0,
     audit_records       INT DEFAULT 0,
     tenant_count        INT DEFAULT 0,
@@ -337,9 +322,6 @@ CREATE INDEX IF NOT EXISTS idx_ediscovery_tenant
 
 CREATE INDEX IF NOT EXISTS idx_sensitivity_labels_tenant
     ON sensitivity_labels(tenant_id, snapshot_date DESC);
-
-CREATE INDEX IF NOT EXISTS idx_retention_labels_tenant
-    ON retention_labels(tenant_id, snapshot_date DESC);
 
 CREATE INDEX IF NOT EXISTS idx_retention_events_tenant
     ON retention_events(tenant_id, snapshot_date DESC);
@@ -416,9 +398,3 @@ CREATE INDEX IF NOT EXISTS idx_compliance_trend_snapshot
     ON compliance_trend(snapshot_date);
 
 -- ── Schema migrations ────────────────────────────────────────────
--- File plan descriptor fields on retention_labels
-ALTER TABLE retention_labels ADD COLUMN IF NOT EXISTS file_plan_authority TEXT;
-ALTER TABLE retention_labels ADD COLUMN IF NOT EXISTS file_plan_citation TEXT;
-ALTER TABLE retention_labels ADD COLUMN IF NOT EXISTS file_plan_department TEXT;
-ALTER TABLE retention_labels ADD COLUMN IF NOT EXISTS file_plan_category TEXT;
-ALTER TABLE retention_labels ADD COLUMN IF NOT EXISTS file_plan_subcategory TEXT;

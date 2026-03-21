@@ -3,16 +3,7 @@ import DataTable from "../components/DataTable";
 import ErrorBanner from "../components/ErrorBanner";
 import Loading from "../components/Loading";
 import { useApi } from "../hooks/useApi";
-import type { LabelsResponse, SensitivityLabel, RetentionLabel, RetentionEvent } from "../types";
-
-function formatDuration(iso: string): string {
-  const m = iso.match(/^P(\d+)D$/);
-  if (!m) return iso;
-  const days = parseInt(m[1], 10);
-  if (days >= 365) return `${Math.round(days / 365)}y`;
-  if (days >= 30) return `${Math.round(days / 30)}mo`;
-  return `${days}d`;
-}
+import type { LabelsResponse, SensitivityLabel, RetentionEvent } from "../types";
 
 const modeColors: Record<string, string> = {
   automatic: "bg-sky-600/20 text-sky-400",
@@ -137,22 +128,6 @@ export default function Labels() {
             { key: "tenant_name", label: "Tenant" },
           ]}
           data={sl as (SensitivityLabel & Record<string, unknown>)[]}
-          keyField="label_id"
-        />
-      </div>
-
-      <div>
-        <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Retention Labels ({data.retention_labels.length})</h3>
-        <DataTable<RetentionLabel & Record<string, unknown>>
-          columns={[
-            { key: "display_name", label: "Name" },
-            { key: "retention_duration", label: "Duration", render: (v) => formatDuration(String(v)) },
-            { key: "retention_trigger", label: "Trigger" },
-            { key: "action_after_retention", label: "Action" },
-            { key: "status", label: "Status" },
-            { key: "tenant_name", label: "Tenant" },
-          ]}
-          data={data.retention_labels as (RetentionLabel & Record<string, unknown>)[]}
           keyField="label_id"
         />
       </div>
