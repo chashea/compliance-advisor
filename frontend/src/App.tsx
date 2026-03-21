@@ -11,6 +11,7 @@ import Alerts from "./pages/Alerts";
 import CommCompliance from "./pages/CommCompliance";
 import Trend from "./pages/Trend";
 import ThreatAssessments from "./pages/ThreatAssessments";
+import Assessments from "./pages/Assessments";
 
 
 export default function App() {
@@ -28,6 +29,7 @@ export default function App() {
             <Route path="alerts" element={<Alerts />} />
             <Route path="comm-compliance" element={<CommCompliance />} />
             <Route path="threat-assessments" element={<ThreatAssessments />} />
+            <Route path="assessments" element={<Assessments />} />
             <Route path="trend" element={<Trend />} />
           </Route>
         </Routes>
