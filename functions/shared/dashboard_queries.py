@@ -87,6 +87,14 @@ def get_overview(department: str | None = None, tenant_id: str | None = None) ->
                 WHERE _sub.tenant_id = sl.tenant_id
             )
                {and_dept} {and_tenant}) AS sensitivity_labels,
+            (SELECT COUNT(*)::int FROM sensitivity_labels sl
+             JOIN tenants t ON t.tenant_id = sl.tenant_id
+             WHERE sl.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM sensitivity_labels _sub
+                WHERE _sub.tenant_id = sl.tenant_id
+            )
+               AND sl.has_protection = TRUE
+               {and_dept} {and_tenant}) AS protected_labels,
             (SELECT COUNT(*)::int FROM retention_labels rl
              JOIN tenants t ON t.tenant_id = rl.tenant_id
              WHERE rl.snapshot_date = (
@@ -229,7 +237,10 @@ def get_labels(department: str | None = None, tenant_id: str | None = None) -> d
     sensitivity = query(
         f"""
         SELECT sl.label_id, sl.name, sl.description, sl.color, sl.is_active,
-               sl.parent_id, sl.priority, sl.tooltip, t.display_name AS tenant_name
+               sl.parent_id, sl.priority, sl.tooltip, sl.has_protection,
+               sl.applicable_to, sl.application_mode,
+               sl.is_endpoint_protection_enabled,
+               t.display_name AS tenant_name
         FROM sensitivity_labels sl
         JOIN tenants t ON t.tenant_id = sl.tenant_id
         WHERE sl.snapshot_date = (
@@ -579,56 +590,6 @@ def get_irm(department: str | None = None, tenant_id: str | None = None) -> dict
 
     return {"alerts": alerts, "severity_breakdown": severity_breakdown}
 
-
-def get_subject_rights(department: str | None = None, tenant_id: str | None = None) -> dict:
-    """POST /api/advisor/subject-rights — Subject Rights Requests."""
-    dept_filter = ""
-    tenant_filter = ""
-    params: dict = {}
-    if department:
-        dept_filter = "AND t.department = %(dept)s"
-        params["dept"] = department
-    if tenant_id:
-        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
-        params["tenant_id"] = tenant_id
-
-    requests = query(
-        f"""
-        SELECT sr.request_id, sr.display_name, sr.request_type, sr.status,
-               sr.created, sr.closed, sr.data_subject_type,
-               t.display_name AS tenant_name
-        FROM subject_rights_requests sr
-        JOIN tenants t ON t.tenant_id = sr.tenant_id
-        WHERE sr.snapshot_date = (
-                SELECT MAX(snapshot_date) FROM subject_rights_requests _sub
-                WHERE _sub.tenant_id = sr.tenant_id
-            )
-          {dept_filter}
-          {tenant_filter}
-        ORDER BY sr.created DESC
-        LIMIT 1000
-        """,
-        params,
-    )
-
-    status_breakdown = query(
-        f"""
-        SELECT sr.status, COUNT(*)::int AS total
-        FROM subject_rights_requests sr
-        JOIN tenants t ON t.tenant_id = sr.tenant_id
-        WHERE sr.snapshot_date = (
-                SELECT MAX(snapshot_date) FROM subject_rights_requests _sub
-                WHERE _sub.tenant_id = sr.tenant_id
-            )
-          {dept_filter}
-          {tenant_filter}
-        GROUP BY sr.status
-        ORDER BY total DESC
-        """,
-        params,
-    )
-
-    return {"requests": requests, "status_breakdown": status_breakdown}
 
 
 def get_comm_compliance(department: str | None = None, tenant_id: str | None = None) -> dict:

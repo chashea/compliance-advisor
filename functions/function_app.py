@@ -65,7 +65,6 @@ try:
         get_labels,
         get_overview,
         get_status,
-        get_subject_rights,
         get_threat_assessments,
         get_trend,
     )
@@ -91,7 +90,6 @@ try:
         upsert_secure_score,
         upsert_sensitive_info_type,
         upsert_sensitivity_label,
-        upsert_subject_rights_request,
         upsert_tenant,
         upsert_threat_assessment_request,
         upsert_trend,
@@ -156,9 +154,6 @@ try:
     )
     from collector.compliance_client import (
         get_sensitivity_labels as collect_sensitivity_labels,
-    )
-    from collector.compliance_client import (
-        get_subject_rights_requests as collect_subject_rights,
     )
     from collector.compliance_client import (
         get_threat_assessment_requests as collect_threat_assessments,
@@ -301,17 +296,6 @@ def advisor_irm(req: func.HttpRequest) -> func.HttpResponse:
         log.exception("advisor/irm error: %s", e)
         return _json_response({"error": str(e)}, 500)
 
-
-@app.function_name("advisor_subject_rights")
-@app.route(route="advisor/subject-rights", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
-def advisor_subject_rights(req: func.HttpRequest) -> func.HttpResponse:
-    try:
-        _ensure_dependencies_loaded()
-        body = _get_body(req)
-        return _json_response(get_subject_rights(department=body.get("department"), tenant_id=body.get("tenant_id")))
-    except Exception as e:
-        log.exception("advisor/subject-rights error: %s", e)
-        return _json_response({"error": str(e)}, 500)
 
 
 @app.function_name("advisor_comm_compliance")
@@ -663,6 +647,10 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 priority=sl.get("priority", 0),
                 tooltip=sl.get("tooltip", ""),
                 snapshot_date=snapshot_date,
+                has_protection=sl.get("has_protection", False),
+                applicable_to=sl.get("applicable_to", ""),
+                application_mode=sl.get("application_mode", ""),
+                is_endpoint_protection_enabled=sl.get("is_endpoint_protection_enabled", False),
             )
 
         # Upsert retention labels
@@ -769,19 +757,6 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 assigned_to=ia.get("assigned_to", ""),
             )
 
-        # Upsert subject rights requests
-        for sr in payload.get("subject_rights_requests", []):
-            upsert_subject_rights_request(
-                tenant_id=tenant_id,
-                request_id=sr.get("request_id", ""),
-                display_name=sr.get("display_name", ""),
-                request_type=sr.get("request_type", ""),
-                status=sr.get("status", ""),
-                created=sr.get("created", ""),
-                closed=sr.get("closed", ""),
-                data_subject_type=sr.get("data_subject_type", ""),
-                snapshot_date=snapshot_date,
-            )
 
         # Upsert communication compliance policies
         for cc in payload.get("comm_compliance_policies", []):
@@ -923,7 +898,6 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
             "audit_records": len(payload.get("audit_records", [])),
             "dlp_alerts": len(payload.get("dlp_alerts", [])),
             "irm_alerts": len(payload.get("irm_alerts", [])),
-            "subject_rights_requests": len(payload.get("subject_rights_requests", [])),
             "comm_compliance_policies": len(payload.get("comm_compliance_policies", [])),
             "info_barrier_policies": len(payload.get("info_barrier_policies", [])),
             "protection_scopes": len(payload.get("protection_scopes", [])),
@@ -937,7 +911,7 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
 
         log.info(
             "Ingested: tenant=%s dept=%s ediscovery=%d labels=%d retention=%d audit=%d dlp=%d "
-            "irm=%d srr=%d comm_compliance=%d info_barriers=%d scopes=%d scores=%d actions=%d "
+            "irm=%d comm_compliance=%d info_barriers=%d scopes=%d scores=%d actions=%d "
             "dlp_policies=%d irm_policies=%d sit=%d assessments=%d threats=%d",
             tenant_id,
             payload["department"],
@@ -947,7 +921,6 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
             counts["audit_records"],
             counts["dlp_alerts"],
             counts["irm_alerts"],
-            counts["subject_rights_requests"],
             counts["comm_compliance_policies"],
             counts["info_barrier_policies"],
             counts["protection_scopes"],
@@ -1010,7 +983,6 @@ def _collect_single_tenant(
         scopes = collect_protection_scopes(token)
         scores = collect_secure_scores(token)
         actions = collect_improvement_actions(token)
-        srr = collect_subject_rights(token)
         cc = collect_comm_compliance(token)
         ib = collect_info_barriers(token)
         ucp = collect_user_content_policies(token)
@@ -1046,6 +1018,10 @@ def _collect_single_tenant(
                 priority=sl.get("priority", 0),
                 tooltip=sl.get("tooltip", ""),
                 snapshot_date=today,
+                has_protection=sl.get("has_protection", False),
+                applicable_to=sl.get("applicable_to", ""),
+                application_mode=sl.get("application_mode", ""),
+                is_endpoint_protection_enabled=sl.get("is_endpoint_protection_enabled", False),
             )
         for rl in retention:
             upsert_retention_label(
@@ -1136,18 +1112,6 @@ def _collect_single_tenant(
                 snapshot_date=today,
                 description=ia.get("description", ""),
                 assigned_to=ia.get("assigned_to", ""),
-            )
-        for sr in srr:
-            upsert_subject_rights_request(
-                tenant_id=tid,
-                request_id=sr.get("request_id", ""),
-                display_name=sr.get("display_name", ""),
-                request_type=sr.get("request_type", ""),
-                status=sr.get("status", ""),
-                created=sr.get("created", ""),
-                closed=sr.get("closed", ""),
-                data_subject_type=sr.get("data_subject_type", ""),
-                snapshot_date=today,
             )
         for c in cc:
             upsert_comm_compliance_policy(

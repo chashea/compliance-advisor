@@ -24,8 +24,20 @@ export default function Labels() {
         <DataTable<SensitivityLabel & Record<string, unknown>>
           columns={[
             { key: "name", label: "Name" },
-            { key: "description", label: "Description" },
             { key: "priority", label: "Priority" },
+            {
+              key: "has_protection",
+              label: "Protected",
+              render: (v) => {
+                return v ? (
+                  <span className="inline-block rounded px-2 py-0.5 text-xs font-semibold bg-emerald-600/20 text-emerald-400">Yes</span>
+                ) : (
+                  <span className="inline-block rounded px-2 py-0.5 text-xs font-semibold bg-navy-600/20 text-navy-300">No</span>
+                );
+              },
+            },
+            { key: "applicable_to", label: "Applies To" },
+            { key: "application_mode", label: "Mode" },
             { key: "is_active", label: "Active", render: (v) => (v ? "Yes" : "No") },
             { key: "tenant_name", label: "Tenant" },
           ]}

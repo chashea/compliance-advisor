@@ -40,6 +40,10 @@ CREATE TABLE IF NOT EXISTS sensitivity_labels (
     parent_id       TEXT,
     priority        INT DEFAULT 0,
     tooltip         TEXT,
+    has_protection  BOOLEAN DEFAULT FALSE,
+    applicable_to   TEXT DEFAULT '',
+    application_mode TEXT DEFAULT '',
+    is_endpoint_protection_enabled BOOLEAN DEFAULT FALSE,
     snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
     UNIQUE (tenant_id, label_id, snapshot_date)
 );
@@ -185,20 +189,6 @@ CREATE TABLE IF NOT EXISTS improvement_actions (
     UNIQUE (tenant_id, control_id, snapshot_date)
 );
 
--- Subject Rights Requests
-CREATE TABLE IF NOT EXISTS subject_rights_requests (
-    id              SERIAL PRIMARY KEY,
-    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
-    request_id      TEXT NOT NULL,
-    display_name    TEXT,
-    request_type    TEXT,
-    status          TEXT,
-    created         TEXT,
-    closed          TEXT,
-    data_subject_type TEXT,
-    snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
-    UNIQUE (tenant_id, request_id, snapshot_date)
-);
 
 -- Communication Compliance policies
 CREATE TABLE IF NOT EXISTS comm_compliance_policies (
@@ -390,8 +380,6 @@ CREATE INDEX IF NOT EXISTS idx_irm_alerts_tenant
 CREATE INDEX IF NOT EXISTS idx_irm_alerts_severity
     ON irm_alerts(severity);
 
-CREATE INDEX IF NOT EXISTS idx_subject_rights_requests_tenant
-    ON subject_rights_requests(tenant_id, snapshot_date DESC);
 
 CREATE INDEX IF NOT EXISTS idx_comm_compliance_policies_tenant
     ON comm_compliance_policies(tenant_id, snapshot_date DESC);

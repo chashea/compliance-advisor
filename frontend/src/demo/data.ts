@@ -14,8 +14,6 @@ import type {
   DLPAlert,
   IRMResponse,
   IRMAlert,
-  SubjectRightsResponse,
-  SubjectRightsRequest,
   CommComplianceResponse,
   CommCompliancePolicy,
   TrendResponse,
@@ -71,10 +69,10 @@ const ediscoveryCases: EDiscoveryCase[] = [
 ];
 
 const sensitivityLabels: SensitivityLabel[] = [
-  { label_id: "sl-1", name: "Confidential", description: "Internal confidential data", color: "#d32f2f", is_active: true, parent_id: "", priority: 1, tooltip: "Restricted access", tenant_name: "Contoso Ltd" },
-  { label_id: "sl-2", name: "Public", description: "Safe for external sharing", color: "#388e3c", is_active: true, parent_id: "", priority: 3, tooltip: "No restrictions", tenant_name: "Contoso Ltd" },
-  { label_id: "sl-3", name: "Highly Confidential", description: "Executive-only", color: "#b71c1c", is_active: true, parent_id: "", priority: 0, tooltip: "Top secret", tenant_name: "Fabrikam Inc" },
-  { label_id: "sl-4", name: "Internal", description: "General internal use", color: "#1976d2", is_active: true, parent_id: "", priority: 2, tooltip: "Internal only", tenant_name: "Northwind Traders" },
+  { label_id: "sl-1", name: "Confidential", description: "Internal confidential data", color: "#d32f2f", is_active: true, parent_id: "", priority: 1, tooltip: "Restricted access", has_protection: true, applicable_to: "email, file, site", application_mode: "manual", is_endpoint_protection_enabled: true, tenant_name: "Contoso Ltd" },
+  { label_id: "sl-2", name: "Public", description: "Safe for external sharing", color: "#388e3c", is_active: true, parent_id: "", priority: 3, tooltip: "No restrictions", has_protection: false, applicable_to: "email, file", application_mode: "manual", is_endpoint_protection_enabled: false, tenant_name: "Contoso Ltd" },
+  { label_id: "sl-3", name: "Highly Confidential", description: "Executive-only", color: "#b71c1c", is_active: true, parent_id: "", priority: 0, tooltip: "Top secret", has_protection: true, applicable_to: "email, file, site, teamwork", application_mode: "automatic", is_endpoint_protection_enabled: true, tenant_name: "Fabrikam Inc" },
+  { label_id: "sl-4", name: "Internal", description: "General internal use", color: "#1976d2", is_active: true, parent_id: "", priority: 2, tooltip: "Internal only", has_protection: false, applicable_to: "email, file", application_mode: "recommended", is_endpoint_protection_enabled: false, tenant_name: "Northwind Traders" },
 ];
 
 const retentionLabels: RetentionLabel[] = [
@@ -110,11 +108,6 @@ const irmAlerts: IRMAlert[] = [
   { alert_id: "irm-3", title: "Anomalous access pattern detected", severity: "Low", status: "Resolved", category: "InsiderRisk", policy_name: "Security Policy Violations", created: daysAgo(20), resolved: daysAgo(14), tenant_name: "Northwind Traders" },
 ];
 
-const subjectRightsRequests: SubjectRightsRequest[] = [
-  { request_id: "sr-1", display_name: "GDPR Erasure — J. Doe", request_type: "Delete", status: "Active", created: "2026-02-20", closed: null, data_subject_type: "Customer", tenant_name: "Contoso Ltd" },
-  { request_id: "sr-2", display_name: "DSAR Export — A. Patel", request_type: "Export", status: "Closed", created: "2026-01-05", closed: "2026-01-25", data_subject_type: "Employee", tenant_name: "Fabrikam Inc" },
-  { request_id: "sr-3", display_name: "Access Request — M. Chen", request_type: "Access", status: "Active", created: "2026-03-05", closed: null, data_subject_type: "Customer", tenant_name: "Northwind Traders" },
-];
 
 const commCompliancePolicies: CommCompliancePolicy[] = [
   { policy_id: "cc-1", display_name: "Offensive Language Detection", status: "Active", policy_type: "OffensiveLanguage", review_pending_count: 12, tenant_name: "Contoso Ltd" },
@@ -176,13 +169,11 @@ const BRIEFING = `## Compliance Briefing — Demo
 - **2 high-severity DLP alerts** require attention (credit card sharing, SSN in attachments)
 - **1 high-severity insider risk alert** — unusual file deletions at Contoso
 - **Secure Score: 62%** (32/52 data points achieved)
-- **3 subject rights requests** — 2 active, 1 closed
 
 ### Recommendations
 1. Resolve the active high-severity DLP alert (credit card numbers shared externally)
 2. Investigate the insider risk alert for departing employee activity
-3. Deploy auto-labeling policies to improve the sensitivity labels score
-4. Close the outstanding GDPR erasure request approaching SLA`;
+3. Deploy auto-labeling policies to improve the sensitivity labels score`;
 
 const ASK_ANSWER = "This is a demo environment with static data. In production, I would query your compliance database and provide a detailed, data-driven answer to your question using Azure OpenAI.";
 
@@ -216,7 +207,7 @@ export function getDemoData(endpoint: string, body?: Record<string, unknown>): u
       return {
         tenants,
         ediscovery_summary: { total_cases: cases.length, active_cases: cases.filter((c) => c.status === "Active").length },
-        labels_summary: { sensitivity_labels: sl.length, retention_labels: rl.length },
+        labels_summary: { sensitivity_labels: sl.length, protected_labels: sl.filter((l) => l.has_protection).length, retention_labels: rl.length },
         dlp_summary: {
           total_dlp_alerts: dlp.length,
           high_alerts: dlp.filter((a) => a.severity === "High").length,
@@ -294,16 +285,6 @@ export function getDemoData(endpoint: string, body?: Record<string, unknown>): u
         alerts,
         severity_breakdown: Object.entries(sev).map(([severity, v]) => ({ severity, ...v })),
       } satisfies IRMResponse;
-    }
-
-    case "subject-rights": {
-      const requests = filterByDept(subjectRightsRequests, dept || undefined);
-      const breakdown: Record<string, number> = {};
-      requests.forEach((r) => { breakdown[r.status] = (breakdown[r.status] ?? 0) + 1; });
-      return {
-        requests,
-        status_breakdown: Object.entries(breakdown).map(([status, total]) => ({ status, total })),
-      } satisfies SubjectRightsResponse;
     }
 
     case "comm-compliance":

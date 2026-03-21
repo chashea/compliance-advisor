@@ -188,13 +188,18 @@ def upsert_sensitivity_label(
     priority: int,
     tooltip: str,
     snapshot_date: str,
+    has_protection: bool = False,
+    applicable_to: str = "",
+    application_mode: str = "",
+    is_endpoint_protection_enabled: bool = False,
 ) -> None:
     execute(
         """
         INSERT INTO sensitivity_labels
             (tenant_id, label_id, name, description, color, is_active,
-             parent_id, priority, tooltip, snapshot_date)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             parent_id, priority, tooltip, has_protection, applicable_to,
+             application_mode, is_endpoint_protection_enabled, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (tenant_id, label_id, snapshot_date) DO UPDATE SET
             name = EXCLUDED.name,
             description = EXCLUDED.description,
@@ -202,9 +207,17 @@ def upsert_sensitivity_label(
             is_active = EXCLUDED.is_active,
             parent_id = EXCLUDED.parent_id,
             priority = EXCLUDED.priority,
-            tooltip = EXCLUDED.tooltip
+            tooltip = EXCLUDED.tooltip,
+            has_protection = EXCLUDED.has_protection,
+            applicable_to = EXCLUDED.applicable_to,
+            application_mode = EXCLUDED.application_mode,
+            is_endpoint_protection_enabled = EXCLUDED.is_endpoint_protection_enabled
         """,
-        (tenant_id, label_id, name, description, color, is_active, parent_id, priority, tooltip, snapshot_date),
+        (
+            tenant_id, label_id, name, description, color, is_active,
+            parent_id, priority, tooltip, has_protection, applicable_to,
+            application_mode, is_endpoint_protection_enabled, snapshot_date,
+        ),
     )
 
 
@@ -474,34 +487,6 @@ def upsert_irm_alert(
         ),
     )
 
-
-def upsert_subject_rights_request(
-    tenant_id: str,
-    request_id: str,
-    display_name: str,
-    request_type: str,
-    status: str,
-    created: str,
-    closed: str,
-    data_subject_type: str,
-    snapshot_date: str,
-) -> None:
-    execute(
-        """
-        INSERT INTO subject_rights_requests
-            (tenant_id, request_id, display_name, request_type, status,
-             created, closed, data_subject_type, snapshot_date)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (tenant_id, request_id, snapshot_date) DO UPDATE SET
-            display_name = EXCLUDED.display_name,
-            request_type = EXCLUDED.request_type,
-            status = EXCLUDED.status,
-            created = EXCLUDED.created,
-            closed = EXCLUDED.closed,
-            data_subject_type = EXCLUDED.data_subject_type
-        """,
-        (tenant_id, request_id, display_name, request_type, status, created, closed, data_subject_type, snapshot_date),
-    )
 
 
 def upsert_comm_compliance_policy(

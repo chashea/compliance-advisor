@@ -41,7 +41,6 @@ React SPA (`cadvisor-web-prod`)
 | Data Security & Governance | Protection scopes | `/dataSecurityAndGovernance/protectionScopes/compute` |
 | Secure Score | Overall + Data category score | `/security/secureScores` + `/security/secureScoreControlProfiles` |
 | Improvement Actions | Secure Score control profiles (Data category) | `/security/secureScoreControlProfiles?$filter=controlCategory eq 'Data'` |
-| Subject Rights Requests | Privacy/DSAR requests | `/beta/privacy/subjectRightsRequests` |
 | Communication Compliance | Policy monitoring | `/beta/security/communicationCompliance/policies` |
 | Information Barriers | Segment policies | `/beta/identityGovernance/informationBarriers/policies` |
 
@@ -49,7 +48,7 @@ React SPA (`cadvisor-web-prod`)
 
 ## Features
 
-- **React SPA frontend** with 12 pages: Overview, eDiscovery, Labels, Audit, DLP, IRM, Subject Rights, Comm Compliance, Info Barriers, Governance, Trend, Actions
+- **React SPA frontend** with 11 pages: Overview, eDiscovery, Labels, Audit, DLP, IRM, Comm Compliance, Info Barriers, Governance, Trend, Actions
 - Secure Score Data category KPI showing `current / max` points and percentage
 - Improvement Actions filtered to Data category by default with category/cost/tier filters
 - Agency/department dropdown filter with active filter state summary and clear reset
@@ -57,7 +56,6 @@ React SPA (`cadvisor-web-prod`)
 - Insider Risk Management alert monitoring with severity/status filters
 - eDiscovery case tracking with custodian counts
 - Sensitivity and retention label inventory
-- Subject Rights Request tracking
 - Communication Compliance policy monitoring
 - Information Barriers policy visibility
 - Audit log activity summaries by service and operation
@@ -86,7 +84,6 @@ All permissions are **Application** type (not delegated) granted to the multi-te
 | `AuditLogsQuery.Read.All` | Audit log queries |
 | `SecurityEvents.Read.All` | Secure Score, Improvement Actions |
 | `SecurityAlert.Read.All` | DLP alerts, IRM alerts |
-| `SubjectRightsRequest.Read.All` | Subject rights requests |
 | `Policy.Read.All` | Information barriers, DLP/IRM policies, protection scopes |
 | `User.Read.All` | User enumeration (for content policy probing) |
 | `MailboxSettings.Read` | User content policies |
@@ -223,7 +220,6 @@ All endpoints are `POST` to `/api/advisor/*`.
 | `/api/advisor/governance` | `{department?}` | Protection scopes, Secure Score (overall + Data category) |
 | `/api/advisor/trend` | `{department?, days?}` | Compliance workload counts over time |
 | `/api/advisor/actions` | `{department?}` | Secure Score + improvement actions |
-| `/api/advisor/subject-rights` | `{department?}` | Subject rights requests |
 | `/api/advisor/comm-compliance` | `{department?}` | Communication compliance policies |
 | `/api/advisor/info-barriers` | `{department?}` | Information barrier policies |
 | `/api/advisor/briefing` | `{department?}` | AI-generated executive compliance briefing |

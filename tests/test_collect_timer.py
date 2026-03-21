@@ -121,7 +121,6 @@ def test_skips_when_collector_imports_failed(mock_get_settings, mock_query):
     ],
 )
 @patch("functions.function_app.collect_improvement_actions", return_value=[])
-@patch("functions.function_app.collect_subject_rights", return_value=[])
 @patch("functions.function_app.collect_comm_compliance", return_value=[])
 @patch("functions.function_app.collect_info_barriers", return_value=[])
 @patch("functions.function_app.collect_user_content_policies", return_value=[])
@@ -146,7 +145,6 @@ def test_collects_and_upserts(
     mock_ucp,
     mock_ib,
     mock_cc,
-    mock_srr,
     mock_actions,
     mock_scores,
     mock_scopes,
@@ -194,7 +192,6 @@ def test_collects_and_upserts(
 @patch("functions.function_app.collect_protection_scopes", return_value=[])
 @patch("functions.function_app.collect_secure_scores", return_value=[])
 @patch("functions.function_app.collect_improvement_actions", return_value=[])
-@patch("functions.function_app.collect_subject_rights", return_value=[])
 @patch("functions.function_app.collect_comm_compliance", return_value=[])
 @patch("functions.function_app.collect_info_barriers", return_value=[])
 @patch("functions.function_app.collect_user_content_policies", return_value=[])
@@ -216,7 +213,6 @@ def test_per_tenant_error_isolation(
     mock_ucp,
     mock_ib,
     mock_cc,
-    mock_srr,
     mock_actions,
     mock_scores,
     mock_scopes,

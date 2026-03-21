@@ -14,7 +14,7 @@ export interface Tenant {
 export interface OverviewResponse {
   tenants: Tenant[];
   ediscovery_summary: { total_cases: number; active_cases: number };
-  labels_summary: { sensitivity_labels: number; retention_labels: number };
+  labels_summary: { sensitivity_labels: number; protected_labels: number; retention_labels: number };
   dlp_summary: { total_dlp_alerts: number; high_alerts: number; medium_alerts: number; active_alerts: number };
   audit_summary: { total_records: number };
   threat_summary: { total_requests: number; spam: number; phishing: number; malware: number };
@@ -52,6 +52,10 @@ export interface SensitivityLabel {
   parent_id: string;
   priority: number;
   tooltip: string;
+  has_protection: boolean;
+  applicable_to: string;
+  application_mode: string;
+  is_endpoint_protection_enabled: boolean;
   tenant_name: string;
 }
 
@@ -166,22 +170,7 @@ export interface TrendResponse {
   trend: TrendPoint[];
 }
 
-// /api/advisor/subject-rights
-export interface SubjectRightsRequest {
-  request_id: string;
-  display_name: string;
-  request_type: string;
-  status: string;
-  created: string;
-  closed: string | null;
-  data_subject_type: string;
-  tenant_name: string;
-}
 
-export interface SubjectRightsResponse {
-  requests: SubjectRightsRequest[];
-  status_breakdown: StatusBreakdown[];
-}
 
 // /api/advisor/comm-compliance
 export interface CommCompliancePolicy {

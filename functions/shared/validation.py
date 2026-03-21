@@ -33,7 +33,6 @@ PAYLOAD_SCHEMA: dict = {
         "audit_records",
         "dlp_alerts",
         "irm_alerts",
-        "subject_rights_requests",
         "comm_compliance_policies",
         "info_barrier_policies",
         "protection_scopes",
@@ -121,14 +120,6 @@ PAYLOAD_SCHEMA: dict = {
                     "alert_id": {"type": "string", "minLength": 1},
                     "severity": {"type": "string", "minLength": 1},
                 },
-            },
-        },
-        "subject_rights_requests": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "required": ["request_id"],
-                "properties": {"request_id": {"type": "string", "minLength": 1}},
             },
         },
         "comm_compliance_policies": {

@@ -211,6 +211,8 @@ export default function Overview() {
             iconBg="bg-gold-500/20"
             value={o.labels_summary?.sensitivity_labels ?? 0}
             label="Sensitivity Labels"
+            delta={`${o.labels_summary?.protected_labels ?? 0} protected`}
+            deltaUp
           />
           <KPICard
             icon={IconShield}

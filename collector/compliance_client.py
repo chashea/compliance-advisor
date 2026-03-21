@@ -3,7 +3,7 @@ Microsoft Graph API client for compliance workload data collection.
 
 Pulls data from:
 - GET  /v1.0/security/cases/ediscoveryCases                     — eDiscovery cases
-- GET  /beta/security/informationProtection/sensitivityLabels    — sensitivity labels
+- GET  /v1.0/security/dataSecurityAndGovernance/sensitivityLabels — sensitivity labels (v1.0 GA)
 - GET  /v1.0/security/labels/retentionLabels                     — retention labels
 - GET  /v1.0/security/triggers/retentionEvents                   — retention events
 - GET  /v1.0/security/triggerTypes/retentionEventTypes           — retention event types
@@ -25,7 +25,6 @@ Required Microsoft Graph Application permissions:
 - SecurityAlert.Read.All                  — DLP + IRM alerts (alerts_v2)
 - DataSecurityAndGovernance.Read.All      — protection scopes, user content policies
 - SecurityEvents.Read.All                 — Secure Score + improvement actions
-- SubjectRightsRequest.Read.All           — subject rights requests
 - CommunicationCompliance.Read.All        — communication compliance policies
 - InformationBarrierPolicy.Read.All       — information barrier policies
 - InsiderRiskManagement.Read.All          — IRM policies
@@ -144,33 +143,34 @@ def get_sensitivity_labels(token: str) -> list[dict[str, Any]]:
     """Return sensitivity labels.
 
     Tries endpoints in order:
-    1. beta /security/informationProtection/sensitivityLabels
-       (InformationProtectionPolicy.Read.All — Commercial only)
-    2. v1.0 /security/dataSecurityAndGovernance/sensitivityLabels
-       (SensitivityLabel.Read — Commercial + GCC L4)
+    1. v1.0 /security/dataSecurityAndGovernance/sensitivityLabels
+       (SensitivityLabel.Read — Commercial + GCC, richer properties)
+    2. beta /security/informationProtection/sensitivityLabels
+       (InformationProtectionPolicy.Read.All — fallback)
     """
     sess = _session(token)
 
-    # Try beta informationProtection endpoint first
-    url = f"{GRAPH_BETA}/security/informationProtection/sensitivityLabels"
-    try:
-        items = _paginate(sess, url)
-        if items:
-            log.info("Retrieved %d sensitivity labels (beta/informationProtection)", len(items))
-            return _map_sensitivity_labels(items)
-    except requests.exceptions.RequestException as e:
-        _log_api_error("sensitivityLabels (beta/informationProtection)", e, "InformationProtectionPolicy.Read.All")
-
-    # Fallback: v1.0 dataSecurityAndGovernance endpoint
+    # Try v1.0 GA endpoint first (richer properties)
     url = f"{GRAPH_BASE}/security/dataSecurityAndGovernance/sensitivityLabels"
     try:
         items = _paginate(sess, url)
+        if items:
+            labels = _map_sensitivity_labels(items)
+            log.info("Retrieved %d sensitivity labels (v1.0/dataSecurityAndGovernance)", len(labels))
+            return labels
     except requests.exceptions.RequestException as e:
         _log_api_error("sensitivityLabels (v1.0/dataSecurityAndGovernance)", e, "SensitivityLabel.Read")
+
+    # Fallback: beta informationProtection endpoint
+    url = f"{GRAPH_BETA}/security/informationProtection/sensitivityLabels"
+    try:
+        items = _paginate(sess, url)
+    except requests.exceptions.RequestException as e:
+        _log_api_error("sensitivityLabels (beta/informationProtection)", e, "InformationProtectionPolicy.Read.All")
         return []
 
     labels = _map_sensitivity_labels(items)
-    log.info("Retrieved %d sensitivity labels (v1.0/dataSecurityAndGovernance)", len(labels))
+    log.info("Retrieved %d sensitivity labels (beta/informationProtection)", len(labels))
     return labels
 
 
@@ -178,6 +178,13 @@ def _map_sensitivity_labels(items: list[dict]) -> list[dict[str, Any]]:
     """Map Graph API sensitivity label response to our schema."""
     labels = []
     for item in items:
+        # applicableTo can be a comma-separated string or a list
+        applicable_raw = item.get("applicableTo", "")
+        if isinstance(applicable_raw, list):
+            applicable_to = ", ".join(applicable_raw)
+        else:
+            applicable_to = str(applicable_raw) if applicable_raw else ""
+
         labels.append(
             {
                 "label_id": item.get("id", ""),
@@ -188,62 +195,12 @@ def _map_sensitivity_labels(items: list[dict]) -> list[dict[str, Any]]:
                 "parent_id": item.get("parent", {}).get("id", "") if isinstance(item.get("parent"), dict) else "",
                 "priority": item.get("priority", 0),
                 "tooltip": item.get("toolTip", "") or item.get("tooltip", ""),
+                "has_protection": item.get("hasProtection", False),
+                "applicable_to": applicable_to,
+                "application_mode": item.get("applicationMode", ""),
+                "is_endpoint_protection_enabled": item.get("isEndpointProtectionEnabled", False),
             }
         )
-    return labels
-
-
-# ── Records Management (retention labels) ─────────────────────────
-
-
-def get_retention_labels(token: str) -> list[dict[str, Any]]:
-    """Return retention labels.
-
-    Required Graph permission: RecordsManagement.Read.All (delegated only).
-    NOTE: This API does NOT support application permissions per Microsoft docs.
-    With app-only (client credentials) auth, this call will return 403.
-    """
-    sess = _session(token)
-    url = f"{GRAPH_BASE}/security/labels/retentionLabels"
-
-    try:
-        items = _paginate(sess, url)
-    except requests.exceptions.RequestException as e:
-        _log_api_error(
-            "retentionLabels",
-            e,
-            "RecordsManagement.Read.All (NOTE: delegated only — app-only auth is not supported by this API)",
-        )
-        return []
-
-    labels = []
-    for item in items:
-        duration = item.get("retentionDuration", {})
-        duration_str = ""
-        if isinstance(duration, dict):
-            duration_str = duration.get("period", "") or str(duration.get("days", ""))
-        elif duration:
-            duration_str = str(duration)
-
-        descriptors = item.get("descriptors") or {}
-        labels.append(
-            {
-                "label_id": item.get("id", ""),
-                "display_name": item.get("displayName", ""),
-                "retention_duration": duration_str,
-                "retention_trigger": item.get("retentionTrigger", ""),
-                "action_after_retention": item.get("actionAfterRetentionPeriod", ""),
-                "is_in_use": item.get("isInUse", False),
-                "status": item.get("status", ""),
-                "file_plan_authority": (descriptors.get("authorityTemplate") or {}).get("displayName", ""),
-                "file_plan_citation": (descriptors.get("citationTemplate") or {}).get("displayName", ""),
-                "file_plan_department": (descriptors.get("departmentTemplate") or {}).get("displayName", ""),
-                "file_plan_category": (descriptors.get("categoryTemplate") or {}).get("displayName", ""),
-                "file_plan_subcategory": (descriptors.get("subcategoryTemplate") or {}).get("displayName", ""),
-            }
-        )
-
-    log.info("Retrieved %d retention labels", len(labels))
     return labels
 
 
@@ -638,38 +595,6 @@ def get_improvement_actions(token: str, services: set[str] | None = None) -> lis
 
     log.info("Retrieved %d improvement actions", len(actions))
     return actions
-
-
-# ── Subject Rights Requests ───────────────────────────────────────
-
-
-def get_subject_rights_requests(token: str) -> list[dict[str, Any]]:
-    """Return Subject Rights Requests (v1.0 security namespace)."""
-    sess = _session(token)
-    url = f"{GRAPH_BASE}/security/subjectRightsRequests"
-
-    try:
-        items = _paginate(sess, url, max_pages=10)
-    except requests.exceptions.RequestException as e:
-        _log_api_error("subjectRightsRequests", e, "SubjectRightsRequest.Read.All")
-        return []
-
-    results = []
-    for item in items:
-        results.append(
-            {
-                "request_id": item.get("id", ""),
-                "display_name": item.get("displayName", ""),
-                "request_type": item.get("type", ""),
-                "status": item.get("status", ""),
-                "created": item.get("createdDateTime", ""),
-                "closed": item.get("closedDateTime", ""),
-                "data_subject_type": item.get("dataSubjectType", ""),
-            }
-        )
-
-    log.info("Retrieved %d subject rights requests", len(results))
-    return results
 
 
 # ── Communication Compliance ──────────────────────────────────────
