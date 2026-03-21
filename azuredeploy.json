@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "17451726840419202398"
+      "templateHash": "4907255681815986080"
     }
   },
   "parameters": {
@@ -375,7 +375,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "17757673266561369744"
+              "templateHash": "15375469440122094582"
             }
           },
           "parameters": {
@@ -409,6 +409,7 @@
                 "enableSoftDelete": true,
                 "softDeleteRetentionInDays": 90,
                 "enablePurgeProtection": true,
+                "publicNetworkAccess": "Enabled",
                 "networkAcls": {
                   "defaultAction": "Allow",
                   "bypass": "AzureServices"
@@ -690,7 +691,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "7733049084429327791"
+              "templateHash": "1246567901397167684"
             }
           },
           "parameters": {
@@ -760,6 +761,7 @@
                 "httpsOnly": true,
                 "siteConfig": {
                   "alwaysOn": true,
+                  "healthCheckPath": "/api/health",
                   "pythonVersion": "3.12",
                   "linuxFxVersion": "PYTHON|3.12",
                   "minTlsVersion": "1.2",
