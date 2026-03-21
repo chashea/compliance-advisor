@@ -86,7 +86,6 @@ try:
         upsert_protection_scope,
         upsert_retention_event,
         upsert_retention_event_type,
-        upsert_retention_label,
         upsert_secure_score,
         upsert_sensitive_info_type,
         upsert_sensitivity_label,
@@ -142,9 +141,6 @@ try:
     )
     from collector.compliance_client import (
         get_retention_events as collect_retention_events,
-    )
-    from collector.compliance_client import (
-        get_retention_labels as collect_retention_labels,
     )
     from collector.compliance_client import (
         get_secure_scores as collect_secure_scores,
@@ -653,25 +649,6 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 is_endpoint_protection_enabled=sl.get("is_endpoint_protection_enabled", False),
             )
 
-        # Upsert retention labels
-        for rl in payload.get("retention_labels", []):
-            upsert_retention_label(
-                tenant_id=tenant_id,
-                label_id=rl.get("label_id", ""),
-                display_name=rl.get("display_name", ""),
-                retention_duration=rl.get("retention_duration", ""),
-                retention_trigger=rl.get("retention_trigger", ""),
-                action_after_retention=rl.get("action_after_retention", ""),
-                is_in_use=rl.get("is_in_use", False),
-                status=rl.get("status", ""),
-                snapshot_date=snapshot_date,
-                file_plan_authority=rl.get("file_plan_authority", ""),
-                file_plan_citation=rl.get("file_plan_citation", ""),
-                file_plan_department=rl.get("file_plan_department", ""),
-                file_plan_category=rl.get("file_plan_category", ""),
-                file_plan_subcategory=rl.get("file_plan_subcategory", ""),
-            )
-
         # Upsert retention events
         for re_ in payload.get("retention_events", []):
             upsert_retention_event(
@@ -974,7 +951,6 @@ def _collect_single_tenant(
 
         ediscovery = collect_ediscovery(token)
         sensitivity = collect_sensitivity_labels(token)
-        retention = collect_retention_labels(token)
         ret_events = collect_retention_events(token)
         ret_event_types = collect_retention_event_types(token)
         audit = collect_audit_log_records(token, days=audit_days)
@@ -1022,23 +998,6 @@ def _collect_single_tenant(
                 applicable_to=sl.get("applicable_to", ""),
                 application_mode=sl.get("application_mode", ""),
                 is_endpoint_protection_enabled=sl.get("is_endpoint_protection_enabled", False),
-            )
-        for rl in retention:
-            upsert_retention_label(
-                tenant_id=tid,
-                label_id=rl.get("label_id", ""),
-                display_name=rl.get("display_name", ""),
-                retention_duration=rl.get("retention_duration", ""),
-                retention_trigger=rl.get("retention_trigger", ""),
-                action_after_retention=rl.get("action_after_retention", ""),
-                is_in_use=rl.get("is_in_use", False),
-                status=rl.get("status", ""),
-                snapshot_date=today,
-                file_plan_authority=rl.get("file_plan_authority", ""),
-                file_plan_citation=rl.get("file_plan_citation", ""),
-                file_plan_department=rl.get("file_plan_department", ""),
-                file_plan_category=rl.get("file_plan_category", ""),
-                file_plan_subcategory=rl.get("file_plan_subcategory", ""),
             )
         for re_ in ret_events:
             upsert_retention_event(
@@ -1227,7 +1186,7 @@ def _collect_single_tenant(
         counts = {
             "ediscovery": len(ediscovery),
             "sensitivity_labels": len(sensitivity),
-            "retention_labels": len(retention),
+            "retention_labels": 0,
             "audit_records": len(audit),
             "dlp_alerts": len(dlp),
             "irm_alerts": len(irm),

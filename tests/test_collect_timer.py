@@ -102,7 +102,6 @@ def test_skips_when_collector_imports_failed(mock_get_settings, mock_query):
         }
     ],
 )
-@patch("functions.function_app.collect_retention_labels", return_value=[])
 @patch("functions.function_app.collect_retention_events", return_value=[])
 @patch("functions.function_app.collect_audit_log_records", return_value=[])
 @patch("functions.function_app.collect_dlp_alerts", return_value=[])
@@ -152,7 +151,6 @@ def test_collects_and_upserts(
     mock_dlp,
     mock_audit,
     mock_ret_events,
-    mock_ret_labels,
     mock_sens_labels,
     mock_ediscovery,
     mock_upsert_ucp,
@@ -184,7 +182,6 @@ def test_collects_and_upserts(
 @patch("functions.function_app.upsert_tenant")
 @patch("functions.function_app.collect_ediscovery", return_value=[])
 @patch("functions.function_app.collect_sensitivity_labels", return_value=[])
-@patch("functions.function_app.collect_retention_labels", return_value=[])
 @patch("functions.function_app.collect_retention_events", return_value=[])
 @patch("functions.function_app.collect_audit_log_records", return_value=[])
 @patch("functions.function_app.collect_dlp_alerts", return_value=[])
@@ -220,7 +217,6 @@ def test_per_tenant_error_isolation(
     mock_dlp,
     mock_audit,
     mock_ret_events,
-    mock_ret_labels,
     mock_sens_labels,
     mock_ediscovery,
     mock_upsert_tenant,
