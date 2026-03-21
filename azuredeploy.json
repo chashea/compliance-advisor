@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "7176901088444248913"
+      "templateHash": "4962511635669954099"
     }
   },
   "parameters": {
@@ -240,7 +240,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "17508938254123587662"
+              "templateHash": "1040547921992549655"
             }
           },
           "parameters": {
@@ -299,9 +299,21 @@
                   "passwordAuth": "Enabled"
                 },
                 "network": {
-                  "publicNetworkAccess": "Disabled"
+                  "publicNetworkAccess": "Enabled"
                 }
               }
+            },
+            {
+              "type": "Microsoft.DBforPostgreSQL/flexibleServers/firewallRules",
+              "apiVersion": "2023-06-01-preview",
+              "name": "[format('{0}/{1}', parameters('serverName'), 'AllowAzureServices')]",
+              "properties": {
+                "startIpAddress": "0.0.0.0",
+                "endIpAddress": "0.0.0.0"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', parameters('serverName'))]"
+              ]
             },
             {
               "type": "Microsoft.DBforPostgreSQL/flexibleServers/databases",

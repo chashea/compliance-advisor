@@ -37,8 +37,18 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-06-01-pr
       passwordAuth: 'Enabled'
     }
     network: {
-      publicNetworkAccess: 'Disabled'
+      publicNetworkAccess: 'Enabled'
     }
+  }
+}
+
+// Allow Azure services (GitHub Actions runner, Function App) to connect
+resource firewallRule 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2023-06-01-preview' = {
+  parent: postgresServer
+  name: 'AllowAzureServices'
+  properties: {
+    startIpAddress: '0.0.0.0'
+    endIpAddress: '0.0.0.0'
   }
 }
 
