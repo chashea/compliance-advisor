@@ -63,6 +63,7 @@ try:
         get_irm_policies,
         get_labels,
         get_overview,
+        get_purview_insights,
         get_purview_incidents,
         get_status,
         get_threat_assessments,
@@ -350,6 +351,30 @@ def advisor_trend(req: func.HttpRequest) -> func.HttpResponse:
         )
     except Exception as e:
         log.exception("advisor/trend error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+@app.function_name("advisor_purview_insights")
+@app.route(route="advisor/purview-insights", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_purview_insights(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        _ensure_dependencies_loaded()
+        body = _get_body(req)
+        try:
+            days = int(body.get("days", 30))
+        except (TypeError, ValueError):
+            return _json_response({"error": "Invalid 'days' parameter — must be an integer"}, 400)
+        if days < 1 or days > 365:
+            return _json_response({"error": "Invalid 'days' parameter — must be between 1 and 365"}, 400)
+        return _json_response(
+            get_purview_insights(
+                department=body.get("department"),
+                tenant_id=body.get("tenant_id"),
+                days=days,
+            )
+        )
+    except Exception as e:
+        log.exception("advisor/purview-insights error: %s", e)
         return _json_response({"error": str(e)}, 500)
 
 

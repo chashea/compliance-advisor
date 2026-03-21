@@ -11,6 +11,7 @@ from shared.dashboard_queries import (
     get_irm,
     get_labels,
     get_overview,
+    get_purview_insights,
     get_purview_incidents,
     get_status,
     get_trend,
@@ -225,3 +226,119 @@ def test_get_trend_with_department(mock_q):
     assert "%(dept)s" in sql
     assert params["dept"] == "DOJ"
     assert "department IS NULL" not in sql
+
+
+@patch("shared.dashboard_queries.query")
+@patch("shared.dashboard_queries.query_one")
+def test_get_purview_insights_shape_and_metrics(mock_qo, mock_q):
+    mock_q.side_effect = [
+        [
+            {
+                "tenant_id": "t1",
+                "display_name": "Contoso",
+                "department": "Legal",
+                "collected_at": "2026-03-14T08:00:00+00:00",
+                "last_snapshot_date": "2026-03-14",
+                "last_payload_at": "2026-03-14T08:01:00+00:00",
+                "record_counts": {
+                    "ediscovery_cases": 1,
+                    "sensitivity_labels": 1,
+                    "audit_records": 2,
+                    "dlp_alerts": 2,
+                    "irm_alerts": 1,
+                    "info_barrier_policies": 1,
+                    "protection_scopes": 1,
+                    "dlp_policies": 1,
+                    "irm_policies": 1,
+                    "sensitive_info_types": 1,
+                    "compliance_assessments": 1,
+                    "threat_assessment_requests": 1,
+                    "purview_incidents": 1,
+                },
+            }
+        ],
+        [
+            {"owner": "analyst@contoso.com", "total_alerts": 3, "open_alerts": 2, "high_severity": 1, "avg_age_days": 1.5}
+        ],
+        [
+            {"applicable_to": "email, file", "total": 10, "protected": 7},
+            {"applicable_to": "site", "total": 3, "protected": 1},
+        ],
+        [
+            {
+                "snapshot_date": "2026-03-13",
+                "dlp_alerts": 5,
+                "active_incidents": 2,
+                "data_score_pct": 60.0,
+                "policy_changes": 1,
+            },
+            {
+                "snapshot_date": "2026-03-14",
+                "dlp_alerts": 2,
+                "active_incidents": 1,
+                "data_score_pct": 64.0,
+                "policy_changes": 0,
+            },
+        ],
+        [
+            {
+                "assessment_id": "a1",
+                "display_name": "NIST 800-53",
+                "framework": "NIST 800-53",
+                "completion_percentage": 72.0,
+                "status": "Active",
+                "tenant_name": "Contoso",
+            }
+        ],
+        [
+            {
+                "control_id": "ctrl-1",
+                "title": "Enable DLP",
+                "control_category": "Data",
+                "max_score": 10.0,
+                "current_score": 2.0,
+                "threats": "Data exfiltration",
+                "remediation": "Enable policy",
+                "state": "InProgress",
+                "rank": 1,
+                "tenant_name": "Contoso",
+            }
+        ],
+        [
+            {
+                "incident_id": "inc-1",
+                "display_name": "Sensitive data leak",
+                "severity": "high",
+                "status": "active",
+                "owner": "analyst@contoso.com",
+                "last_update": "2026-03-14",
+                "tenant_name": "Contoso",
+            }
+        ],
+    ]
+    mock_qo.side_effect = [
+        {
+            "total_alerts": 6,
+            "resolved_alerts": 3,
+            "active_alerts": 3,
+            "true_positive_alerts": 4,
+            "unresolved_high_alerts": 2,
+            "unresolved_medium_alerts": 1,
+            "mttr_hours": 12.5,
+        },
+        {"total_labels": 10, "protected_labels": 7},
+    ]
+
+    result = get_purview_insights(days=30)
+
+    assert "effectiveness" in result
+    assert "classification_coverage" in result
+    assert "policy_drift" in result
+    assert "data_at_risk" in result
+    assert "control_mapping" in result
+    assert "owner_actions" in result
+    assert "collection_health" in result
+    assert result["effectiveness"]["closure_rate_pct"] == 50.0
+    assert result["classification_coverage"]["coverage_pct"] == 70.0
+    assert result["collection_health"]["complete_tenants"] == 1
+    assert result["owner_actions"]["priority_actions"]

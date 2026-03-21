@@ -20,6 +20,7 @@ const NAV_WORKLOADS = [
 
 const NAV_ANALYTICS = [
   { to: "/trend", label: "Trend", icon: "M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" },
+  { to: "/purview-insights", label: "Purview Insights", icon: "M12 3l8 3v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-3z" },
 ];
 
 function NavIcon({ d }: { d: string }) {

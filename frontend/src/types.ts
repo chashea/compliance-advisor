@@ -335,6 +335,141 @@ export interface ThreatAssessmentsResponse {
   category_breakdown: ThreatCategoryBreakdown[];
 }
 
+// /api/advisor/purview-insights
+export interface RepeatOffender {
+  owner: string;
+  total_alerts: number;
+  open_alerts: number;
+  high_severity: number;
+  avg_age_days: number;
+}
+
+export interface CoverageBreakdown {
+  applicable_to: string;
+  total: number;
+  protected: number;
+}
+
+export interface PolicyDriftPoint {
+  snapshot_date: string;
+  dlp_alerts: number;
+  active_incidents: number;
+  policy_changes: number;
+  data_score_pct: number;
+  risk_spike: boolean;
+  correlated_change: boolean;
+  secure_score_delta: number;
+}
+
+export interface ControlEvidenceLink {
+  label: string;
+  url: string;
+}
+
+export interface MappedControl {
+  framework: string;
+  control_id: string;
+  control_title: string;
+  status: string;
+  priority: string;
+  owner: string;
+  completion_percentage: number;
+  evidence_links: ControlEvidenceLink[];
+}
+
+export interface OwnerLoad {
+  owner: string;
+  open_alerts: number;
+  high_severity: number;
+  active_incidents: number;
+  avg_age_days: number;
+}
+
+export interface PriorityAction {
+  action_type: string;
+  title: string;
+  owner: string;
+  priority: string;
+  risk_reduction_score: number;
+  tenant_name: string;
+  evidence_link: string;
+}
+
+export interface TenantCollectionHealth {
+  tenant_id: string;
+  display_name: string;
+  department: string;
+  last_collected_at: string | null;
+  last_snapshot_date: string | null;
+  last_payload_at: string | null;
+  is_stale: boolean;
+  completeness_pct: number;
+  missing_datasets: string[];
+}
+
+export interface PurviewInsightsResponse {
+  effectiveness: {
+    total_alerts: number;
+    resolved_alerts: number;
+    active_alerts: number;
+    closure_rate_pct: number;
+    true_positive_rate_pct: number;
+    mttr_hours: number;
+    repeat_offenders: RepeatOffender[];
+  };
+  classification_coverage: {
+    total_labels: number;
+    protected_labels: number;
+    coverage_pct: number;
+    breakdown: CoverageBreakdown[];
+  };
+  policy_drift: {
+    window_days: number;
+    timeline: PolicyDriftPoint[];
+    summary: {
+      total_policy_changes: number;
+      risk_spike_days: number;
+      correlated_days: number;
+    };
+  };
+  data_at_risk: {
+    score: number;
+    risk_level: string;
+    components: {
+      unresolved_high_alerts: number;
+      unresolved_medium_alerts: number;
+      active_incidents: number;
+      unprotected_labels: number;
+    };
+    weighted_points: {
+      high_alert_weighted: number;
+      medium_alert_weighted: number;
+      active_incident_weighted: number;
+      unprotected_label_weighted: number;
+    };
+  };
+  control_mapping: {
+    framework_summary: {
+      framework: string;
+      total_assessments: number;
+      avg_completion: number;
+      estimated_gap_count: number;
+    }[];
+    controls: MappedControl[];
+  };
+  owner_actions: {
+    owners: OwnerLoad[];
+    priority_actions: PriorityAction[];
+  };
+  collection_health: {
+    required_datasets: string[];
+    newest_sync: string | null;
+    stale_tenants: number;
+    complete_tenants: number;
+    tenant_health: TenantCollectionHealth[];
+  };
+}
+
 // /api/advisor/briefing
 export interface BriefingResponse {
   briefing: string;

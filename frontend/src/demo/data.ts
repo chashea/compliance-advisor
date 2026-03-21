@@ -28,6 +28,7 @@ import type {
   Assessment,
   ThreatAssessmentsResponse,
   ThreatAssessmentRequest,
+  PurviewInsightsResponse,
 } from "../types";
 
 // --- Tenants ---
@@ -426,6 +427,194 @@ export function getDemoData(endpoint: string, body?: Record<string, unknown>): u
         actions,
         category_breakdown: Object.entries(catMap).map(([control_category, v]) => ({ control_category, ...v })),
       } satisfies ActionsResponse;
+    }
+
+    case "purview-insights": {
+      const dlp = filterByDept(dlpAlerts, dept || undefined);
+      const irm = filterByDept(irmAlerts, dept || undefined);
+      const incidents = filterByDept(purviewIncidents, dept || undefined);
+      const labels = filterByDept(sensitivityLabels, dept || undefined);
+      const assessments = filterByDept(complianceAssessments, dept || undefined);
+      const actions = filterByDept(improvementActions, dept || undefined).filter((a) => a.max_score > a.current_score);
+      const allAlerts = [...dlp, ...irm];
+
+      const resolved = allAlerts.filter((a) => a.status.toLowerCase() === "resolved").length;
+      const active = allAlerts.length - resolved;
+      const truePos = allAlerts.filter((a) => a.classification === "truePositive").length;
+
+      const ownersMap: Record<string, { owner: string; open_alerts: number; high_severity: number; active_incidents: number; avg_age_days: number }> = {};
+      allAlerts.forEach((a) => {
+        const owner = "Compliance Team";
+        if (!ownersMap[owner]) ownersMap[owner] = { owner, open_alerts: 0, high_severity: 0, active_incidents: 0, avg_age_days: 4 };
+        if (a.status !== "Resolved") ownersMap[owner].open_alerts++;
+        if (a.status !== "Resolved" && a.severity.toLowerCase() === "high") ownersMap[owner].high_severity++;
+      });
+      incidents.forEach((i) => {
+        const owner = i.assigned_to || "Compliance Team";
+        if (!ownersMap[owner]) ownersMap[owner] = { owner, open_alerts: 0, high_severity: 0, active_incidents: 0, avg_age_days: 2 };
+        if (i.status.toLowerCase() !== "resolved") ownersMap[owner].active_incidents++;
+      });
+      const owners = Object.values(ownersMap).sort((a, b) => (b.open_alerts + b.active_incidents) - (a.open_alerts + a.active_incidents));
+
+      const timeline = trendData.map((t, idx) => {
+        const baseline = idx > 0 ? trendData.slice(Math.max(0, idx - 7), idx).reduce((s, d) => s + d.dlp_alerts, 0) / Math.min(idx, 7) : t.dlp_alerts;
+        const policyChanges = idx % 8 === 0 ? 2 : idx % 5 === 0 ? 1 : 0;
+        const riskSpike = t.dlp_alerts > baseline + 1;
+        return {
+          snapshot_date: t.snapshot_date,
+          dlp_alerts: t.dlp_alerts,
+          active_incidents: incidents.filter((i) => i.status.toLowerCase() !== "resolved").length,
+          policy_changes: policyChanges,
+          data_score_pct: 58 + Math.min(idx, 12) * 0.8,
+          risk_spike: riskSpike,
+          correlated_change: riskSpike && policyChanges > 0,
+          secure_score_delta: idx === 0 ? 0 : 0.8,
+        };
+      });
+
+      const policySummary = {
+        total_policy_changes: timeline.reduce((s, p) => s + p.policy_changes, 0),
+        risk_spike_days: timeline.filter((p) => p.risk_spike).length,
+        correlated_days: timeline.filter((p) => p.correlated_change).length,
+      };
+
+      const protectedLabels = labels.filter((l) => l.has_protection).length;
+      const unprotectedLabels = labels.length - protectedLabels;
+      const unresolvedHigh = allAlerts.filter((a) => a.status !== "Resolved" && a.severity.toLowerCase() === "high").length;
+      const unresolvedMedium = allAlerts.filter((a) => a.status !== "Resolved" && a.severity.toLowerCase() === "medium").length;
+      const activeIncidents = incidents.filter((i) => i.status.toLowerCase() !== "resolved").length;
+
+      const weighted = {
+        high_alert_weighted: unresolvedHigh * 5,
+        medium_alert_weighted: unresolvedMedium * 3,
+        active_incident_weighted: activeIncidents * 4,
+        unprotected_label_weighted: unprotectedLabels * 2,
+      };
+      const riskScore = Math.min(100, Math.round((weighted.high_alert_weighted + weighted.medium_alert_weighted + weighted.active_incident_weighted + weighted.unprotected_label_weighted) * 1.5));
+
+      const frameworkSummaryMap: Record<string, { framework: string; total_assessments: number; avg_completion: number; estimated_gap_count: number }> = {};
+      assessments.forEach((a) => {
+        if (!frameworkSummaryMap[a.framework]) {
+          frameworkSummaryMap[a.framework] = { framework: a.framework, total_assessments: 0, avg_completion: 0, estimated_gap_count: 0 };
+        }
+        frameworkSummaryMap[a.framework].total_assessments++;
+        frameworkSummaryMap[a.framework].avg_completion += a.completion_percentage;
+        if (a.completion_percentage < 80) frameworkSummaryMap[a.framework].estimated_gap_count++;
+      });
+      const frameworkSummary = Object.values(frameworkSummaryMap).map((f) => ({
+        ...f,
+        avg_completion: Math.round(f.avg_completion / Math.max(f.total_assessments, 1)),
+      }));
+
+      const controls = actions.slice(0, 6).map((a) => ({
+        framework: "NIST 800-53",
+        control_id: a.control_id,
+        control_title: a.title,
+        status: a.state,
+        priority: a.max_score - a.current_score >= 8 ? "High" : "Medium",
+        owner: owners[0]?.owner ?? "Compliance Team",
+        completion_percentage: 72,
+        evidence_links: [
+          { label: "Purview Compliance Manager", url: `https://purview.microsoft.com/compliancemanager/assessments/${a.control_id}` },
+          { label: "Secure Score Action", url: `https://security.microsoft.com/securescore?viewid=actions&control=${a.control_id}` },
+        ],
+      }));
+
+      return {
+        effectiveness: {
+          total_alerts: allAlerts.length,
+          resolved_alerts: resolved,
+          active_alerts: active,
+          closure_rate_pct: allAlerts.length ? Math.round((resolved / allAlerts.length) * 1000) / 10 : 0,
+          true_positive_rate_pct: allAlerts.length ? Math.round((truePos / allAlerts.length) * 1000) / 10 : 0,
+          mttr_hours: 18.4,
+          repeat_offenders: owners.map((o) => ({ ...o, total_alerts: o.open_alerts + 1 })),
+        },
+        classification_coverage: {
+          total_labels: labels.length,
+          protected_labels: protectedLabels,
+          coverage_pct: labels.length ? Math.round((protectedLabels / labels.length) * 1000) / 10 : 0,
+          breakdown: [
+            { applicable_to: "email, file", total: 2, protected: 1 },
+            { applicable_to: "email, file, site", total: 1, protected: 1 },
+            { applicable_to: "email, file, site, teamwork", total: 1, protected: 1 },
+          ],
+        },
+        policy_drift: {
+          window_days: 30,
+          timeline,
+          summary: policySummary,
+        },
+        data_at_risk: {
+          score: riskScore,
+          risk_level: riskScore >= 80 ? "Critical" : riskScore >= 60 ? "High" : riskScore >= 35 ? "Medium" : "Low",
+          components: {
+            unresolved_high_alerts: unresolvedHigh,
+            unresolved_medium_alerts: unresolvedMedium,
+            active_incidents: activeIncidents,
+            unprotected_labels: unprotectedLabels,
+          },
+          weighted_points: weighted,
+        },
+        control_mapping: {
+          framework_summary: frameworkSummary.filter((f) => f.framework.includes("NIST") || f.framework.includes("CJIS")),
+          controls,
+        },
+        owner_actions: {
+          owners,
+          priority_actions: [
+            ...actions.slice(0, 5).map((a) => ({
+              action_type: "Secure Score Improvement",
+              title: a.title,
+              owner: owners[0]?.owner ?? "Compliance Team",
+              priority: a.max_score - a.current_score >= 8 ? "High" : "Medium",
+              risk_reduction_score: Number((a.max_score - a.current_score).toFixed(1)),
+              tenant_name: a.tenant_name,
+              evidence_link: `https://security.microsoft.com/securescore?viewid=actions&control=${a.control_id}`,
+            })),
+            ...incidents.filter((i) => i.status.toLowerCase() !== "resolved").map((i) => ({
+              action_type: "Incident Triage",
+              title: i.display_name,
+              owner: i.assigned_to || "Compliance Team",
+              priority: i.severity.toLowerCase() === "high" ? "High" : "Medium",
+              risk_reduction_score: i.severity.toLowerCase() === "high" ? 8.5 : 5.5,
+              tenant_name: i.tenant_name,
+              evidence_link: `https://purview.microsoft.com/insiderriskmanagement?view=alerts&incidentId=${i.incident_id}`,
+            })),
+          ],
+        },
+        collection_health: {
+          required_datasets: [
+            "ediscovery_cases",
+            "sensitivity_labels",
+            "audit_records",
+            "dlp_alerts",
+            "irm_alerts",
+            "info_barrier_policies",
+            "protection_scopes",
+            "dlp_policies",
+            "irm_policies",
+            "sensitive_info_types",
+            "compliance_assessments",
+            "threat_assessment_requests",
+            "purview_incidents",
+          ],
+          newest_sync: "2026-03-14T08:00:00Z",
+          stale_tenants: 0,
+          complete_tenants: 3,
+          tenant_health: TENANTS.map((t) => ({
+            tenant_id: t.tenant_id,
+            display_name: t.display_name,
+            department: t.department,
+            last_collected_at: "2026-03-14T08:00:00Z",
+            last_snapshot_date: "2026-03-14",
+            last_payload_at: "2026-03-14T08:01:00Z",
+            is_stale: false,
+            completeness_pct: 100,
+            missing_datasets: [],
+          })),
+        },
+      } satisfies PurviewInsightsResponse;
     }
 
     case "briefing":

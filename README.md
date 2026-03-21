@@ -55,6 +55,14 @@ React SPA (`cadvisor-web-prod`)
 - DLP alert monitoring with inline severity chart and severity/status/tenant filters
 - Insider Risk Management alert monitoring with severity/status filters
 - Purview Incidents tracking with severity, status, classification, and alert correlation
+- Purview Insights analytics page with:
+  - Effectiveness KPIs (closure rate, true-positive rate, MTTR, repeat offenders)
+  - Classification coverage percentages by applicable surface
+  - Policy drift and risk-spike correlation timeline
+  - Weighted Data-at-Risk score and risk level
+  - CJIS/NIST-oriented control mapping with evidence links
+  - Owner-prioritized action queue
+  - Collection freshness and completeness indicators per tenant
 - eDiscovery case tracking with custodian counts
 - Sensitivity and retention label inventory
 - Information Barriers policy visibility

@@ -7,7 +7,8 @@ POST /api/advisor/* endpoint should return.
 """
 
 import logging
-from datetime import date, timedelta
+import json
+from datetime import date, datetime, timedelta, timezone
 
 from shared.db import query, query_one
 
@@ -1140,4 +1141,703 @@ def get_threat_assessments(department: str | None = None, tenant_id: str | None 
         "requests": requests_list,
         "status_breakdown": status_breakdown,
         "category_breakdown": category_breakdown,
+    }
+
+
+def _parse_timestamp(value: str | None) -> datetime | None:
+    """Parse timestamp/date strings safely."""
+    if not value:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        return datetime.fromisoformat(text)
+    except ValueError:
+        pass
+    if len(text) >= 10:
+        try:
+            return datetime.fromisoformat(text[:10])
+        except ValueError:
+            return None
+    return None
+
+
+def get_purview_insights(department: str | None = None, tenant_id: str | None = None, days: int = 30) -> dict:
+    """POST /api/advisor/purview-insights — advanced Purview KPI and risk analytics."""
+    params: dict = {}
+    dept_filter = ""
+    tenant_filter = ""
+    if department:
+        dept_filter = "AND t.department = %(dept)s"
+        params["dept"] = department
+    if tenant_id:
+        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
+        params["tenant_id"] = tenant_id
+
+    today = date.today()
+    start_date = today - timedelta(days=max(days - 1, 0))
+    params["start_date"] = start_date.isoformat()
+    params["end_date"] = today.isoformat()
+
+    tenant_health_rows = query(
+        f"""
+        SELECT
+            t.tenant_id,
+            t.display_name,
+            t.department,
+            t.collected_at::text AS collected_at,
+            il.snapshot_date::text AS last_snapshot_date,
+            il.ingested_at::text AS last_payload_at,
+            il.record_counts
+        FROM tenants t
+        LEFT JOIN LATERAL (
+            SELECT i.snapshot_date, i.ingested_at, i.record_counts
+            FROM ingestion_log i
+            WHERE i.tenant_id = t.tenant_id
+            ORDER BY i.ingested_at DESC
+            LIMIT 1
+        ) il ON TRUE
+        WHERE 1=1
+          {dept_filter}
+          {tenant_filter}
+        ORDER BY t.display_name
+        """,
+        params,
+    )
+
+    alert_metrics = query_one(
+        f"""
+        WITH latest_alerts AS (
+            SELECT
+                da.tenant_id,
+                da.severity,
+                da.status,
+                da.classification,
+                da.assigned_to,
+                da.created,
+                da.resolved
+            FROM dlp_alerts da
+            JOIN tenants t ON t.tenant_id = da.tenant_id
+            WHERE da.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM dlp_alerts _sub WHERE _sub.tenant_id = da.tenant_id
+            )
+              {dept_filter}
+              {tenant_filter}
+            UNION ALL
+            SELECT
+                ia.tenant_id,
+                ia.severity,
+                ia.status,
+                ia.classification,
+                ia.assigned_to,
+                ia.created,
+                ia.resolved
+            FROM irm_alerts ia
+            JOIN tenants t ON t.tenant_id = ia.tenant_id
+            WHERE ia.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM irm_alerts _sub WHERE _sub.tenant_id = ia.tenant_id
+            )
+              {dept_filter}
+              {tenant_filter}
+        )
+        SELECT
+            COUNT(*)::int AS total_alerts,
+            COUNT(*) FILTER (
+                WHERE lower(COALESCE(status, '')) IN ('resolved', 'dismissed')
+            )::int AS resolved_alerts,
+            COUNT(*) FILTER (
+                WHERE lower(COALESCE(status, '')) NOT IN ('resolved', 'dismissed')
+            )::int AS active_alerts,
+            COUNT(*) FILTER (
+                WHERE regexp_replace(lower(COALESCE(classification, '')), '[^a-z]', '', 'g') = 'truepositive'
+            )::int AS true_positive_alerts,
+            COUNT(*) FILTER (
+                WHERE lower(COALESCE(status, '')) NOT IN ('resolved', 'dismissed')
+                  AND lower(COALESCE(severity, '')) = 'high'
+            )::int AS unresolved_high_alerts,
+            COUNT(*) FILTER (
+                WHERE lower(COALESCE(status, '')) NOT IN ('resolved', 'dismissed')
+                  AND lower(COALESCE(severity, '')) = 'medium'
+            )::int AS unresolved_medium_alerts,
+            AVG(
+                CASE
+                    WHEN created ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}'
+                         AND resolved ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}'
+                    THEN EXTRACT(EPOCH FROM (resolved::timestamptz - created::timestamptz)) / 3600.0
+                    ELSE NULL
+                END
+            )::real AS mttr_hours
+        FROM latest_alerts
+        """,
+        params,
+    ) or {}
+
+    repeat_offenders = query(
+        f"""
+        WITH latest_alerts AS (
+            SELECT
+                da.tenant_id,
+                COALESCE(NULLIF(da.assigned_to, ''), 'Unassigned') AS owner,
+                da.severity,
+                da.status,
+                da.created
+            FROM dlp_alerts da
+            JOIN tenants t ON t.tenant_id = da.tenant_id
+            WHERE da.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM dlp_alerts _sub WHERE _sub.tenant_id = da.tenant_id
+            )
+              {dept_filter}
+              {tenant_filter}
+            UNION ALL
+            SELECT
+                ia.tenant_id,
+                COALESCE(NULLIF(ia.assigned_to, ''), 'Unassigned') AS owner,
+                ia.severity,
+                ia.status,
+                ia.created
+            FROM irm_alerts ia
+            JOIN tenants t ON t.tenant_id = ia.tenant_id
+            WHERE ia.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM irm_alerts _sub WHERE _sub.tenant_id = ia.tenant_id
+            )
+              {dept_filter}
+              {tenant_filter}
+        )
+        SELECT
+            owner,
+            COUNT(*)::int AS total_alerts,
+            COUNT(*) FILTER (
+                WHERE lower(COALESCE(status, '')) NOT IN ('resolved', 'dismissed')
+            )::int AS open_alerts,
+            COUNT(*) FILTER (
+                WHERE lower(COALESCE(status, '')) NOT IN ('resolved', 'dismissed')
+                  AND lower(COALESCE(severity, '')) = 'high'
+            )::int AS high_severity,
+            AVG(
+                CASE
+                    WHEN created ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}'
+                    THEN EXTRACT(EPOCH FROM (NOW() - created::timestamptz)) / 86400.0
+                    ELSE NULL
+                END
+            )::real AS avg_age_days
+        FROM latest_alerts
+        GROUP BY owner
+        ORDER BY open_alerts DESC, high_severity DESC, total_alerts DESC
+        LIMIT 10
+        """,
+        params,
+    )
+
+    label_summary = query_one(
+        f"""
+        SELECT
+            COUNT(*)::int AS total_labels,
+            COUNT(*) FILTER (WHERE sl.has_protection = TRUE)::int AS protected_labels
+        FROM sensitivity_labels sl
+        JOIN tenants t ON t.tenant_id = sl.tenant_id
+        WHERE sl.snapshot_date = (
+            SELECT MAX(snapshot_date) FROM sensitivity_labels _sub WHERE _sub.tenant_id = sl.tenant_id
+        )
+          {dept_filter}
+          {tenant_filter}
+        """,
+        params,
+    ) or {}
+
+    coverage_breakdown = query(
+        f"""
+        SELECT
+            COALESCE(NULLIF(sl.applicable_to, ''), 'unspecified') AS applicable_to,
+            COUNT(*)::int AS total,
+            COUNT(*) FILTER (WHERE sl.has_protection = TRUE)::int AS protected
+        FROM sensitivity_labels sl
+        JOIN tenants t ON t.tenant_id = sl.tenant_id
+        WHERE sl.snapshot_date = (
+            SELECT MAX(snapshot_date) FROM sensitivity_labels _sub WHERE _sub.tenant_id = sl.tenant_id
+        )
+          {dept_filter}
+          {tenant_filter}
+        GROUP BY COALESCE(NULLIF(sl.applicable_to, ''), 'unspecified')
+        ORDER BY total DESC
+        """,
+        params,
+    )
+
+    trend_rows = query(
+        f"""
+        SELECT
+            day_bucket.snapshot_date::text,
+            COALESCE(dlp.daily_dlp_alerts, 0)::int AS dlp_alerts,
+            COALESCE(inc.daily_active_incidents, 0)::int AS active_incidents,
+            COALESCE(scores.data_score_pct, 0)::real AS data_score_pct,
+            COALESCE(policy_changes.policy_changes, 0)::int AS policy_changes
+        FROM (
+            SELECT generate_series(%(start_date)s::date, %(end_date)s::date, interval '1 day')::date AS snapshot_date
+        ) day_bucket
+        LEFT JOIN (
+            SELECT da.snapshot_date, COUNT(*)::int AS daily_dlp_alerts
+            FROM dlp_alerts da
+            JOIN tenants t ON t.tenant_id = da.tenant_id
+            WHERE da.snapshot_date BETWEEN %(start_date)s::date AND %(end_date)s::date
+              {dept_filter}
+              {tenant_filter}
+            GROUP BY da.snapshot_date
+        ) dlp ON dlp.snapshot_date = day_bucket.snapshot_date
+        LEFT JOIN (
+            SELECT pi.snapshot_date,
+                   COUNT(*) FILTER (
+                       WHERE lower(COALESCE(pi.status, '')) NOT IN ('resolved', 'dismissed')
+                   )::int AS daily_active_incidents
+            FROM purview_incidents pi
+            JOIN tenants t ON t.tenant_id = pi.tenant_id
+            WHERE pi.snapshot_date BETWEEN %(start_date)s::date AND %(end_date)s::date
+              {dept_filter}
+              {tenant_filter}
+            GROUP BY pi.snapshot_date
+        ) inc ON inc.snapshot_date = day_bucket.snapshot_date
+        LEFT JOIN (
+            SELECT
+                ss.snapshot_date,
+                CASE
+                    WHEN SUM(ss.data_max_score) = 0 THEN 0
+                    ELSE ROUND((SUM(ss.data_current_score) / SUM(ss.data_max_score)) * 100.0, 2)
+                END::real AS data_score_pct
+            FROM secure_scores ss
+            JOIN tenants t ON t.tenant_id = ss.tenant_id
+            WHERE ss.snapshot_date BETWEEN %(start_date)s::date AND %(end_date)s::date
+              {dept_filter}
+              {tenant_filter}
+            GROUP BY ss.snapshot_date
+        ) scores ON scores.snapshot_date = day_bucket.snapshot_date
+        LEFT JOIN (
+            SELECT p.change_date AS snapshot_date, COUNT(*)::int AS policy_changes
+            FROM (
+                SELECT
+                    CASE
+                        WHEN dp.modified ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}'
+                            THEN substring(dp.modified from 1 for 10)::date
+                        WHEN dp.created ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}'
+                            THEN substring(dp.created from 1 for 10)::date
+                        ELSE NULL
+                    END AS change_date
+                FROM dlp_policies dp
+                JOIN tenants t ON t.tenant_id = dp.tenant_id
+                WHERE dp.snapshot_date = (
+                    SELECT MAX(snapshot_date) FROM dlp_policies _sub WHERE _sub.tenant_id = dp.tenant_id
+                )
+                  {dept_filter}
+                  {tenant_filter}
+                UNION ALL
+                SELECT
+                    CASE
+                        WHEN ip.created ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}'
+                            THEN substring(ip.created from 1 for 10)::date
+                        ELSE NULL
+                    END AS change_date
+                FROM irm_policies ip
+                JOIN tenants t ON t.tenant_id = ip.tenant_id
+                WHERE ip.snapshot_date = (
+                    SELECT MAX(snapshot_date) FROM irm_policies _sub WHERE _sub.tenant_id = ip.tenant_id
+                )
+                  {dept_filter}
+                  {tenant_filter}
+            ) p
+            WHERE p.change_date BETWEEN %(start_date)s::date AND %(end_date)s::date
+            GROUP BY p.change_date
+        ) policy_changes ON policy_changes.snapshot_date = day_bucket.snapshot_date
+        ORDER BY day_bucket.snapshot_date
+        """,
+        params,
+    )
+
+    assessments_rows = query(
+        f"""
+        SELECT
+            ca.assessment_id,
+            ca.display_name,
+            ca.framework,
+            COALESCE(ca.completion_percentage, 0)::real AS completion_percentage,
+            ca.status,
+            t.display_name AS tenant_name
+        FROM compliance_assessments ca
+        JOIN tenants t ON t.tenant_id = ca.tenant_id
+        WHERE ca.snapshot_date = (
+            SELECT MAX(snapshot_date) FROM compliance_assessments _sub WHERE _sub.tenant_id = ca.tenant_id
+        )
+          {dept_filter}
+          {tenant_filter}
+        ORDER BY ca.framework, ca.display_name
+        """,
+        params,
+    )
+
+    open_actions = query(
+        f"""
+        SELECT
+            ia.control_id,
+            ia.title,
+            ia.control_category,
+            ia.max_score,
+            ia.current_score,
+            ia.threats,
+            ia.remediation,
+            ia.state,
+            ia.rank,
+            t.display_name AS tenant_name
+        FROM improvement_actions ia
+        JOIN tenants t ON t.tenant_id = ia.tenant_id
+        WHERE ia.snapshot_date = (
+            SELECT MAX(snapshot_date) FROM improvement_actions _sub WHERE _sub.tenant_id = ia.tenant_id
+        )
+          AND ia.deprecated = FALSE
+          AND ia.control_category = 'Data'
+          AND ia.max_score > ia.current_score
+          {dept_filter}
+          {tenant_filter}
+        ORDER BY (ia.max_score - ia.current_score) DESC, ia.rank ASC
+        LIMIT 20
+        """,
+        params,
+    )
+
+    open_incidents = query(
+        f"""
+        SELECT
+            pi.incident_id,
+            pi.display_name,
+            pi.severity,
+            pi.status,
+            COALESCE(NULLIF(pi.assigned_to, ''), 'Unassigned') AS owner,
+            pi.last_update,
+            t.display_name AS tenant_name
+        FROM purview_incidents pi
+        JOIN tenants t ON t.tenant_id = pi.tenant_id
+        WHERE pi.snapshot_date = (
+            SELECT MAX(snapshot_date) FROM purview_incidents _sub WHERE _sub.tenant_id = pi.tenant_id
+        )
+          AND lower(COALESCE(pi.status, '')) NOT IN ('resolved', 'dismissed')
+          {dept_filter}
+          {tenant_filter}
+        ORDER BY
+            CASE lower(COALESCE(pi.severity, ''))
+                WHEN 'critical' THEN 1
+                WHEN 'high' THEN 2
+                WHEN 'medium' THEN 3
+                WHEN 'low' THEN 4
+                ELSE 5
+            END,
+            pi.last_update DESC
+        LIMIT 20
+        """,
+        params,
+    )
+
+    total_alerts = int(alert_metrics.get("total_alerts") or 0)
+    resolved_alerts = int(alert_metrics.get("resolved_alerts") or 0)
+    active_alerts = int(alert_metrics.get("active_alerts") or 0)
+    true_positive_alerts = int(alert_metrics.get("true_positive_alerts") or 0)
+    mttr_hours = float(alert_metrics.get("mttr_hours") or 0.0)
+    closure_rate = round((resolved_alerts / total_alerts) * 100, 1) if total_alerts else 0.0
+    true_positive_rate = round((true_positive_alerts / total_alerts) * 100, 1) if total_alerts else 0.0
+
+    total_labels = int(label_summary.get("total_labels") or 0)
+    protected_labels = int(label_summary.get("protected_labels") or 0)
+    unprotected_labels = max(total_labels - protected_labels, 0)
+    coverage_pct = round((protected_labels / total_labels) * 100, 1) if total_labels else 0.0
+
+    trend_timeline: list[dict] = []
+    correlated_days = 0
+    spike_days = 0
+    previous_dlp_points: list[int] = []
+    previous_data_score = None
+    for row in trend_rows:
+        dlp_alerts = int(row.get("dlp_alerts") or 0)
+        policy_changes = int(row.get("policy_changes") or 0)
+        data_score_pct = float(row.get("data_score_pct") or 0.0)
+
+        window = previous_dlp_points[-7:]
+        baseline = (sum(window) / len(window)) if window else 0.0
+        if baseline > 0:
+            risk_spike = dlp_alerts >= (baseline * 1.25) and (dlp_alerts - baseline) >= 2
+        else:
+            risk_spike = dlp_alerts >= 3
+        if risk_spike:
+            spike_days += 1
+        correlated = bool(risk_spike and policy_changes > 0)
+        if correlated:
+            correlated_days += 1
+        secure_score_delta = round(data_score_pct - previous_data_score, 2) if previous_data_score is not None else 0.0
+
+        trend_timeline.append(
+            {
+                "snapshot_date": row.get("snapshot_date"),
+                "dlp_alerts": dlp_alerts,
+                "active_incidents": int(row.get("active_incidents") or 0),
+                "policy_changes": policy_changes,
+                "data_score_pct": data_score_pct,
+                "risk_spike": risk_spike,
+                "correlated_change": correlated,
+                "secure_score_delta": secure_score_delta,
+            }
+        )
+        previous_dlp_points.append(dlp_alerts)
+        previous_data_score = data_score_pct
+
+    unresolved_high = int(alert_metrics.get("unresolved_high_alerts") or 0)
+    unresolved_medium = int(alert_metrics.get("unresolved_medium_alerts") or 0)
+    active_incidents_now = sum(1 for i in open_incidents)
+    weighted_points = {
+        "high_alert_weighted": unresolved_high * 5,
+        "medium_alert_weighted": unresolved_medium * 3,
+        "active_incident_weighted": active_incidents_now * 4,
+        "unprotected_label_weighted": unprotected_labels * 2,
+    }
+    risk_score = min(100.0, round(sum(weighted_points.values()) * 1.5, 1))
+    if risk_score >= 80:
+        risk_level = "Critical"
+    elif risk_score >= 60:
+        risk_level = "High"
+    elif risk_score >= 35:
+        risk_level = "Medium"
+    else:
+        risk_level = "Low"
+
+    owners: dict[str, dict] = {}
+    for row in repeat_offenders:
+        owner = row.get("owner") or "Unassigned"
+        owners[owner] = {
+            "owner": owner,
+            "open_alerts": int(row.get("open_alerts") or 0),
+            "high_severity": int(row.get("high_severity") or 0),
+            "active_incidents": 0,
+            "avg_age_days": round(float(row.get("avg_age_days") or 0), 1),
+        }
+    for incident in open_incidents:
+        owner = incident.get("owner") or "Unassigned"
+        if owner not in owners:
+            owners[owner] = {
+                "owner": owner,
+                "open_alerts": 0,
+                "high_severity": 0,
+                "active_incidents": 0,
+                "avg_age_days": 0.0,
+            }
+        owners[owner]["active_incidents"] += 1
+    owner_rows = sorted(
+        owners.values(),
+        key=lambda r: (r["open_alerts"] + r["active_incidents"], r["high_severity"]),
+        reverse=True,
+    )
+
+    priority_actions: list[dict] = []
+    default_owner = owner_rows[0]["owner"] if owner_rows else "Compliance Team"
+    for action in open_actions[:10]:
+        gap = float(action.get("max_score") or 0) - float(action.get("current_score") or 0)
+        threats = str(action.get("threats") or "").lower()
+        threat_multiplier = 1.25 if ("exfiltration" in threats or "insider" in threats or "leak" in threats) else 1.0
+        reduction_score = round(max(gap, 0) * threat_multiplier, 2)
+        priority = "High" if reduction_score >= 8 else ("Medium" if reduction_score >= 4 else "Low")
+        priority_actions.append(
+            {
+                "action_type": "Secure Score Improvement",
+                "title": action.get("title") or "",
+                "owner": default_owner,
+                "priority": priority,
+                "risk_reduction_score": reduction_score,
+                "tenant_name": action.get("tenant_name") or "",
+                "evidence_link": (
+                    f"https://security.microsoft.com/securescore?viewid=actions&control={action.get('control_id', '')}"
+                ),
+            }
+        )
+    for incident in open_incidents[:5]:
+        severity = str(incident.get("severity") or "").lower()
+        priority = "High" if severity in {"critical", "high"} else "Medium"
+        reduction_score = 9.0 if severity == "critical" else (7.0 if severity == "high" else 4.5)
+        priority_actions.append(
+            {
+                "action_type": "Incident Triage",
+                "title": incident.get("display_name") or "",
+                "owner": incident.get("owner") or default_owner,
+                "priority": priority,
+                "risk_reduction_score": reduction_score,
+                "tenant_name": incident.get("tenant_name") or "",
+                "evidence_link": (
+                    "https://purview.microsoft.com/insiderriskmanagement?view=alerts"
+                    f"&incidentId={incident.get('incident_id', '')}"
+                ),
+            }
+        )
+    priority_actions.sort(key=lambda r: (r["risk_reduction_score"], r["priority"] == "High"), reverse=True)
+
+    framework_rows: dict[str, list[dict]] = {}
+    for assessment in assessments_rows:
+        framework = assessment.get("framework") or "Unspecified"
+        framework_rows.setdefault(framework, []).append(assessment)
+    if framework_rows:
+        cjis_nist = [f for f in framework_rows if ("cjis" in f.lower() or "nist" in f.lower())]
+        selected_frameworks = cjis_nist if cjis_nist else list(framework_rows.keys())[:2]
+    else:
+        selected_frameworks = []
+
+    framework_summary: list[dict] = []
+    controls: list[dict] = []
+    for framework in selected_frameworks:
+        assessments = framework_rows.get(framework, [])
+        avg_completion = (
+            round(sum(float(a.get("completion_percentage") or 0) for a in assessments) / len(assessments), 1)
+            if assessments
+            else 0.0
+        )
+        framework_summary.append(
+            {
+                "framework": framework,
+                "total_assessments": len(assessments),
+                "avg_completion": avg_completion,
+                "estimated_gap_count": sum(1 for a in assessments if float(a.get("completion_percentage") or 0) < 80),
+            }
+        )
+        top_assessment = assessments[0] if assessments else {}
+        for action in open_actions[:3]:
+            controls.append(
+                {
+                    "framework": framework,
+                    "control_id": action.get("control_id") or "",
+                    "control_title": action.get("title") or "",
+                    "status": action.get("state") or "Unknown",
+                    "priority": "High" if (float(action.get("max_score") or 0) - float(action.get("current_score") or 0)) >= 8 else "Medium",
+                    "owner": default_owner,
+                    "completion_percentage": float(top_assessment.get("completion_percentage") or 0),
+                    "evidence_links": [
+                        {
+                            "label": f"Assessment {top_assessment.get('assessment_id', 'N/A')}",
+                            "url": (
+                                "https://purview.microsoft.com/compliancemanager/assessments/"
+                                f"{top_assessment.get('assessment_id', '')}"
+                            ),
+                        },
+                        {
+                            "label": f"Secure Score Control {action.get('control_id', '')}",
+                            "url": (
+                                "https://security.microsoft.com/securescore?viewid=actions"
+                                f"&control={action.get('control_id', '')}"
+                            ),
+                        },
+                    ],
+                }
+            )
+
+    required_datasets = [
+        "ediscovery_cases",
+        "sensitivity_labels",
+        "audit_records",
+        "dlp_alerts",
+        "irm_alerts",
+        "info_barrier_policies",
+        "protection_scopes",
+        "dlp_policies",
+        "irm_policies",
+        "sensitive_info_types",
+        "compliance_assessments",
+        "threat_assessment_requests",
+        "purview_incidents",
+    ]
+    now_utc = datetime.now(timezone.utc)
+    tenant_health: list[dict] = []
+    stale_tenants = 0
+    complete_tenants = 0
+    freshest_sync: datetime | None = None
+    for row in tenant_health_rows:
+        collected_at = _parse_timestamp(row.get("collected_at"))
+        if collected_at and collected_at.tzinfo is None:
+            collected_at = collected_at.replace(tzinfo=timezone.utc)
+        if collected_at and (freshest_sync is None or collected_at > freshest_sync):
+            freshest_sync = collected_at
+
+        record_counts = row.get("record_counts") or {}
+        if isinstance(record_counts, str):
+            try:
+                record_counts = json.loads(record_counts)
+            except (TypeError, ValueError):
+                record_counts = {}
+
+        missing = [dataset for dataset in required_datasets if int(record_counts.get(dataset, 0) or 0) <= 0]
+        completeness_pct = round(((len(required_datasets) - len(missing)) / len(required_datasets)) * 100, 1)
+
+        is_stale = True
+        if collected_at is not None:
+            is_stale = (now_utc - collected_at) > timedelta(hours=48)
+        if is_stale:
+            stale_tenants += 1
+        if not missing:
+            complete_tenants += 1
+
+        tenant_health.append(
+            {
+                "tenant_id": row.get("tenant_id"),
+                "display_name": row.get("display_name"),
+                "department": row.get("department"),
+                "last_collected_at": row.get("collected_at"),
+                "last_snapshot_date": row.get("last_snapshot_date"),
+                "last_payload_at": row.get("last_payload_at"),
+                "is_stale": is_stale,
+                "completeness_pct": completeness_pct,
+                "missing_datasets": missing,
+            }
+        )
+
+    return {
+        "effectiveness": {
+            "total_alerts": total_alerts,
+            "resolved_alerts": resolved_alerts,
+            "active_alerts": active_alerts,
+            "closure_rate_pct": closure_rate,
+            "true_positive_rate_pct": true_positive_rate,
+            "mttr_hours": round(mttr_hours, 2),
+            "repeat_offenders": repeat_offenders,
+        },
+        "classification_coverage": {
+            "total_labels": total_labels,
+            "protected_labels": protected_labels,
+            "coverage_pct": coverage_pct,
+            "breakdown": coverage_breakdown,
+        },
+        "policy_drift": {
+            "window_days": days,
+            "timeline": trend_timeline,
+            "summary": {
+                "total_policy_changes": sum(int(r.get("policy_changes") or 0) for r in trend_rows),
+                "risk_spike_days": spike_days,
+                "correlated_days": correlated_days,
+            },
+        },
+        "data_at_risk": {
+            "score": risk_score,
+            "risk_level": risk_level,
+            "components": {
+                "unresolved_high_alerts": unresolved_high,
+                "unresolved_medium_alerts": unresolved_medium,
+                "active_incidents": active_incidents_now,
+                "unprotected_labels": unprotected_labels,
+            },
+            "weighted_points": weighted_points,
+        },
+        "control_mapping": {
+            "framework_summary": framework_summary,
+            "controls": controls,
+        },
+        "owner_actions": {
+            "owners": owner_rows,
+            "priority_actions": priority_actions[:15],
+        },
+        "collection_health": {
+            "required_datasets": required_datasets,
+            "newest_sync": freshest_sync.isoformat() if freshest_sync else None,
+            "stale_tenants": stale_tenants,
+            "complete_tenants": complete_tenants,
+            "tenant_health": tenant_health,
+        },
     }
