@@ -134,12 +134,33 @@ def get_overview(department: str | None = None, tenant_id: str | None = None) ->
         params,
     )
 
+    # Threat assessment summary
+    threat_summary = query_one(
+        f"""
+        SELECT
+            COUNT(*)::int AS total_requests,
+            COUNT(*) FILTER (WHERE ta.category = 'spam')::int AS spam,
+            COUNT(*) FILTER (WHERE ta.category = 'phishing')::int AS phishing,
+            COUNT(*) FILTER (WHERE ta.category = 'malware')::int AS malware
+        FROM threat_assessment_requests ta
+        JOIN tenants t ON t.tenant_id = ta.tenant_id
+        WHERE ta.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM threat_assessment_requests _sub
+                WHERE _sub.tenant_id = ta.tenant_id
+            )
+          {and_dept}
+          {and_tenant}
+        """,
+        params,
+    )
+
     return {
         "tenants": tenants,
         "ediscovery_summary": ediscovery_summary or {},
         "labels_summary": labels_summary or {},
         "dlp_summary": dlp_summary or {},
         "audit_summary": audit_summary or {},
+        "threat_summary": threat_summary or {},
     }
 
 
@@ -930,5 +951,77 @@ def get_improvement_actions(department: str | None = None, tenant_id: str | None
             "data_max_score": 0,
         },
         "actions": actions,
+        "category_breakdown": category_breakdown,
+    }
+
+
+def get_threat_assessments(department: str | None = None, tenant_id: str | None = None) -> dict:
+    """POST /api/advisor/threat-assessments — Threat Assessment Requests."""
+    dept_filter = ""
+    tenant_filter = ""
+    params: dict = {}
+    if department:
+        dept_filter = "AND t.department = %(dept)s"
+        params["dept"] = department
+    if tenant_id:
+        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
+        params["tenant_id"] = tenant_id
+
+    requests_list = query(
+        f"""
+        SELECT ta.request_id, ta.category, ta.content_type, ta.status,
+               ta.created, ta.result_type, ta.result_message,
+               t.display_name AS tenant_name
+        FROM threat_assessment_requests ta
+        JOIN tenants t ON t.tenant_id = ta.tenant_id
+        WHERE ta.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM threat_assessment_requests _sub
+                WHERE _sub.tenant_id = ta.tenant_id
+            )
+          {dept_filter}
+          {tenant_filter}
+        ORDER BY ta.created DESC
+        LIMIT 1000
+        """,
+        params,
+    )
+
+    status_breakdown = query(
+        f"""
+        SELECT ta.status, COUNT(*)::int AS total
+        FROM threat_assessment_requests ta
+        JOIN tenants t ON t.tenant_id = ta.tenant_id
+        WHERE ta.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM threat_assessment_requests _sub
+                WHERE _sub.tenant_id = ta.tenant_id
+            )
+          {dept_filter}
+          {tenant_filter}
+        GROUP BY ta.status
+        ORDER BY total DESC
+        """,
+        params,
+    )
+
+    category_breakdown = query(
+        f"""
+        SELECT ta.category, COUNT(*)::int AS total
+        FROM threat_assessment_requests ta
+        JOIN tenants t ON t.tenant_id = ta.tenant_id
+        WHERE ta.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM threat_assessment_requests _sub
+                WHERE _sub.tenant_id = ta.tenant_id
+            )
+          {dept_filter}
+          {tenant_filter}
+        GROUP BY ta.category
+        ORDER BY total DESC
+        """,
+        params,
+    )
+
+    return {
+        "requests": requests_list,
+        "status_breakdown": status_breakdown,
         "category_breakdown": category_breakdown,
     }

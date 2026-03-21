@@ -30,6 +30,8 @@ import type {
   SensitiveInfoType,
   AssessmentsResponse,
   Assessment,
+  ThreatAssessmentsResponse,
+  ThreatAssessmentRequest,
 } from "../types";
 
 // --- Tenants ---
@@ -194,6 +196,16 @@ const BRIEFING = `## Compliance Briefing — Demo
 
 const ASK_ANSWER = "This is a demo environment with static data. In production, I would query your compliance database and provide a detailed, data-driven answer to your question using Azure OpenAI.";
 
+// --- Threat Assessment Requests ---
+
+const threatAssessmentRequests: (ThreatAssessmentRequest & { tenant_name: string })[] = [
+  { request_id: "ta-1", category: "phishing", content_type: "url", status: "completed", created: "2026-03-10T09:00:00Z", result_type: "phishing", result_message: "URL identified as phishing site", tenant_name: "Contoso Ltd" },
+  { request_id: "ta-2", category: "spam", content_type: "mail", status: "completed", created: "2026-03-11T10:30:00Z", result_type: "spam", result_message: "Message classified as spam", tenant_name: "Contoso Ltd" },
+  { request_id: "ta-3", category: "malware", content_type: "file", status: "completed", created: "2026-03-12T14:00:00Z", result_type: "malware", result_message: "File contains known malware signature", tenant_name: "Fabrikam Inc" },
+  { request_id: "ta-4", category: "phishing", content_type: "mail", status: "completed", created: "2026-03-13T08:15:00Z", result_type: "clean", result_message: "No threats detected", tenant_name: "Fabrikam Inc" },
+  { request_id: "ta-5", category: "spam", content_type: "mail", status: "pending", created: "2026-03-14T16:45:00Z", result_type: "", result_message: "", tenant_name: "Northwind Traders" },
+];
+
 // --- Main export ---
 
 export function getDemoData(endpoint: string, body?: Record<string, unknown>): unknown {
@@ -210,6 +222,7 @@ export function getDemoData(endpoint: string, body?: Record<string, unknown>): u
       const sl = filterByDept(sensitivityLabels, dept || undefined);
       const rl = filterByDept(retentionLabels, dept || undefined);
       const ar = filterByDept(auditRecords, dept || undefined);
+      const ta = filterByDept(threatAssessmentRequests, dept || undefined);
       return {
         tenants,
         ediscovery_summary: { total_cases: cases.length, active_cases: cases.filter((c) => c.status === "Active").length },
@@ -221,6 +234,12 @@ export function getDemoData(endpoint: string, body?: Record<string, unknown>): u
           active_alerts: dlp.filter((a) => a.status === "Active").length,
         },
         audit_summary: { total_records: ar.length },
+        threat_summary: {
+          total_requests: ta.length,
+          spam: ta.filter((t) => t.category === "spam").length,
+          phishing: ta.filter((t) => t.category === "phishing").length,
+          malware: ta.filter((t) => t.category === "malware").length,
+        },
       } satisfies OverviewResponse;
     }
 
@@ -337,6 +356,19 @@ export function getDemoData(endpoint: string, body?: Record<string, unknown>): u
         assessments,
         framework_breakdown: Object.entries(fwMap).map(([framework, total]) => ({ framework, total })),
       } satisfies AssessmentsResponse;
+    }
+
+    case "threat-assessments": {
+      const requests = filterByDept(threatAssessmentRequests, dept || undefined);
+      const statusMap: Record<string, number> = {};
+      requests.forEach((r) => { statusMap[r.status] = (statusMap[r.status] ?? 0) + 1; });
+      const catMap: Record<string, number> = {};
+      requests.forEach((r) => { catMap[r.category] = (catMap[r.category] ?? 0) + 1; });
+      return {
+        requests,
+        status_breakdown: Object.entries(statusMap).map(([status, total]) => ({ status, total })),
+        category_breakdown: Object.entries(catMap).map(([category, total]) => ({ category, total })),
+      } satisfies ThreatAssessmentsResponse;
     }
 
     case "actions": {

@@ -51,6 +51,7 @@ class CompliancePayload:
     irm_policies: list[dict[str, Any]]
     sensitive_info_types: list[dict[str, Any]]
     compliance_assessments: list[dict[str, Any]]
+    threat_assessment_requests: list[dict[str, Any]]
     collector_version: str = field(default_factory=_collector_version)
 
     @staticmethod

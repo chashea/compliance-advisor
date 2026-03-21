@@ -13,6 +13,7 @@ import SubjectRights from "./pages/SubjectRights";
 import CommCompliance from "./pages/CommCompliance";
 import Trend from "./pages/Trend";
 import SensitiveInfoTypes from "./pages/SensitiveInfoTypes";
+import ThreatAssessments from "./pages/ThreatAssessments";
 
 
 export default function App() {
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="subject-rights" element={<SubjectRights />} />
             <Route path="comm-compliance" element={<CommCompliance />} />
             <Route path="sensitive-info" element={<SensitiveInfoTypes />} />
+            <Route path="threat-assessments" element={<ThreatAssessments />} />
             <Route path="trend" element={<Trend />} />
           </Route>
         </Routes>

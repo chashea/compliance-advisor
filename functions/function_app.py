@@ -67,6 +67,7 @@ try:
         get_sensitive_info_types,
         get_status,
         get_subject_rights,
+        get_threat_assessments,
         get_trend,
     )
     from shared.db import (
@@ -92,6 +93,7 @@ try:
         upsert_sensitivity_label,
         upsert_subject_rights_request,
         upsert_tenant,
+        upsert_threat_assessment_request,
         upsert_trend,
         upsert_user_content_policies,
     )
@@ -154,6 +156,9 @@ try:
     )
     from collector.compliance_client import (
         get_subject_rights_requests as collect_subject_rights,
+    )
+    from collector.compliance_client import (
+        get_threat_assessment_requests as collect_threat_assessments,
     )
     from collector.compliance_client import (
         get_user_content_policies as collect_user_content_policies,
@@ -426,6 +431,19 @@ def advisor_assessments(req: func.HttpRequest) -> func.HttpResponse:
         return _json_response(result)
     except Exception as e:
         log.exception("advisor/assessments error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+@app.function_name("advisor_threat_assessments")
+@app.route(route="advisor/threat-assessments", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_threat_assessments(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        _ensure_dependencies_loaded()
+        body = _get_body(req)
+        result = get_threat_assessments(department=body.get("department"), tenant_id=body.get("tenant_id"))
+        return _json_response(result)
+    except Exception as e:
+        log.exception("advisor/threat-assessments error: %s", e)
         return _json_response({"error": str(e)}, 500)
 
 
@@ -877,6 +895,20 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 snapshot_date=snapshot_date,
             )
 
+        # Upsert threat assessment requests
+        for ta in payload.get("threat_assessment_requests", []):
+            upsert_threat_assessment_request(
+                tenant_id=tenant_id,
+                request_id=ta.get("request_id", ""),
+                category=ta.get("category", ""),
+                content_type=ta.get("content_type", ""),
+                status=ta.get("status", ""),
+                created=ta.get("created", ""),
+                result_type=ta.get("result_type", ""),
+                result_message=ta.get("result_message", ""),
+                snapshot_date=snapshot_date,
+            )
+
         counts = {
             "ediscovery_cases": len(payload.get("ediscovery_cases", [])),
             "sensitivity_labels": len(payload.get("sensitivity_labels", [])),
@@ -892,13 +924,14 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
             "irm_policies": len(payload.get("irm_policies", [])),
             "sensitive_info_types": len(payload.get("sensitive_info_types", [])),
             "compliance_assessments": len(payload.get("compliance_assessments", [])),
+            "threat_assessment_requests": len(payload.get("threat_assessment_requests", [])),
         }
         record_ingestion(tenant_id, snapshot_date, payload_hash, counts)
 
         log.info(
             "Ingested: tenant=%s dept=%s ediscovery=%d labels=%d retention=%d audit=%d dlp=%d "
             "irm=%d srr=%d comm_compliance=%d info_barriers=%d scopes=%d scores=%d actions=%d "
-            "dlp_policies=%d irm_policies=%d sit=%d assessments=%d",
+            "dlp_policies=%d irm_policies=%d sit=%d assessments=%d threats=%d",
             tenant_id,
             payload["department"],
             counts["ediscovery_cases"],
@@ -917,6 +950,7 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
             counts["irm_policies"],
             counts["sensitive_info_types"],
             counts["compliance_assessments"],
+            counts["threat_assessment_requests"],
         )
         return _json_response({"status": "ok", "tenant_id": tenant_id, **counts})
 
@@ -976,6 +1010,7 @@ def _collect_single_tenant(
         irm_pol = collect_irm_policies(token)
         sit = collect_sensitive_info_types(token)
         assessments = collect_assessments(token)
+        threats = collect_threat_assessments(token)
 
         upsert_tenant(tenant_id=tid, display_name=display_name, department=department)
 
@@ -1189,6 +1224,19 @@ def _collect_single_tenant(
                 snapshot_date=today,
             )
 
+        for ta in threats:
+            upsert_threat_assessment_request(
+                tenant_id=tid,
+                request_id=ta.get("request_id", ""),
+                category=ta.get("category", ""),
+                content_type=ta.get("content_type", ""),
+                status=ta.get("status", ""),
+                created=ta.get("created", ""),
+                result_type=ta.get("result_type", ""),
+                result_message=ta.get("result_message", ""),
+                snapshot_date=today,
+            )
+
         counts = {
             "ediscovery": len(ediscovery),
             "sensitivity_labels": len(sensitivity),
@@ -1198,6 +1246,7 @@ def _collect_single_tenant(
             "irm_alerts": len(irm),
             "secure_scores": len(scores),
             "improvement_actions": len(actions),
+            "threat_assessments": len(threats),
         }
         log.info("_collect_single_tenant: tenant=%s dept=%s counts=%s", tid, department, counts)
         try:

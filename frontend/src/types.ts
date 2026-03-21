@@ -17,6 +17,7 @@ export interface OverviewResponse {
   labels_summary: { sensitivity_labels: number; retention_labels: number };
   dlp_summary: { total_dlp_alerts: number; high_alerts: number; medium_alerts: number; active_alerts: number };
   audit_summary: { total_records: number };
+  threat_summary: { total_requests: number; spam: number; phishing: number; malware: number };
 }
 
 // /api/advisor/ediscovery
@@ -305,6 +306,29 @@ export interface FrameworkBreakdown {
 export interface AssessmentsResponse {
   assessments: Assessment[];
   framework_breakdown: FrameworkBreakdown[];
+}
+
+// /api/advisor/threat-assessments
+export interface ThreatAssessmentRequest {
+  request_id: string;
+  category: string;
+  content_type: string;
+  status: string;
+  created: string;
+  result_type: string;
+  result_message: string;
+  tenant_name: string;
+}
+
+export interface ThreatCategoryBreakdown {
+  category: string;
+  total: number;
+}
+
+export interface ThreatAssessmentsResponse {
+  requests: ThreatAssessmentRequest[];
+  status_breakdown: StatusBreakdown[];
+  category_breakdown: ThreatCategoryBreakdown[];
 }
 
 // /api/advisor/briefing

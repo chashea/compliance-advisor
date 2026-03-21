@@ -731,6 +731,35 @@ def upsert_compliance_assessment(
     )
 
 
+def upsert_threat_assessment_request(
+    tenant_id: str,
+    request_id: str,
+    category: str,
+    content_type: str,
+    status: str,
+    created: str,
+    result_type: str,
+    result_message: str,
+    snapshot_date: str,
+) -> None:
+    execute(
+        """
+        INSERT INTO threat_assessment_requests
+            (tenant_id, request_id, category, content_type, status,
+             created, result_type, result_message, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (tenant_id, request_id, snapshot_date) DO UPDATE SET
+            category = EXCLUDED.category,
+            content_type = EXCLUDED.content_type,
+            status = EXCLUDED.status,
+            created = EXCLUDED.created,
+            result_type = EXCLUDED.result_type,
+            result_message = EXCLUDED.result_message
+        """,
+        (tenant_id, request_id, category, content_type, status, created, result_type, result_message, snapshot_date),
+    )
+
+
 def upsert_improvement_action(
     tenant_id: str,
     control_id: str,

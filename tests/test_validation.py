@@ -31,6 +31,7 @@ VALID_PAYLOAD = {
     "irm_policies": [],
     "sensitive_info_types": [],
     "compliance_assessments": [],
+    "threat_assessment_requests": [],
     "collector_version": "4.0.0",
 }
 
@@ -79,6 +80,7 @@ def test_schema_requires_all_fields():
         "irm_policies",
         "sensitive_info_types",
         "compliance_assessments",
+        "threat_assessment_requests",
         "collector_version",
     }
 

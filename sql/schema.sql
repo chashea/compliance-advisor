@@ -288,6 +288,21 @@ CREATE TABLE IF NOT EXISTS compliance_assessments (
     UNIQUE (tenant_id, assessment_id, snapshot_date)
 );
 
+-- Threat Assessment Requests
+CREATE TABLE IF NOT EXISTS threat_assessment_requests (
+    id              SERIAL PRIMARY KEY,
+    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
+    request_id      TEXT NOT NULL,
+    category        TEXT,
+    content_type    TEXT,
+    status          TEXT,
+    created         TEXT,
+    result_type     TEXT,
+    result_message  TEXT,
+    snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+    UNIQUE (tenant_id, request_id, snapshot_date)
+);
+
 -- Daily compliance trend (computed by timer trigger)
 CREATE TABLE IF NOT EXISTS compliance_trend (
     id                  SERIAL PRIMARY KEY,
@@ -379,6 +394,9 @@ CREATE INDEX IF NOT EXISTS idx_sensitive_info_types_tenant
 
 CREATE INDEX IF NOT EXISTS idx_compliance_assessments_tenant
     ON compliance_assessments(tenant_id, snapshot_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_threat_assessment_requests_tenant
+    ON threat_assessment_requests(tenant_id, snapshot_date DESC);
 
 CREATE INDEX IF NOT EXISTS idx_ingestion_log_lookup
     ON ingestion_log(tenant_id, snapshot_date, payload_hash);

@@ -32,6 +32,7 @@ def _make_payload(**overrides) -> CompliancePayload:
         "irm_policies": [],
         "sensitive_info_types": [],
         "compliance_assessments": [],
+        "threat_assessment_requests": [],
     }
     return CompliancePayload(**{**defaults, **overrides})
 
@@ -93,6 +94,7 @@ def test_to_dict_contains_all_fields():
         "irm_policies",
         "sensitive_info_types",
         "compliance_assessments",
+        "threat_assessment_requests",
         "collector_version",
     }
     assert set(d.keys()) == expected_keys

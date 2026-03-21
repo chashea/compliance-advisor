@@ -14,6 +14,25 @@ Pulls data from:
 - GET  /beta/security/insiderRiskManagement/policies              — IRM policies
 - GET  /beta/dataClassification/sensitiveTypes                    — sensitive info types
 - GET  /beta/security/complianceManagement/assessments            — compliance assessments
+
+Required Microsoft Graph Application permissions:
+- eDiscovery.Read.All                     — eDiscovery cases
+- InformationProtectionPolicy.Read.All    — sensitivity labels (beta endpoint)
+- SensitivityLabel.Read                   — sensitivity labels (v1.0 fallback)
+- RecordsManagement.Read.All              — retention labels (delegated only!), retention events
+- AuditLogsQuery.Read.All                 — audit log queries
+- SecurityAlert.Read.All                  — DLP + IRM alerts (alerts_v2)
+- DataSecurityAndGovernance.Read.All      — protection scopes, user content policies
+- SecurityEvents.Read.All                 — Secure Score + improvement actions
+- SubjectRightsRequest.Read.All           — subject rights requests
+- CommunicationCompliance.Read.All        — communication compliance policies
+- InformationBarrierPolicy.Read.All       — information barrier policies
+- InsiderRiskManagement.Read.All          — IRM policies
+- ComplianceManager.Read.All              — compliance assessments
+- User.Read.All                           — user enumeration for content policies
+
+NOTE: Retention labels API does NOT support application permissions.
+      The collector will attempt the call but it may return 403 with app-only auth.
 """
 
 import logging
@@ -64,6 +83,26 @@ def _paginate(sess: requests.Session, url: str, max_pages: int = 10) -> list[dic
     return items
 
 
+def _log_api_error(label: str, exc: requests.exceptions.RequestException, hint: str = "") -> None:
+    """Log a Graph API failure with HTTP status and permission hints."""
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    body = ""
+    try:
+        body = exc.response.text[:500] if exc.response is not None else ""
+    except Exception:
+        pass
+
+    parts = [f"{label} failed"]
+    if status:
+        parts.append(f"HTTP {status}")
+    parts.append(str(exc))
+    if status in (401, 403) and hint:
+        parts.append(f"Required permission: {hint}")
+    log.warning(" — ".join(parts))
+    if body:
+        log.debug("%s response body: %s", label, body)
+
+
 # ── eDiscovery ────────────────────────────────────────────────────
 
 
@@ -75,7 +114,7 @@ def get_ediscovery_cases(token: str) -> list[dict[str, Any]]:
     try:
         items = _paginate(sess, url)
     except requests.exceptions.RequestException as e:
-        log.warning("ediscoveryCases failed: %s", e)
+        _log_api_error("ediscoveryCases", e, "eDiscovery.Read.All")
         return []
 
     cases = []
@@ -101,37 +140,55 @@ def get_ediscovery_cases(token: str) -> list[dict[str, Any]]:
 
 
 def get_sensitivity_labels(token: str) -> list[dict[str, Any]]:
-    """Return sensitivity labels (beta API with v1.0 fallback)."""
-    sess = _session(token)
-    url = f"{GRAPH_BETA}/security/informationProtection/sensitivityLabels"
+    """Return sensitivity labels.
 
+    Tries endpoints in order:
+    1. beta /security/informationProtection/sensitivityLabels
+       (InformationProtectionPolicy.Read.All — Commercial only)
+    2. v1.0 /security/dataSecurityAndGovernance/sensitivityLabels
+       (SensitivityLabel.Read — Commercial + GCC L4)
+    """
+    sess = _session(token)
+
+    # Try beta informationProtection endpoint first
+    url = f"{GRAPH_BETA}/security/informationProtection/sensitivityLabels"
+    try:
+        items = _paginate(sess, url)
+        if items:
+            log.info("Retrieved %d sensitivity labels (beta/informationProtection)", len(items))
+            return _map_sensitivity_labels(items)
+    except requests.exceptions.RequestException as e:
+        _log_api_error("sensitivityLabels (beta/informationProtection)", e, "InformationProtectionPolicy.Read.All")
+
+    # Fallback: v1.0 dataSecurityAndGovernance endpoint
+    url = f"{GRAPH_BASE}/security/dataSecurityAndGovernance/sensitivityLabels"
     try:
         items = _paginate(sess, url)
     except requests.exceptions.RequestException as e:
-        log.warning("sensitivityLabels (beta) failed: %s — trying v1.0", e)
-        try:
-            url = f"{GRAPH_BASE}/security/informationProtection/sensitivityLabels"
-            items = _paginate(sess, url)
-        except requests.HTTPError as e2:
-            log.warning("sensitivityLabels (v1.0) failed: %s", e2)
-            return []
+        _log_api_error("sensitivityLabels (v1.0/dataSecurityAndGovernance)", e, "SensitivityLabel.Read")
+        return []
 
+    labels = _map_sensitivity_labels(items)
+    log.info("Retrieved %d sensitivity labels (v1.0/dataSecurityAndGovernance)", len(labels))
+    return labels
+
+
+def _map_sensitivity_labels(items: list[dict]) -> list[dict[str, Any]]:
+    """Map Graph API sensitivity label response to our schema."""
     labels = []
     for item in items:
         labels.append(
             {
                 "label_id": item.get("id", ""),
-                "name": item.get("name", ""),
+                "name": item.get("name", "") or item.get("displayName", ""),
                 "description": item.get("description", ""),
                 "color": item.get("color", ""),
-                "is_active": item.get("isActive", True),
+                "is_active": item.get("isActive", item.get("isEnabled", True)),
                 "parent_id": item.get("parent", {}).get("id", "") if isinstance(item.get("parent"), dict) else "",
                 "priority": item.get("priority", 0),
-                "tooltip": item.get("toolTip", ""),
+                "tooltip": item.get("toolTip", "") or item.get("tooltip", ""),
             }
         )
-
-    log.info("Retrieved %d sensitivity labels", len(labels))
     return labels
 
 
@@ -139,14 +196,22 @@ def get_sensitivity_labels(token: str) -> list[dict[str, Any]]:
 
 
 def get_retention_labels(token: str) -> list[dict[str, Any]]:
-    """Return retention labels."""
+    """Return retention labels.
+
+    Required Graph permission: RecordsManagement.Read.All (delegated only).
+    NOTE: This API does NOT support application permissions per Microsoft docs.
+    With app-only (client credentials) auth, this call will return 403.
+    """
     sess = _session(token)
     url = f"{GRAPH_BASE}/security/labels/retentionLabels"
 
     try:
         items = _paginate(sess, url)
     except requests.exceptions.RequestException as e:
-        log.warning("retentionLabels failed: %s", e)
+        _log_api_error(
+            "retentionLabels", e,
+            "RecordsManagement.Read.All (NOTE: delegated only — app-only auth is not supported by this API)"
+        )
         return []
 
     labels = []
@@ -178,14 +243,17 @@ def get_retention_labels(token: str) -> list[dict[str, Any]]:
 
 
 def get_retention_events(token: str) -> list[dict[str, Any]]:
-    """Return retention events."""
+    """Return retention events.
+
+    Required Graph permission (Application): RecordsManagement.Read.All
+    """
     sess = _session(token)
     url = f"{GRAPH_BASE}/security/triggers/retentionEvents"
 
     try:
         items = _paginate(sess, url)
     except requests.exceptions.RequestException as e:
-        log.warning("retentionEvents failed: %s", e)
+        _log_api_error("retentionEvents", e, "RecordsManagement.Read.All")
         return []
 
     events = []
@@ -248,7 +316,7 @@ def get_audit_log_records(token: str, days: int = 1) -> list[dict[str, Any]]:
         query_data = resp.json()
         query_id = query_data.get("id", "")
     except requests.exceptions.RequestException as e:
-        log.warning("auditLog query creation failed: %s", e)
+        _log_api_error("auditLog query creation", e, "AuditLogsQuery.Read.All")
         return []
 
     if not query_id:
@@ -271,7 +339,7 @@ def get_audit_log_records(token: str, days: int = 1) -> list[dict[str, Any]]:
             resp.raise_for_status()
             status_data = resp.json()
         except requests.exceptions.RequestException as e:
-            log.warning("auditLog query poll failed: %s", e)
+            _log_api_error("auditLog query poll", e, "AuditLogsQuery.Read.All")
             return []
 
         status = status_data.get("status", "")
@@ -292,7 +360,7 @@ def get_audit_log_records(token: str, days: int = 1) -> list[dict[str, Any]]:
     try:
         items = _paginate(sess, records_url)
     except requests.exceptions.RequestException as e:
-        log.warning("auditLog records fetch failed: %s", e)
+        _log_api_error("auditLog records fetch", e, "AuditLogsQuery.Read.All")
         return []
 
     records = []
@@ -330,7 +398,7 @@ def _alerts_v2(token: str, service_source: str, label: str) -> list[dict[str, An
     try:
         items = _paginate(sess, url, max_pages=5)
     except requests.exceptions.RequestException as e:
-        log.warning("%s alerts_v2 failed: %s", label, e)
+        _log_api_error(f"{label} alerts_v2", e, "SecurityAlert.Read.All")
         return []
 
     alerts = []
@@ -380,7 +448,7 @@ def get_protection_scopes(token: str) -> list[dict[str, Any]]:
         resp.raise_for_status()
         data = resp.json()
     except requests.exceptions.RequestException as e:
-        log.warning("protectionScopes failed: %s", e)
+        _log_api_error("protectionScopes", e, "DataSecurityAndGovernance.Read.All")
         return []
 
     items = data.get("value", []) if isinstance(data.get("value"), list) else [data] if data else []
@@ -418,7 +486,7 @@ def get_secure_scores(token: str) -> list[dict[str, Any]]:
         resp.raise_for_status()
         items = resp.json().get("value", [])
     except requests.exceptions.RequestException as e:
-        log.warning("secureScores failed: %s", e)
+        _log_api_error("secureScores", e, "SecurityEvents.Read.All")
         return []
 
     if not items:
@@ -447,7 +515,7 @@ def get_secure_scores(token: str) -> list[dict[str, Any]]:
             data_max += float(p.get("maxScore") or 0)
             data_current += control_scores.get(p.get("id", ""), 0)
     except requests.exceptions.RequestException as e:
-        log.warning("secureScoreControlProfiles (Data) failed: %s", e)
+        _log_api_error("secureScoreControlProfiles (Data)", e, "SecurityEvents.Read.All")
 
     scores = [
         {
@@ -479,7 +547,7 @@ def get_improvement_actions(token: str, services: set[str] | None = None) -> lis
     try:
         items = _paginate(sess, url, max_pages=5)
     except requests.exceptions.RequestException as e:
-        log.warning("secureScoreControlProfiles failed: %s", e)
+        _log_api_error("secureScoreControlProfiles", e, "SecurityEvents.Read.All")
         return []
 
     unique_services = {i.get("service", "") for i in items}
@@ -542,7 +610,7 @@ def get_subject_rights_requests(token: str) -> list[dict[str, Any]]:
     try:
         items = _paginate(sess, url, max_pages=10)
     except requests.exceptions.RequestException as e:
-        log.warning("subjectRightsRequests failed: %s", e)
+        _log_api_error("subjectRightsRequests", e, "SubjectRightsRequest.Read.All")
         return []
 
     results = []
@@ -574,7 +642,7 @@ def get_comm_compliance_policies(token: str) -> list[dict[str, Any]]:
     try:
         items = _paginate(sess, url, max_pages=10)
     except requests.exceptions.RequestException as e:
-        log.warning("communicationCompliance policies failed: %s", e)
+        _log_api_error("communicationCompliance policies", e, "CommunicationCompliance.Read.All")
         return []
 
     results = []
@@ -604,7 +672,7 @@ def get_info_barrier_policies(token: str) -> list[dict[str, Any]]:
     try:
         items = _paginate(sess, url, max_pages=10)
     except requests.exceptions.RequestException as e:
-        log.warning("informationBarriers policies failed: %s", e)
+        _log_api_error("informationBarriers policies", e, "InformationBarrierPolicy.Read.All")
         return []
 
     results = []
@@ -638,7 +706,7 @@ def get_dlp_policies(token: str) -> list[dict[str, Any]]:
     try:
         items = _paginate(sess, url)
     except requests.exceptions.RequestException as e:
-        log.warning("DLP policies failed: %s", e)
+        _log_api_error("DLP policies", e, "InformationProtectionPolicy.Read.All")
         return []
 
     results = []
@@ -676,7 +744,7 @@ def get_irm_policies(token: str) -> list[dict[str, Any]]:
     try:
         items = _paginate(sess, url)
     except requests.exceptions.RequestException as e:
-        log.warning("IRM policies failed: %s", e)
+        _log_api_error("IRM policies", e, "InsiderRiskManagement.Read.All")
         return []
 
     results = []
@@ -714,7 +782,7 @@ def get_sensitive_info_types(token: str) -> list[dict[str, Any]]:
     try:
         items = _paginate(sess, url)
     except requests.exceptions.RequestException as e:
-        log.warning("sensitiveTypes failed: %s", e)
+        _log_api_error("sensitiveTypes", e, "InformationProtectionPolicy.Read.All")
         return []
 
     results = []
@@ -746,7 +814,7 @@ def get_compliance_assessments(token: str) -> list[dict[str, Any]]:
     try:
         items = _paginate(sess, url)
     except requests.exceptions.RequestException as e:
-        log.warning("compliance assessments failed: %s", e)
+        _log_api_error("compliance assessments", e, "ComplianceManager.Read.All")
         return []
 
     results = []
@@ -767,6 +835,46 @@ def get_compliance_assessments(token: str) -> list[dict[str, Any]]:
     return results
 
 
+# ── Threat Assessment Requests ────────────────────────────────────
+
+
+def get_threat_assessment_requests(token: str) -> list[dict[str, Any]]:
+    """Return threat assessment requests (v1.0 informationProtection API)."""
+    sess = _session(token)
+    url = f"{GRAPH_BASE}/informationProtection/threatAssessmentRequests"
+
+    try:
+        items = _paginate(sess, url, max_pages=10)
+    except requests.exceptions.RequestException as e:
+        _log_api_error("threatAssessmentRequests", e, "ThreatAssessment.Read.All")
+        return []
+
+    results = []
+    for item in items:
+        result_type = ""
+        result_message = ""
+        assessment_results = item.get("results", [])
+        if assessment_results:
+            first = assessment_results[0]
+            result_type = first.get("resultType", "")
+            result_message = first.get("message", "")
+
+        results.append(
+            {
+                "request_id": item.get("id", ""),
+                "category": item.get("category", ""),
+                "content_type": item.get("contentType", item.get("@odata.type", "").split(".")[-1]),
+                "status": item.get("status", ""),
+                "created": item.get("createdDateTime", ""),
+                "result_type": result_type,
+                "result_message": result_message,
+            }
+        )
+
+    log.info("Retrieved %d threat assessment requests", len(results))
+    return results
+
+
 # ── User Content Policies (userDataSecurityAndGovernance) ─────────
 
 
@@ -776,7 +884,7 @@ def _get_users(sess: requests.Session, max_pages: int = 5) -> list[dict]:
     try:
         items = _paginate(sess, url, max_pages=max_pages)
     except requests.exceptions.RequestException as e:
-        log.warning("users enumeration failed: %s", e)
+        _log_api_error("users enumeration", e, "User.Read.All")
         return []
     return [{"id": u.get("id", ""), "userPrincipalName": u.get("userPrincipalName", "")} for u in items]
 

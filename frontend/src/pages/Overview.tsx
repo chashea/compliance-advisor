@@ -48,6 +48,11 @@ const IconUsers = (
     <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m9.12 0a4 4 0 10-5.24 0M12 14a4 4 0 100-8 4 4 0 000 8z" />
   </svg>
 );
+const IconThreat = (
+  <svg className="h-5 w-5 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.25-8.25-3.286zM12 15.75h.007v.008H12v-.008z" />
+  </svg>
+);
 
 /* ── helpers ──────────────────────────────────────────────────────── */
 function fmtNum(n: number): string {
@@ -80,6 +85,8 @@ export default function Overview() {
     : 0;
   const dlpHigh = o.dlp_summary?.high_alerts ?? 0;
   const dlpMed = o.dlp_summary?.medium_alerts ?? 0;
+  const threatTotal = o.threat_summary?.total_requests ?? 0;
+  const threatPhishing = o.threat_summary?.phishing ?? 0;
 
   return (
     <div className="space-y-6">
@@ -216,6 +223,14 @@ export default function Overview() {
             iconBg="bg-sky-600/20"
             value={fmtNum(o.audit_summary?.total_records ?? 0)}
             label="Audit Records"
+          />
+          <KPICard
+            icon={IconThreat}
+            iconBg="bg-rose-600/20"
+            value={threatTotal}
+            label="Threat Reports"
+            delta={threatPhishing > 0 ? `${threatPhishing} phishing` : undefined}
+            deltaUp={false}
           />
         </div>
       </div>

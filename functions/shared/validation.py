@@ -43,6 +43,7 @@ PAYLOAD_SCHEMA: dict = {
         "irm_policies",
         "sensitive_info_types",
         "compliance_assessments",
+        "threat_assessment_requests",
         "collector_version",
     ],
     "properties": {
@@ -205,6 +206,14 @@ PAYLOAD_SCHEMA: dict = {
                 "type": "object",
                 "required": ["assessment_id"],
                 "properties": {"assessment_id": {"type": "string", "minLength": 1}},
+            },
+        },
+        "threat_assessment_requests": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["request_id"],
+                "properties": {"request_id": {"type": "string", "minLength": 1}},
             },
         },
         "collector_version": {"type": "string"},

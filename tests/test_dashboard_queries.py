@@ -42,9 +42,9 @@ def test_get_overview_no_filter(mock_q, mock_qo):
     mock_qo.return_value = {"some": "data"}
     result = get_overview()
     assert len(result["tenants"]) == 1
-    # query called once (tenants), query_one called 4x (ediscovery, labels, dlp, audit)
+    # query called once (tenants), query_one called 5x (ediscovery, labels, dlp, audit, threats)
     assert mock_q.call_count == 1
-    assert mock_qo.call_count == 4
+    assert mock_qo.call_count == 5
 
 
 @patch("shared.dashboard_queries.query_one")

@@ -31,6 +31,7 @@ from collector.compliance_client import (
     get_sensitive_info_types,
     get_sensitivity_labels,
     get_subject_rights_requests,
+    get_threat_assessment_requests,
     get_user_content_policies,
 )
 from collector.config import CollectorSettings
@@ -164,6 +165,9 @@ def main(
     click.echo("  Compliance Assessments...")
     compliance_assessments = get_compliance_assessments(token)
 
+    click.echo("  Threat Assessment Requests...")
+    threat_assessment_requests = get_threat_assessment_requests(token)
+
     click.echo(
         f"\neDiscovery: {len(ediscovery_cases)} | Labels: {len(sensitivity_labels)} "
         f"| Retention: {len(retention_labels)} labels, {len(retention_events)} events "
@@ -175,6 +179,7 @@ def main(
         f"| UserContent: {len(user_content_policies)} "
         f"| DLP Policies: {len(dlp_policies)} | IRM Policies: {len(irm_policies)} "
         f"| SIT: {len(sensitive_info_types)} | Assessments: {len(compliance_assessments)}"
+        f" | Threats: {len(threat_assessment_requests)}"
     )
 
     # Build payload
@@ -202,6 +207,7 @@ def main(
         irm_policies=irm_policies,
         sensitive_info_types=sensitive_info_types,
         compliance_assessments=compliance_assessments,
+        threat_assessment_requests=threat_assessment_requests,
     )
 
     payload_dict = payload.to_dict()
