@@ -7,8 +7,7 @@ import Overview from "./pages/Overview";
 import EDiscovery from "./pages/EDiscovery";
 import Labels from "./pages/Labels";
 import Audit from "./pages/Audit";
-import DLP from "./pages/DLP";
-import IRM from "./pages/IRM";
+import Alerts from "./pages/Alerts";
 import CommCompliance from "./pages/CommCompliance";
 import Trend from "./pages/Trend";
 import ThreatAssessments from "./pages/ThreatAssessments";
@@ -26,8 +25,7 @@ export default function App() {
             <Route path="ediscovery" element={<EDiscovery />} />
             <Route path="labels" element={<Labels />} />
             <Route path="audit" element={<Audit />} />
-            <Route path="dlp" element={<DLP />} />
-            <Route path="irm" element={<IRM />} />
+            <Route path="alerts" element={<Alerts />} />
             <Route path="comm-compliance" element={<CommCompliance />} />
             <Route path="threat-assessments" element={<ThreatAssessments />} />
             <Route path="trend" element={<Trend />} />
