@@ -16,6 +16,20 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_compliance
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -33,11 +47,48 @@ jobs:
       - name: Lint
         run: ruff check .
 
-      - name: Test
-        run: pytest tests/
+      - name: Unit tests
+        run: pytest tests/ -m "not integration"
+
+      - name: Integration tests
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_compliance
+        run: pytest tests/ -m integration -v
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci --legacy-peer-deps
+
+      - name: Lint
+        run: |
+          cd frontend
+          npm run lint
+
+      - name: Type-check and build
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Unit tests
+        run: |
+          cd frontend
+          npm run test
 
   deploy-infra:
-    needs: test
+    needs: [test, test-frontend]
     runs-on: ubuntu-latest
     env:
       AZURE_RESOURCE_GROUP: rg-compliance-advisor
@@ -99,7 +150,7 @@ jobs:
           echo "::warning::Skipping infra deployment — AZURE_RESOURCE_GROUP or POSTGRES_ADMIN_PASSWORD is not set."
 
   deploy-functions:
-    needs: [test, deploy-infra]
+    needs: [test, test-frontend, deploy-infra]
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -165,7 +216,7 @@ jobs:
             --max-time 30 --retry 3 --retry-delay 10
 
   deploy-frontend:
-    needs: [test, deploy-infra]
+    needs: [test, test-frontend, deploy-infra]
     runs-on: ubuntu-latest
     env:
       WEB_APP_NAME: cadvisor-web-prod
