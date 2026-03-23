@@ -50,9 +50,11 @@ jobs:
           is_weekday = now.weekday() < 5
           
           if requested == "auto":
-              if is_weekday and now.hour == 8 and now.minute == 0:
+              # GitHub scheduled workflows are not guaranteed to run at minute 00,
+              # so trigger within the target local hour instead of exact minute.
+              if is_weekday and now.hour == 8:
                   action = "start"
-              elif is_weekday and now.hour == 20 and now.minute == 0:
+              elif is_weekday and now.hour == 20:
                   action = "stop"
               else:
                   action = "none"
