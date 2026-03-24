@@ -16,16 +16,29 @@ Compliance Agent (`collector/cli.py`)
   - Action: POST `/api/ingest`
       │
       ▼
-Azure Function App (`cadvisor-func-prod`)
-  - Ingest API: `/api/ingest`
-  - Dashboard APIs: POST `/api/advisor/*`
-  - AI Advisor: `/api/advisor/briefing`, `/api/advisor/ask`
-      │
-      ├──▶ PostgreSQL (17 tables)
-      └──▶ Azure OpenAI (gpt-4o via Assistants API)
-      ▲
-      │
-React SPA (`cadvisor-web-prod`)
+┌─── VNet (10.0.0.0/16) ──────────────────────────────┐
+│                                                       │
+│  snet-func-integration (10.0.1.0/24)                 │
+│  ┌─────────────────────────────────────────────┐     │
+│  │ Azure Function App (`cadvisor-func-prod`)   │     │
+│  │  - Ingest API: `/api/ingest`                │     │
+│  │  - Dashboard APIs: POST `/api/advisor/*`    │     │
+│  │  - AI Advisor: `/briefing`, `/ask`          │     │
+│  │  - EasyAuth (Entra ID, conditional)         │     │
+│  └──────┬──────────┬───────────┬───────────────┘     │
+│         │          │           │                      │
+│  snet-private-endpoints (10.0.2.0/24)                │
+│  ┌──────▼──┐ ┌─────▼────┐ ┌───▼──────────────┐      │
+│  │ PG (22  │ │ Key Vault│ │ Azure OpenAI     │      │
+│  │ tables) │ │ (secrets)│ │ (gpt-4o)         │      │
+│  └─────────┘ └──────────┘ └──────────────────┘      │
+│              Private Endpoints (no public access)     │
+└───────────────────────────────────────────────────────┘
+      ▲                           │
+      │                    ┌──────▼──────┐
+React SPA                 │ App Insights │
+(`cadvisor-web-prod`)     │ + Log Analyt.│
+                          └─────────────┘
 ```
 
 ## Compliance Workloads
@@ -48,7 +61,7 @@ React SPA (`cadvisor-web-prod`)
 
 ## Features
 
-- **React SPA frontend** with 10 pages: Overview, eDiscovery, Labels, Audit, Alerts (DLP + IRM + Purview Incidents), Info Barriers, Governance, Trend, Actions
+- **React SPA frontend** with 12 pages: Overview, eDiscovery, Labels, Audit, Alerts (DLP + IRM + Purview Incidents), Info Barriers, Governance, Trend, Actions, Assessments, Threat Assessments, Purview Insights
 - Secure Score Data category KPI showing `current / max` points and percentage
 - Improvement Actions filtered to Data category by default with category/cost/tier filters
 - Agency/department dropdown filter with active filter state summary and clear reset
@@ -283,6 +296,8 @@ Optional secrets:
 - `DEPLOYER_OBJECT_ID`
 - `ENTRA_CLIENT_ID`
 - `ALLOWED_TENANT_IDS`
+- `ALERT_EMAIL` — email address for metric alert notifications
+- `POSTGRES_HA_MODE` — `Disabled` (default) or `ZoneRedundant`
 
 Frontend deployment secrets:
 
@@ -334,18 +349,54 @@ All dashboard list queries are capped at 1000 rows. Audit records are capped at 
 Standalone `snapshot_date` indexes exist on `audit_records`, `dlp_alerts`, and `compliance_trend` for efficient date-filtered queries.
 
 ### Known Trade-offs
-- **PostgreSQL HA** — currently single-server (no high availability). Enabling HA doubles cost.
+- **PostgreSQL HA** — defaults to single-server (`Disabled`). Set `postgresHaMode=ZoneRedundant` to enable zone-redundant HA (approximately doubles PostgreSQL cost).
 - **Entra ID auth** — API endpoints use ANONYMOUS auth level. EasyAuth is conditionally deployed when `ENTRA_CLIENT_ID` is set. The CI/CD pipeline warns when it is missing.
+
+## Network Security
+
+Zero Trust network architecture with no public access to backend services.
+
+- **VNet**: `cadvisor-vnet-prod` (10.0.0.0/16) with two subnets
+  - `snet-func-integration` (10.0.1.0/24) — Function App VNet integration
+  - `snet-private-endpoints` (10.0.2.0/24) — private endpoints for KV, PG, OpenAI
+- **Private endpoints**: Key Vault, PostgreSQL, and Azure OpenAI are accessible only via private endpoints within the VNet
+- **OpenAI public access**: `Disabled` — all traffic routes through private endpoint
+- **NSGs**:
+  - Func subnet: allows VNet outbound (HTTPS + PostgreSQL 5432) and internet outbound (HTTPS 443)
+  - PE subnet: allows inbound only from func subnet (HTTPS 443 + PostgreSQL 5432), deny-all-else (priority 4096)
+- **Function App**: VNet-integrated with `vnetRouteAllEnabled: true` — all outbound traffic routes through the VNet
+
+## Monitoring
+
+- **Log Analytics**: `cadvisor-la-prod` — 90-day retention, PerGB2018 SKU
+- **Application Insights**: `cadvisor-ai-prod` — connected to Log Analytics, ingestion mode `LogAnalytics`
+- **Diagnostic settings**: Function App, Azure OpenAI, and PostgreSQL all send `allLogs` + `AllMetrics` to Log Analytics
+- **Metric alerts** (4 rules):
+  - Function App HTTP 5xx errors > 5 in 5 min (severity 1)
+  - Function App average response time > 10s over 5 min (severity 2)
+  - Azure OpenAI client errors > 10 in 5 min (severity 2)
+  - PostgreSQL active connections > 680 in 5 min (severity 2)
+- **Action group**: optional email notifications via `alertEmailAddress` parameter / `ALERT_EMAIL` secret
+
+## Load Testing
+
+```bash
+pip install locust
+locust -f loadtest/locustfile.py --host https://cadvisor-func-prod.azurewebsites.net
+```
+
+18 weighted tasks covering all dashboard and AI endpoints. AI endpoints have low weight to respect rate limiting (10 req/min/IP).
 
 ## Project Structure
 
 ```
 compliance-advisor/
-├── frontend/          React 18 + TypeScript + Vite SPA
+├── frontend/          React 19 + TypeScript + Vite SPA (12 pages)
 ├── collector/          Per-tenant data collector (Python CLI)
 ├── functions/          Azure Functions v2 API backend
-├── sql/                PostgreSQL schema (18 tables)
-├── infra/              Bicep IaC templates (PostgreSQL, Function App, Key Vault, OpenAI, Monitoring)
+├── sql/                PostgreSQL schema (22 tables)
+├── infra/              Bicep IaC (PostgreSQL, Function App, Key Vault, OpenAI, VNet, Monitoring, Alerts)
+├── loadtest/           Locust load testing
 ├── tests/              pytest test suite
 └── .github/workflows/  CI/CD (deploy + app-hours scheduler)
 ```

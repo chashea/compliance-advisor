@@ -11,6 +11,9 @@ param skuName string = 'Standard_D4ds_v4'
 param skuTier string = 'GeneralPurpose'
 param storageSizeGB int = 32
 
+@allowed(['Disabled', 'ZoneRedundant'])
+param highAvailabilityMode string = 'Disabled'
+
 resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-06-01-preview' = {
   name: serverName
   location: location
@@ -30,7 +33,7 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-06-01-pr
       geoRedundantBackup: 'Enabled'
     }
     highAvailability: {
-      mode: 'Disabled'
+      mode: highAvailabilityMode
     }
     authConfig: {
       activeDirectoryAuth: 'Enabled'

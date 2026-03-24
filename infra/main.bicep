@@ -30,6 +30,13 @@ param entraClientId string = ''
 @description('PostgreSQL administrator password')
 param postgresAdminPassword string
 
+@description('Email address for alert notifications (leave empty to skip)')
+param alertEmailAddress string = ''
+
+@allowed(['Disabled', 'ZoneRedundant'])
+@description('PostgreSQL high availability mode (ZoneRedundant doubles cost)')
+param postgresHaMode string = 'Disabled'
+
 var prefix = 'cadvisor'
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var storageName = '${prefix}st${take(uniqueSuffix, 11)}'
@@ -67,6 +74,7 @@ module postgres 'modules/postgres.bicep' = {
     serverName: postgresServerName
     location: location
     administratorPassword: postgresAdminPassword
+    highAvailabilityMode: postgresHaMode
   }
 }
 
@@ -275,6 +283,17 @@ resource postgresDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-p
         enabled: true
       }
     ]
+  }
+}
+
+// ── Metric Alerts ──────────────────────────────────────────────────
+module alerts 'modules/alerts.bicep' = {
+  name: 'alerts'
+  params: {
+    functionAppId: functionApp.outputs.functionAppId
+    openAiId: openai.outputs.openAiId
+    postgresServerId: postgres.outputs.serverId
+    alertEmailAddress: alertEmailAddress
   }
 }
 

@@ -131,7 +131,9 @@ jobs:
              --parameters postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD" \
                           deployerObjectId="$DEPLOYER_OBJECT_ID" \
                           entraClientId="$ENTRA_CLIENT_ID" \
-                         allowedTenantIds="$ALLOWED_TENANT_IDS"
+                         allowedTenantIds="$ALLOWED_TENANT_IDS" \
+                         postgresHaMode='${{ secrets.POSTGRES_HA_MODE || 'Disabled' }}' \
+                         alertEmailAddress='${{ secrets.ALERT_EMAIL }}'
 
       - name: Deploy infrastructure
         if: env.AZURE_RESOURCE_GROUP != '' && env.POSTGRES_ADMIN_PASSWORD != ''
@@ -142,7 +144,9 @@ jobs:
              --parameters postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD" \
                           deployerObjectId="$DEPLOYER_OBJECT_ID" \
                           entraClientId="$ENTRA_CLIENT_ID" \
-                         allowedTenantIds="$ALLOWED_TENANT_IDS"
+                         allowedTenantIds="$ALLOWED_TENANT_IDS" \
+                         postgresHaMode='${{ secrets.POSTGRES_HA_MODE || 'Disabled' }}' \
+                         alertEmailAddress='${{ secrets.ALERT_EMAIL }}'
 
       - name: Skip infra deployment (missing secrets)
         if: env.AZURE_RESOURCE_GROUP == '' || env.POSTGRES_ADMIN_PASSWORD == ''

@@ -10,10 +10,10 @@ Functions:
 import hashlib
 import json
 import logging
-import threading
 import time
 import uuid
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import azure.functions as func
 
@@ -24,6 +24,9 @@ log = logging.getLogger(__name__)
 _RATE_LIMIT_MAX = 10  # max requests per window
 _RATE_LIMIT_WINDOW = 60  # window in seconds
 _rate_limit_store: dict[str, list[float]] = defaultdict(list)
+
+# ── Background executor for fire-and-forget collection ────────────
+_COLLECTION_EXECUTOR = ThreadPoolExecutor(max_workers=3, thread_name_prefix="collect")
 
 
 def _is_rate_limited(client_ip: str) -> bool:
@@ -1409,19 +1412,31 @@ def collect_tenants(timer: func.TimerRequest) -> None:
         successes = 0
         failures = 0
 
-        for tenant in tenants:
-            result = _collect_single_tenant(
-                tid=tenant["tenant_id"],
-                display_name=tenant.get("display_name", ""),
-                department=tenant.get("department", ""),
-                client_id=client_id,
-                client_secret=client_secret,
-                audit_days=audit_days,
-            )
-            if result["status"] == "ok":
-                successes += 1
-            else:
-                failures += 1
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = {
+                executor.submit(
+                    _collect_single_tenant,
+                    tid=tenant["tenant_id"],
+                    display_name=tenant.get("display_name", ""),
+                    department=tenant.get("department", ""),
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    audit_days=audit_days,
+                ): tenant["tenant_id"]
+                for tenant in tenants
+            }
+
+            for future in as_completed(futures):
+                tid = futures[future]
+                try:
+                    result = future.result()
+                    if result["status"] == "ok":
+                        successes += 1
+                    else:
+                        failures += 1
+                except Exception:
+                    log.exception("collect_tenants: unhandled error for tenant=%s", tid)
+                    failures += 1
 
         log.info("collect_tenants: completed — %d succeeded, %d failed", successes, failures)
 
@@ -1459,8 +1474,7 @@ def _trigger_collection_async(tid: str, display_name: str, department: str) -> N
         )
         log.info("_trigger_collection_async: tenant=%s result=%s", tid, result["status"])
 
-    thread = threading.Thread(target=_run, daemon=True)
-    thread.start()
+    _COLLECTION_EXECUTOR.submit(_run)
 
 
 @app.function_name("collect_single")
