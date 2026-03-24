@@ -74,6 +74,23 @@ CREATE TABLE IF NOT EXISTS retention_event_types (
     UNIQUE (tenant_id, event_type_id, snapshot_date)
 );
 
+-- Retention labels (Records Management) — beta API, may require delegated auth
+CREATE TABLE IF NOT EXISTS retention_labels (
+    id                      SERIAL PRIMARY KEY,
+    tenant_id               TEXT NOT NULL REFERENCES tenants(tenant_id),
+    label_id                TEXT NOT NULL,
+    name                    TEXT,
+    description             TEXT,
+    is_in_use               BOOLEAN DEFAULT FALSE,
+    retention_duration      TEXT,
+    action_after            TEXT,
+    default_record_behavior TEXT,
+    created                 TEXT,
+    modified                TEXT,
+    snapshot_date           DATE NOT NULL DEFAULT CURRENT_DATE,
+    UNIQUE (tenant_id, label_id, snapshot_date)
+);
+
 -- Audit log records
 CREATE TABLE IF NOT EXISTS audit_records (
     id              SERIAL PRIMARY KEY,
@@ -335,6 +352,9 @@ CREATE INDEX IF NOT EXISTS idx_retention_events_tenant
 
 CREATE INDEX IF NOT EXISTS idx_retention_event_types_tenant
     ON retention_event_types(tenant_id, snapshot_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_retention_labels_tenant
+    ON retention_labels(tenant_id, snapshot_date DESC);
 
 CREATE INDEX IF NOT EXISTS idx_audit_records_tenant
     ON audit_records(tenant_id, snapshot_date DESC);

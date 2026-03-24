@@ -27,6 +27,7 @@ from collector.compliance_client import (
     get_purview_incidents,
     get_retention_event_types,
     get_retention_events,
+    get_retention_labels,
     get_secure_scores,
     get_sensitive_info_types,
     get_sensitivity_labels,
@@ -122,6 +123,9 @@ def main(
     click.echo("  Retention Event Types...")
     retention_event_types = get_retention_event_types(token)
 
+    click.echo("  Retention Labels...")
+    retention_labels = get_retention_labels(token)
+
     click.echo("  Audit Log Records...")
     audit_records = get_audit_log_records(token, days=settings.AUDIT_LOG_DAYS)
 
@@ -168,7 +172,7 @@ def main(
 
     click.echo(
         f"\neDiscovery: {len(ediscovery_cases)} | Labels: {len(sensitivity_labels)} "
-        f"| Retention Events: {len(retention_events)} "
+        f"| Retention Events: {len(retention_events)} | Retention Labels: {len(retention_labels)} "
         f"| Audit: {len(audit_records)} | DLP: {len(dlp_alerts)} | IRM: {len(irm_alerts)} "
         f"| InfoBarriers: {len(info_barrier_policies)} "
         f"| Scopes: {len(protection_scopes)} | Secure Score: {len(secure_scores)} "
@@ -190,6 +194,7 @@ def main(
         sensitivity_labels=sensitivity_labels,
         retention_events=retention_events,
         retention_event_types=retention_event_types,
+        retention_labels=retention_labels,
         audit_records=audit_records,
         dlp_alerts=dlp_alerts,
         irm_alerts=irm_alerts,

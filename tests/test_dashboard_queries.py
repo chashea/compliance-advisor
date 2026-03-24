@@ -105,10 +105,12 @@ def test_get_ediscovery_with_department(mock_q):
 def test_get_labels_returns_two_sections(mock_q):
     mock_q.side_effect = [
         [{"label_id": "s1"}],
+        [{"label_id": "rl1"}],
         [{"event_id": "e1"}],
     ]
     result = get_labels()
     assert "sensitivity_labels" in result
+    assert "retention_labels" in result
     assert "retention_events" in result
 
 

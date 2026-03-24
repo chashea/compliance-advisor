@@ -315,6 +315,51 @@ def get_retention_event_types(token: str) -> list[dict[str, Any]]:
     return event_types
 
 
+# ── Records Management (retention labels) ─────────────────────────
+
+
+def get_retention_labels(token: str) -> list[dict[str, Any]]:
+    """Return retention labels.
+
+    Tries beta endpoint first, then v1.0. Both may return 403 with app-only auth
+    since the retentionLabels API currently requires delegated permissions.
+    Returns empty list on 403.
+    """
+    sess = _session(token)
+
+    for base, label in [(GRAPH_BETA, "beta"), (GRAPH_BASE, "v1.0")]:
+        url = f"{base}/security/labels/retentionLabels"
+        try:
+            items = _paginate(sess, url)
+            if items is not None:
+                labels = [
+                    {
+                        "label_id": item.get("id", ""),
+                        "name": item.get("displayName", ""),
+                        "description": item.get("descriptionForUsers", "") or item.get("description", ""),
+                        "is_in_use": item.get("isInUse", False),
+                        "retention_duration": item.get("retentionDuration", ""),
+                        "action_after": item.get("actionAfterRetentionPeriod", ""),
+                        "default_record_behavior": item.get("defaultRecordBehavior", ""),
+                        "created": item.get("createdDateTime", ""),
+                        "modified": item.get("lastModifiedDateTime", ""),
+                    }
+                    for item in items
+                ]
+                log.info("Retrieved %d retention labels (%s)", len(labels), label)
+                return labels
+        except requests.exceptions.RequestException as e:
+            resp = getattr(e, "response", None)
+            status_code = resp.status_code if resp is not None else 0
+            if status_code == 403:
+                log.warning("Retention labels API returned 403 (%s) — app-only auth not supported", label)
+            else:
+                _log_api_error(f"retentionLabels ({label})", e, "RecordsManagement.Read.All")
+
+    log.warning("Retention labels unavailable (app-only auth limitation) — returning empty list")
+    return []
+
+
 # ── Audit Log (async query API) ───────────────────────────────────
 
 

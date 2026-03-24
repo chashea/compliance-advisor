@@ -3,7 +3,7 @@ import DataTable from "../components/DataTable";
 import ErrorBanner from "../components/ErrorBanner";
 import Loading from "../components/Loading";
 import { useApi } from "../hooks/useApi";
-import type { LabelsResponse, SensitivityLabel, RetentionEvent } from "../types";
+import type { LabelsResponse, SensitivityLabel, RetentionLabel, RetentionEvent } from "../types";
 
 const modeColors: Record<string, string> = {
   automatic: "bg-sky-600/20 text-sky-400",
@@ -128,6 +128,35 @@ export default function Labels() {
             { key: "tenant_name", label: "Tenant" },
           ]}
           data={sl as (SensitivityLabel & Record<string, unknown>)[]}
+          keyField="label_id"
+        />
+      </div>
+
+      <div>
+        <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+          Retention Labels ({data.retention_labels.length})
+        </h3>
+        <DataTable<RetentionLabel & Record<string, unknown>>
+          columns={[
+            { key: "name", label: "Label" },
+            {
+              key: "is_in_use",
+              label: "In Use",
+              render: (v) => v ? "Yes" : "No",
+            },
+            { key: "retention_duration", label: "Duration" },
+            {
+              key: "action_after",
+              label: "After Retention",
+              render: (v) => {
+                const s = String(v || "none");
+                return s.charAt(0).toUpperCase() + s.slice(1);
+              },
+            },
+            { key: "default_record_behavior", label: "Record Behavior" },
+            { key: "tenant_name", label: "Tenant" },
+          ]}
+          data={data.retention_labels as (RetentionLabel & Record<string, unknown>)[]}
           keyField="label_id"
         />
       </div>

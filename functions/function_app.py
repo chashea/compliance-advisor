@@ -87,6 +87,7 @@ try:
         upsert_purview_incident,
         upsert_retention_event,
         upsert_retention_event_type,
+        upsert_retention_label,
         upsert_secure_score,
         upsert_sensitive_info_type,
         upsert_sensitivity_label,
@@ -142,6 +143,9 @@ try:
     )
     from collector.compliance_client import (
         get_retention_events as collect_retention_events,
+    )
+    from collector.compliance_client import (
+        get_retention_labels as collect_retention_labels,
     )
     from collector.compliance_client import (
         get_secure_scores as collect_secure_scores,
@@ -697,6 +701,22 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
                 snapshot_date=snapshot_date,
             )
 
+        # Upsert retention labels
+        for rl in payload.get("retention_labels", []):
+            upsert_retention_label(
+                tenant_id=tenant_id,
+                label_id=rl.get("label_id", ""),
+                name=rl.get("name", ""),
+                description=rl.get("description", ""),
+                is_in_use=rl.get("is_in_use", False),
+                retention_duration=rl.get("retention_duration", ""),
+                action_after=rl.get("action_after", ""),
+                default_record_behavior=rl.get("default_record_behavior", ""),
+                created=rl.get("created", ""),
+                modified=rl.get("modified", ""),
+                snapshot_date=snapshot_date,
+            )
+
         # Upsert audit records
         for ar in payload.get("audit_records", []):
             upsert_audit_record(
@@ -992,6 +1012,7 @@ def _collect_single_tenant(
         sensitivity = collect_sensitivity_labels(token)
         ret_events = collect_retention_events(token)
         ret_event_types = collect_retention_event_types(token)
+        ret_labels = collect_retention_labels(token)
         audit = collect_audit_log_records(token, days=audit_days)
         dlp = collect_dlp_alerts(token)
         irm = collect_irm_alerts(token)
@@ -1056,6 +1077,20 @@ def _collect_single_tenant(
                 description=ret.get("description", ""),
                 created=ret.get("created", ""),
                 modified=ret.get("modified", ""),
+                snapshot_date=today,
+            )
+        for rl in ret_labels:
+            upsert_retention_label(
+                tenant_id=tid,
+                label_id=rl.get("label_id", ""),
+                name=rl.get("name", ""),
+                description=rl.get("description", ""),
+                is_in_use=rl.get("is_in_use", False),
+                retention_duration=rl.get("retention_duration", ""),
+                action_after=rl.get("action_after", ""),
+                default_record_behavior=rl.get("default_record_behavior", ""),
+                created=rl.get("created", ""),
+                modified=rl.get("modified", ""),
                 snapshot_date=today,
             )
         for ar in audit:

@@ -269,6 +269,43 @@ def upsert_retention_event_type(
     )
 
 
+def upsert_retention_label(
+    tenant_id: str,
+    label_id: str,
+    name: str,
+    description: str,
+    is_in_use: bool,
+    retention_duration: str,
+    action_after: str,
+    default_record_behavior: str,
+    created: str,
+    modified: str,
+    snapshot_date: str,
+) -> None:
+    execute(
+        """
+        INSERT INTO retention_labels
+            (tenant_id, label_id, name, description, is_in_use, retention_duration,
+             action_after, default_record_behavior, created, modified, snapshot_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (tenant_id, label_id, snapshot_date) DO UPDATE SET
+            name = EXCLUDED.name,
+            description = EXCLUDED.description,
+            is_in_use = EXCLUDED.is_in_use,
+            retention_duration = EXCLUDED.retention_duration,
+            action_after = EXCLUDED.action_after,
+            default_record_behavior = EXCLUDED.default_record_behavior,
+            created = EXCLUDED.created,
+            modified = EXCLUDED.modified
+        """,
+        (
+            tenant_id, label_id, name, description, is_in_use,
+            retention_duration, action_after, default_record_behavior,
+            created, modified, snapshot_date,
+        ),
+    )
+
+
 def upsert_audit_record(
     tenant_id: str,
     record_id: str,

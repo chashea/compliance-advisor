@@ -6,6 +6,7 @@ import type {
   EDiscoveryCase,
   LabelsResponse,
   SensitivityLabel,
+  RetentionLabel,
   RetentionEvent,
   AuditResponse,
   AuditRecord,
@@ -74,6 +75,12 @@ const sensitivityLabels: SensitivityLabel[] = [
   { label_id: "sl-2", name: "Public", description: "Safe for external sharing", color: "#388e3c", is_active: true, parent_id: "", priority: 3, tooltip: "No restrictions", has_protection: false, applicable_to: "email, file", application_mode: "manual", is_endpoint_protection_enabled: false, tenant_name: "Contoso Ltd" },
   { label_id: "sl-3", name: "Highly Confidential", description: "Executive-only", color: "#b71c1c", is_active: true, parent_id: "", priority: 0, tooltip: "Top secret", has_protection: true, applicable_to: "email, file, site, teamwork", application_mode: "automatic", is_endpoint_protection_enabled: true, tenant_name: "Fabrikam Inc" },
   { label_id: "sl-4", name: "Internal", description: "General internal use", color: "#1976d2", is_active: true, parent_id: "", priority: 2, tooltip: "Internal only", has_protection: false, applicable_to: "email, file", application_mode: "recommended", is_endpoint_protection_enabled: false, tenant_name: "Northwind Traders" },
+];
+
+const retentionLabels: RetentionLabel[] = [
+  { label_id: "rl-1", name: "7-Year Financial Records", description: "Retain financial records for 7 years per SOX", is_in_use: true, retention_duration: "2555", action_after: "delete", default_record_behavior: "startLocked", created: "2025-06-01", modified: "2025-12-15", tenant_name: "Contoso Ltd" },
+  { label_id: "rl-2", name: "3-Year HR Records", description: "Employee records retention", is_in_use: true, retention_duration: "1095", action_after: "none", default_record_behavior: "startUnlocked", created: "2025-08-10", modified: "2026-01-20", tenant_name: "Fabrikam Inc" },
+  { label_id: "rl-3", name: "Legal Hold — Indefinite", description: "Indefinite hold for active litigation", is_in_use: false, retention_duration: "", action_after: "none", default_record_behavior: "startLocked", created: "2026-01-05", modified: "2026-01-05", tenant_name: "Northwind Traders" },
 ];
 
 const retentionEvents: RetentionEvent[] = [
@@ -290,6 +297,7 @@ export function getDemoData(endpoint: string, body?: Record<string, unknown>): u
     case "labels":
       return {
         sensitivity_labels: filterByDept(sensitivityLabels, dept || undefined),
+        retention_labels: filterByDept(retentionLabels, dept || undefined),
         retention_events: filterByDept(retentionEvents, dept || undefined),
       } satisfies LabelsResponse;
 

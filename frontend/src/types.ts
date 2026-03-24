@@ -68,8 +68,22 @@ export interface RetentionEvent {
   tenant_name: string;
 }
 
+export interface RetentionLabel {
+  label_id: string;
+  name: string;
+  description: string;
+  is_in_use: boolean;
+  retention_duration: string;
+  action_after: string;
+  default_record_behavior: string;
+  created: string;
+  modified: string;
+  tenant_name: string;
+}
+
 export interface LabelsResponse {
   sensitivity_labels: SensitivityLabel[];
+  retention_labels: RetentionLabel[];
   retention_events: RetentionEvent[];
 }
 

@@ -267,8 +267,29 @@ def get_labels(department: str | None = None, tenant_id: str | None = None) -> d
         params,
     )
 
+    retention_labels = query(
+        f"""
+        SELECT rl.label_id, rl.name, rl.description, rl.is_in_use,
+               rl.retention_duration, rl.action_after, rl.default_record_behavior,
+               rl.created, rl.modified,
+               t.display_name AS tenant_name
+        FROM retention_labels rl
+        JOIN tenants t ON t.tenant_id = rl.tenant_id
+        WHERE rl.snapshot_date = (
+                SELECT MAX(snapshot_date) FROM retention_labels _sub
+                WHERE _sub.tenant_id = rl.tenant_id
+            )
+          {dept_filter}
+          {tenant_filter}
+        ORDER BY rl.name
+        LIMIT 1000
+        """,
+        params,
+    )
+
     return {
         "sensitivity_labels": sensitivity,
+        "retention_labels": retention_labels,
         "retention_events": retention_events,
     }
 
