@@ -18,6 +18,90 @@ var funcIntegrationSubnetPrefix = '10.0.1.0/24'
 var privateEndpointsSubnetName = 'snet-private-endpoints'
 var privateEndpointsSubnetPrefix = '10.0.2.0/24'
 
+// ── Network Security Groups ────────────────────────────────────
+resource nsgFunc 'Microsoft.Network/networkSecurityGroups@2024-01-01' = {
+  name: 'nsg-func-integration'
+  location: location
+  properties: {
+    securityRules: [
+      {
+        name: 'AllowVNetOutbound'
+        properties: {
+          priority: 100
+          direction: 'Outbound'
+          access: 'Allow'
+          protocol: 'Tcp'
+          sourceAddressPrefix: 'VirtualNetwork'
+          sourcePortRange: '*'
+          destinationAddressPrefix: 'VirtualNetwork'
+          destinationPortRanges: ['443', '5432']
+        }
+      }
+      {
+        name: 'AllowInternetOutbound'
+        properties: {
+          priority: 110
+          direction: 'Outbound'
+          access: 'Allow'
+          protocol: 'Tcp'
+          sourceAddressPrefix: 'VirtualNetwork'
+          sourcePortRange: '*'
+          destinationAddressPrefix: 'Internet'
+          destinationPortRange: '443'
+        }
+      }
+    ]
+  }
+}
+
+resource nsgPe 'Microsoft.Network/networkSecurityGroups@2024-01-01' = {
+  name: 'nsg-private-endpoints'
+  location: location
+  properties: {
+    securityRules: [
+      {
+        name: 'AllowFuncSubnetHttps'
+        properties: {
+          priority: 100
+          direction: 'Inbound'
+          access: 'Allow'
+          protocol: 'Tcp'
+          sourceAddressPrefix: funcIntegrationSubnetPrefix
+          sourcePortRange: '*'
+          destinationAddressPrefix: 'VirtualNetwork'
+          destinationPortRange: '443'
+        }
+      }
+      {
+        name: 'AllowFuncSubnetPostgres'
+        properties: {
+          priority: 110
+          direction: 'Inbound'
+          access: 'Allow'
+          protocol: 'Tcp'
+          sourceAddressPrefix: funcIntegrationSubnetPrefix
+          sourcePortRange: '*'
+          destinationAddressPrefix: 'VirtualNetwork'
+          destinationPortRange: '5432'
+        }
+      }
+      {
+        name: 'DenyAllInbound'
+        properties: {
+          priority: 4096
+          direction: 'Inbound'
+          access: 'Deny'
+          protocol: '*'
+          sourceAddressPrefix: '*'
+          sourcePortRange: '*'
+          destinationAddressPrefix: '*'
+          destinationPortRange: '*'
+        }
+      }
+    ]
+  }
+}
+
 // ── Virtual Network ─────────────────────────────────────────────
 resource vnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
   name: vnetName
@@ -31,6 +115,9 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
         name: funcIntegrationSubnetName
         properties: {
           addressPrefix: funcIntegrationSubnetPrefix
+          networkSecurityGroup: {
+            id: nsgFunc.id
+          }
           delegations: [
             {
               name: 'delegation-web'
@@ -45,6 +132,9 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
         name: privateEndpointsSubnetName
         properties: {
           addressPrefix: privateEndpointsSubnetPrefix
+          networkSecurityGroup: {
+            id: nsgPe.id
+          }
         }
       }
     ]
