@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { post } from "./client";
+
+vi.mock("../components/AuthContext", () => ({
+  msalInstance: null,
+}));
 
 vi.mock("../demo/data", () => ({
   getDemoData: (endpoint: string) => ({ demo: true, endpoint }),
@@ -11,6 +14,7 @@ describe("post()", () => {
   });
 
   it("calls fetch and returns JSON on success", async () => {
+    const { post } = await import("./client");
     const mockData = { status: "ok" };
     vi.stubGlobal(
       "fetch",
@@ -25,6 +29,7 @@ describe("post()", () => {
   });
 
   it("throws on non-ok response", async () => {
+    const { post } = await import("./client");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -38,6 +43,7 @@ describe("post()", () => {
   });
 
   it("throws with statusText when JSON parse fails", async () => {
+    const { post } = await import("./client");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -51,6 +57,7 @@ describe("post()", () => {
   });
 
   it("sends body as JSON", async () => {
+    const { post } = await import("./client");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -68,6 +75,7 @@ describe("post()", () => {
   });
 
   it("returns demo data when demo flag is true", async () => {
+    const { post } = await import("./client");
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const result = await post("status", undefined, true);

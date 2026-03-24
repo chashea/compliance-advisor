@@ -84,7 +84,7 @@ resource authSettings 'Microsoft.Web/sites/config@2023-01-01' = if (!empty(entra
   properties: {
     globalValidation: {
       requireAuthentication: true
-      unauthenticatedClientAction: 'RedirectToLoginPage'
+      unauthenticatedClientAction: 'AllowAnonymous'
     }
     identityProviders: {
       azureActiveDirectory: {
@@ -92,6 +92,11 @@ resource authSettings 'Microsoft.Web/sites/config@2023-01-01' = if (!empty(entra
         registration: {
           clientId: entraClientId
           openIdIssuer: 'https://login.microsoftonline.com/${entraTenantId}/v2.0'
+        }
+        validation: {
+          allowedAudiences: [
+            'api://${entraClientId}'
+          ]
         }
       }
     }

@@ -239,6 +239,8 @@ jobs:
           npm run build
         env:
           VITE_API_BASE_URL: ${{ env.VITE_API_BASE_URL }}
+          VITE_ENTRA_CLIENT_ID: ${{ secrets.ENTRA_CLIENT_ID }}
+          VITE_ENTRA_TENANT_ID: ${{ secrets.ENTRA_TENANT_ID }}
 
       - name: Azure Login (OIDC)
         if: env.WEB_APP_NAME != ''

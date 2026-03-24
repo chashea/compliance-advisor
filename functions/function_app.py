@@ -50,6 +50,7 @@ _DEPENDENCY_IMPORT_ERROR: Exception | None = None
 
 try:
     from shared.ai_advisor import AdvisorAIError, ask_advisor, generate_briefing
+    from shared.auth import get_auth_error_response, require_auth
     from shared.dashboard_queries import (
         get_audit,
         get_compliance_assessments,
@@ -220,6 +221,9 @@ def health(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_status(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
+        principal = require_auth(req)
+        if principal is None:
+            return get_auth_error_response()
         return _json_response(get_status())
     except Exception as e:
         log.exception("advisor/status error: %s", e)
@@ -231,6 +235,9 @@ def advisor_status(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_overview(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
+        principal = require_auth(req)
+        if principal is None:
+            return get_auth_error_response()
         body = _get_body(req)
         return _json_response(get_overview(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
@@ -243,6 +250,9 @@ def advisor_overview(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_ediscovery(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
+        principal = require_auth(req)
+        if principal is None:
+            return get_auth_error_response()
         body = _get_body(req)
         return _json_response(get_ediscovery(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
@@ -255,6 +265,9 @@ def advisor_ediscovery(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_labels(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
+        principal = require_auth(req)
+        if principal is None:
+            return get_auth_error_response()
         body = _get_body(req)
         return _json_response(get_labels(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
@@ -267,6 +280,9 @@ def advisor_labels(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_audit(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
+        principal = require_auth(req)
+        if principal is None:
+            return get_auth_error_response()
         body = _get_body(req)
         return _json_response(get_audit(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
@@ -279,6 +295,9 @@ def advisor_audit(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_dlp(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
+        principal = require_auth(req)
+        if principal is None:
+            return get_auth_error_response()
         body = _get_body(req)
         return _json_response(get_dlp(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
@@ -291,6 +310,9 @@ def advisor_dlp(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_irm(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
+        principal = require_auth(req)
+        if principal is None:
+            return get_auth_error_response()
         body = _get_body(req)
         return _json_response(get_irm(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
@@ -303,6 +325,9 @@ def advisor_irm(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_purview_incidents(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
+        principal = require_auth(req)
+        if principal is None:
+            return get_auth_error_response()
         body = _get_body(req)
         return _json_response(get_purview_incidents(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
@@ -315,6 +340,9 @@ def advisor_purview_incidents(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_info_barriers(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
+        principal = require_auth(req)
+        if principal is None:
+            return get_auth_error_response()
         body = _get_body(req)
         return _json_response(get_info_barriers(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
@@ -327,6 +355,9 @@ def advisor_info_barriers(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_governance(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
+        principal = require_auth(req)
+        if principal is None:
+            return get_auth_error_response()
         body = _get_body(req)
         return _json_response(get_governance(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
@@ -339,6 +370,9 @@ def advisor_governance(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_trend(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
+        principal = require_auth(req)
+        if principal is None:
+            return get_auth_error_response()
         body = _get_body(req)
         try:
             days = int(body.get("days", 30))
@@ -363,6 +397,9 @@ def advisor_trend(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_purview_insights(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
+        principal = require_auth(req)
+        if principal is None:
+            return get_auth_error_response()
         body = _get_body(req)
         try:
             days = int(body.get("days", 30))
@@ -387,6 +424,9 @@ def advisor_purview_insights(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_actions(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
+        principal = require_auth(req)
+        if principal is None:
+            return get_auth_error_response()
         body = _get_body(req)
         result = get_improvement_actions(department=body.get("department"), tenant_id=body.get("tenant_id"))
         return _json_response(result)
@@ -400,6 +440,9 @@ def advisor_actions(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_dlp_policies(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
+        principal = require_auth(req)
+        if principal is None:
+            return get_auth_error_response()
         body = _get_body(req)
         return _json_response(get_dlp_policies(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
@@ -412,6 +455,9 @@ def advisor_dlp_policies(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_irm_policies(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
+        principal = require_auth(req)
+        if principal is None:
+            return get_auth_error_response()
         body = _get_body(req)
         return _json_response(get_irm_policies(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
@@ -424,6 +470,9 @@ def advisor_irm_policies(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_assessments(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
+        principal = require_auth(req)
+        if principal is None:
+            return get_auth_error_response()
         body = _get_body(req)
         result = get_compliance_assessments(department=body.get("department"), tenant_id=body.get("tenant_id"))
         return _json_response(result)
@@ -437,6 +486,9 @@ def advisor_assessments(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_threat_assessments(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
+        principal = require_auth(req)
+        if principal is None:
+            return get_auth_error_response()
         body = _get_body(req)
         result = get_threat_assessments(department=body.get("department"), tenant_id=body.get("tenant_id"))
         return _json_response(result)
@@ -453,6 +505,9 @@ def advisor_threat_assessments(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_briefing(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
+        principal = require_auth(req)
+        if principal is None:
+            return get_auth_error_response()
         if _is_rate_limited(_get_client_ip(req)):
             return _json_response({"error": "Rate limit exceeded. Max 10 requests per minute."}, 429)
         body = _get_body(req)
@@ -471,6 +526,9 @@ def advisor_briefing(req: func.HttpRequest) -> func.HttpResponse:
 def advisor_ask(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
+        principal = require_auth(req)
+        if principal is None:
+            return get_auth_error_response()
         if _is_rate_limited(_get_client_ip(req)):
             return _json_response({"error": "Rate limit exceeded. Max 10 requests per minute."}, 429)
         body = _get_body(req)

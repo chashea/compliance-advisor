@@ -6,6 +6,10 @@ param location string
 param functionAppUrl string
 param virtualNetworkSubnetId string = ''
 
+// EasyAuth params
+param entraClientId string = ''
+param entraTenantId string = subscription().tenantId
+
 resource webAppPlan 'Microsoft.Web/serverfarms@2023-01-01' = {
   name: webAppPlanName
   location: location
@@ -38,6 +42,32 @@ resource webApp 'Microsoft.Web/sites@2023-01-01' = {
         { name: 'VITE_API_BASE_URL', value: functionAppUrl }
         { name: 'WEBSITE_VNET_ROUTE_ALL', value: !empty(virtualNetworkSubnetId) ? '1' : '0' }
       ]
+    }
+  }
+}
+
+// Entra ID SSO (EasyAuth) — redirects unauthenticated users to login
+resource authSettings 'Microsoft.Web/sites/config@2023-01-01' = if (!empty(entraClientId)) {
+  parent: webApp
+  name: 'authsettingsV2'
+  properties: {
+    globalValidation: {
+      requireAuthentication: true
+      unauthenticatedClientAction: 'RedirectToLoginPage'
+    }
+    identityProviders: {
+      azureActiveDirectory: {
+        enabled: true
+        registration: {
+          clientId: entraClientId
+          openIdIssuer: 'https://login.microsoftonline.com/${entraTenantId}/v2.0'
+        }
+      }
+    }
+    login: {
+      tokenStore: {
+        enabled: true
+      }
     }
   }
 }

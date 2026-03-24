@@ -140,6 +140,7 @@ module webApp 'modules/webapp.bicep' = {
     location: location
     functionAppUrl: functionApp.outputs.functionAppUrl
     virtualNetworkSubnetId: network.outputs.funcIntegrationSubnetId
+    entraClientId: entraClientId
   }
 }
 
