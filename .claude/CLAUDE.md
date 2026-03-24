@@ -92,7 +92,7 @@ python3.12 -m pytest tests/test_validation.py::test_valid_payload
 
 Multi-tenant compliance workload platform. Two core runtime components share a PostgreSQL database:
 
-1. **Collector** (`collector/`) — Python CLI (`compliance-collect`) that authenticates to tenants via MSAL client credentials (app-only), pulls compliance workload data from Microsoft Graph API (eDiscovery, sensitivity labels, retention labels/events, audit log, DLP alerts, IRM alerts, protection scopes, Secure Score with Data category breakdown, improvement actions filtered to Data category by default, subject rights requests, communication compliance, information barriers), and POSTs a payload to the Function App's `/api/ingest` endpoint. DLP and IRM alerts use the legacy `/security/alerts` endpoint filtered by `vendorInformation/provider`. Use `--actions-category` (env: `ACTIONS_CATEGORY`, default: `Data`) to control which Secure Score category is collected.
+1. **Collector** (`collector/`) — Python CLI (`compliance-collect`) that authenticates to tenants via MSAL client credentials (app-only), pulls compliance workload data from Microsoft Graph API (eDiscovery, sensitivity labels, retention labels/events, audit log, DLP alerts, IRM alerts, protection scopes, Secure Score with Data category breakdown, improvement actions filtered to Data category by default, subject rights requests, communication compliance, information barriers), and POSTs a payload to the Function App's `/api/ingest` endpoint. DLP and IRM alerts use `/security/alerts_v2` filtered by `serviceSource`. Use `--actions-category` (env: `ACTIONS_CATEGORY`, default: `Data`) to control which Secure Score category is collected.
 
 2. **Function App** (`functions/`) — Azure Functions v2 Python (decorator-based, no `function.json` files). All routes defined in `function_app.py`. Three categories:
    - **Ingest** (`/api/ingest`) — FUNCTION-level auth, validates payload via JSON schema (`shared/validation.py`), upserts to PostgreSQL (`shared/db.py`).
@@ -205,14 +205,14 @@ When a task requires specialized work, delegate to subagents (`.claude/agents/`)
 - Config uses pydantic-settings: `functions/shared/config.py` (`FunctionSettings`) and `collector/config.py` (`CollectorSettings`).
 - Audit log API is async: POST query, poll status, GET records.
 - Sensitivity labels use beta API with v1.0 fallback.
-- DLP and IRM alerts use the legacy `/v1.0/security/alerts` endpoint filtered by `vendorInformation/provider` — IRM has no valid `serviceSource` enum in `alerts_v2`; DLP surfaces more reliably this way.
+- DLP and IRM alerts use `/v1.0/security/alerts_v2` filtered by `serviceSource` (`microsoftDataLossPrevention`, `microsoftInsiderRiskManagement`).
 - Improvement actions default to `controlCategory eq 'Data'` via `--actions-category` / `ACTIONS_CATEGORY` env var.
 - Secure Score snapshot cross-references `controlScores` with Data category profiles to compute `data_current_score` / `data_max_score`.
 
 ## Known Gotchas
 
 1. **Key Vault references may not resolve** — After deployment, `@Microsoft.KeyVault(SecretUri=...)` app settings can fail to resolve due to RBAC propagation delay. `FunctionSettings` has a `model_validator` fallback that fetches secrets directly via `azure-keyvault-secrets` + `DefaultAzureCredential`. If you see `invalid dsn` errors, this is why.
-2. **DLP/IRM must use legacy alerts API** — `/v1.0/security/alerts` filtered by `vendorInformation/provider`, not `alerts_v2`. IRM has no valid `serviceSource` enum in v2; DLP surfaces more reliably via v1.
+2. **DLP/IRM alerts use alerts_v2** — `/v1.0/security/alerts_v2` with `serviceSource` filtering. Migrated from legacy alerts API in v1.6.0.
 3. **Sensitivity labels require beta API** — `beta/security/informationProtection/sensitivityLabels` with v1.0 fallback. Beta returns richer data but can break without notice.
 4. **Audit log API is async** — POST to create query, poll status until complete, then GET records. Do not treat it as a synchronous call.
 5. **Secure Score `controlScores` filtering** — `controlCategory eq 'Data'` is the default. Changing `--actions-category` affects both improvement actions and the data score calculation. These must stay in sync.

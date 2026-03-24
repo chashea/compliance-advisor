@@ -49,15 +49,15 @@ React SPA                 │ App Insights │
 | Information Protection | Sensitivity labels | `/beta/security/informationProtection/sensitivityLabels` |
 | Records Management | Retention labels & events | `/security/labels/retentionLabels`, `/security/triggers/retentionEvents` |
 | Audit Log | Compliance activity records | `/security/auditLog/queries` (async) |
-| DLP | DLP alerts from Defender | `/security/alerts` filtered by `vendorInformation/provider eq 'Microsoft Data Loss Prevention'` |
-| Insider Risk Management | IRM alerts from Defender | `/security/alerts` filtered by `vendorInformation/provider eq 'Microsoft Insider Risk Management'` |
+| DLP | DLP alerts from Defender | `/security/alerts_v2?$filter=serviceSource eq 'microsoftDataLossPrevention'` |
+| Insider Risk Management | IRM alerts from Defender | `/security/alerts_v2?$filter=serviceSource eq 'microsoftInsiderRiskManagement'` |
 | Data Security & Governance | Protection scopes | `/dataSecurityAndGovernance/protectionScopes/compute` |
 | Secure Score | Overall + Data category score | `/security/secureScores` + `/security/secureScoreControlProfiles` |
 | Improvement Actions | Secure Score control profiles (Data category) | `/security/secureScoreControlProfiles?$filter=controlCategory eq 'Data'` |
 | Information Barriers | Segment policies | `/beta/identityGovernance/informationBarriers/policies` |
 | Purview Incidents | Security incidents with Purview-correlated alerts | `/security/incidents` filtered by Purview service sources |
 
-> **Note:** DLP and IRM alerts use the legacy `/v1.0/security/alerts` endpoint (not `alerts_v2`) because IRM alerts have no valid `serviceSource` enum in `alerts_v2` and DLP alerts surface more reliably via the Defender product name filter.
+> **Note:** DLP and IRM alerts use the `/v1.0/security/alerts_v2` endpoint with `serviceSource` filtering. Alert responses include classification, determination, evidence arrays, MITRE ATT&CK techniques, and incident correlation.
 
 ## Features
 

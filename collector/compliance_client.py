@@ -383,6 +383,7 @@ def get_audit_log_records(token: str, days: int = 1) -> list[dict[str, Any]]:
             "complianceDLPExchange",
             "complianceDLPSharePoint",
             "complianceDLPSharePointClassification",
+            "complianceSupervisionExchange",
         ],
     }
 
