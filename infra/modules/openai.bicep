@@ -12,9 +12,9 @@ resource openAi 'Microsoft.CognitiveServices/accounts@2024-04-01-preview' = {
   }
   properties: {
     customSubDomainName: openAiName
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: 'Disabled'
     networkAcls: {
-      defaultAction: 'Allow'
+      defaultAction: 'Deny'
     }
   }
 }
