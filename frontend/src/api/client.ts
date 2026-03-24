@@ -1,4 +1,4 @@
-import { msalInstance } from "../components/AuthContext";
+import { msalInstance } from "../auth/msalInstance";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 const API_SCOPE = import.meta.env.VITE_ENTRA_CLIENT_ID

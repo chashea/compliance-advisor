@@ -122,9 +122,14 @@ class TestGetIrm:
 
 class TestGetTrend:
     def test_returns_trend_data(self, db_conn):
-        upsert_trend("2024-06-01", None, 10, 20, 5, 100, 3)
-        upsert_trend("2024-06-02", None, 12, 22, 6, 110, 3)
-        result = get_trend(days=365)
+        from datetime import date, timedelta
+
+        today = date.today()
+        d1 = (today - timedelta(days=2)).isoformat()
+        d2 = (today - timedelta(days=1)).isoformat()
+        upsert_trend(d1, None, 10, 20, 5, 100, 3)
+        upsert_trend(d2, None, 12, 22, 6, 110, 3)
+        result = get_trend(days=30)
         assert len(result["trend"]) >= 2
 
 

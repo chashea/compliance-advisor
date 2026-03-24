@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("../components/AuthContext", () => ({
+vi.mock("../auth/msalInstance", () => ({
   msalInstance: null,
 }));
 
