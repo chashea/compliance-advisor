@@ -54,6 +54,7 @@ resource authSettings 'Microsoft.Web/sites/config@2023-01-01' = if (!empty(entra
     globalValidation: {
       requireAuthentication: true
       unauthenticatedClientAction: 'RedirectToLoginPage'
+      redirectToProvider: 'azureactivedirectory'
     }
     identityProviders: {
       azureActiveDirectory: {
