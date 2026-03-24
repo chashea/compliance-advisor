@@ -156,6 +156,7 @@ jobs:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       FUNCTION_APP_NAME: cadvisor-func-prod
       AZURE_RESOURCE_GROUP: rg-compliance-advisor
+      PG_SERVER_NAME: cadvisor-pg-7zez2cj3gamky
     steps:
       - uses: actions/checkout@v4
 
@@ -184,9 +185,29 @@ jobs:
         if: env.DATABASE_URL == ''
         run: echo "::warning::DATABASE_URL is not set — schema migration and deployment will be skipped."
 
+      - name: Allow CI runner IP on PostgreSQL
+        if: env.DATABASE_URL != ''
+        run: |
+          RUNNER_IP=$(curl -sf https://api.ipify.org)
+          az postgres flexible-server firewall-rule create \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$PG_SERVER_NAME" \
+            --rule-name "github-actions-runner" \
+            --start-ip-address "$RUNNER_IP" \
+            --end-ip-address "$RUNNER_IP"
+
       - name: Run schema migration
         if: env.DATABASE_URL != ''
         run: psql "$DATABASE_URL" -f sql/schema.sql
+
+      - name: Remove CI runner IP from PostgreSQL
+        if: always() && env.DATABASE_URL != ''
+        run: |
+          az postgres flexible-server firewall-rule delete \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$PG_SERVER_NAME" \
+            --rule-name "github-actions-runner" \
+            --yes
 
       - name: Clear WEBSITE_RUN_FROM_PACKAGE URL
         if: env.FUNCTION_APP_NAME != '' && env.AZURE_RESOURCE_GROUP != ''
