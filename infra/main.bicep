@@ -100,7 +100,7 @@ module openai 'modules/openai.bicep' = {
   }
 }
 
-// ── Networking (VNet + Key Vault Private Endpoint) ──────────────
+// ── Networking (VNet + Private Endpoints) ────────────────────────
 module network 'modules/network.bicep' = {
   name: 'network'
   params: {
@@ -110,6 +110,8 @@ module network 'modules/network.bicep' = {
     keyVaultName: keyVaultName
     postgresServerId: postgres.outputs.serverId
     postgresServerName: postgresServerName
+    openAiId: openai.outputs.openAiId
+    openAiName: openAiName
   }
 }
 

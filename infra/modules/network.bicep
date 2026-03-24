@@ -1,9 +1,10 @@
-// Virtual Network with Private Endpoints for Key Vault + PostgreSQL
+// Virtual Network with Private Endpoints for Key Vault, PostgreSQL, and OpenAI
 //
 // Provides:
 // - VNet with two subnets (function-app integration + private endpoints)
-// - Private Endpoint for Key Vault
-// - Private DNS Zone (privatelink.vaultcore.azure.net) linked to VNet
+// - NSGs on both subnets
+// - Private Endpoints for Key Vault, PostgreSQL, and OpenAI
+// - Private DNS Zones linked to VNet
 
 param vnetName string
 param location string
@@ -11,6 +12,8 @@ param keyVaultId string
 param keyVaultName string
 param postgresServerId string
 param postgresServerName string
+param openAiId string = ''
+param openAiName string = ''
 
 var vnetAddressPrefix = '10.0.0.0/16'
 var funcIntegrationSubnetName = 'snet-func-integration'
@@ -241,6 +244,59 @@ resource postgresPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/private
         name: 'privatelink-postgres-database-azure-com'
         properties: {
           privateDnsZoneId: postgresPrivateDnsZone.id
+        }
+      }
+    ]
+  }
+}
+
+// ── Private DNS Zone for OpenAI ──────────────────────────────────
+resource openAiPrivateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = if (!empty(openAiId)) {
+  name: 'privatelink.openai.azure.com'
+  location: 'global'
+}
+
+resource openAiDnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = if (!empty(openAiId)) {
+  parent: openAiPrivateDnsZone
+  name: '${vnetName}-link'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: vnet.id
+    }
+  }
+}
+
+// ── Private Endpoint for OpenAI ──────────────────────────────────
+resource openAiPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = if (!empty(openAiId)) {
+  name: '${openAiName}-pe'
+  location: location
+  properties: {
+    subnet: {
+      id: vnet.properties.subnets[1].id
+    }
+    privateLinkServiceConnections: [
+      {
+        name: '${openAiName}-connection'
+        properties: {
+          privateLinkServiceId: openAiId
+          groupIds: ['account']
+        }
+      }
+    ]
+  }
+}
+
+resource openAiPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-01-01' = if (!empty(openAiId)) {
+  parent: openAiPrivateEndpoint
+  name: 'default'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'privatelink-openai-azure-com'
+        properties: {
+          privateDnsZoneId: openAiPrivateDnsZone.id
         }
       }
     ]
