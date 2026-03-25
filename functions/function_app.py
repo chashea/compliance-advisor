@@ -61,6 +61,7 @@ try:
         get_dlp_policies,
         get_ediscovery,
         get_governance,
+        get_hunt_results,
         get_improvement_actions,
         get_info_barriers,
         get_irm,
@@ -497,6 +498,30 @@ def advisor_threat_assessments(req: func.HttpRequest) -> func.HttpResponse:
         return _json_response(result)
     except Exception as e:
         log.exception("advisor/threat-assessments error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+# ── Threat Hunting ────────────────────────────────────────────────
+
+
+@app.function_name("advisor_hunt_results")
+@app.route(route="advisor/hunt-results", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_hunt_results(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        _ensure_dependencies_loaded()
+        principal = require_auth(req)
+        if principal is None:
+            return get_auth_error_response()
+        body = _get_body(req)
+        result = get_hunt_results(
+            department=body.get("department"),
+            tenant_id=body.get("tenant_id"),
+            severity=body.get("severity"),
+            days=body.get("days", 30),
+        )
+        return _json_response(result)
+    except Exception as e:
+        log.exception("advisor/hunt-results error: %s", e)
         return _json_response({"error": str(e)}, 500)
 
 

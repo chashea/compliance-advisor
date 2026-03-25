@@ -12,6 +12,7 @@ import Trend from "./pages/Trend";
 import ThreatAssessments from "./pages/ThreatAssessments";
 import Assessments from "./pages/Assessments";
 import PurviewInsights from "./pages/PurviewInsights";
+import ThreatHunting from "./pages/ThreatHunting";
 
 
 export default function App() {
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="assessments" element={<Assessments />} />
             <Route path="trend" element={<Trend />} />
             <Route path="purview-insights" element={<PurviewInsights />} />
+            <Route path="threat-hunting" element={<ThreatHunting />} />
           </Route>
         </Routes>
       </TenantProvider>

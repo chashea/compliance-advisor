@@ -484,6 +484,43 @@ export interface PurviewInsightsResponse {
   };
 }
 
+// /api/advisor/hunt-results
+export interface HuntFinding {
+  id: string;
+  finding_type: string;
+  severity: string;
+  account_upn: string | null;
+  object_name: string | null;
+  action_type: string | null;
+  evidence: Record<string, unknown> | null;
+  detected_at: string | null;
+  snapshot_date: string;
+  question: string | null;
+  template_name: string | null;
+  kql_query: string;
+}
+
+export interface HuntRun {
+  id: number;
+  template_name: string | null;
+  question: string | null;
+  result_count: number;
+  run_at: string;
+  ai_narrative: string | null;
+}
+
+export interface HuntResultsResponse {
+  results: HuntFinding[];
+  summary: {
+    total: number;
+    high: number;
+    medium: number;
+    low: number;
+    info: number;
+  };
+  recent_runs: HuntRun[];
+}
+
 // /api/advisor/briefing
 export interface BriefingResponse {
   briefing: string;

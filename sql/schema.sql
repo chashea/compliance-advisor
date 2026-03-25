@@ -441,3 +441,45 @@ ALTER TABLE irm_alerts ADD COLUMN IF NOT EXISTS recommended_actions TEXT DEFAULT
 ALTER TABLE irm_alerts ADD COLUMN IF NOT EXISTS incident_id TEXT DEFAULT '';
 ALTER TABLE irm_alerts ADD COLUMN IF NOT EXISTS mitre_techniques TEXT DEFAULT '';
 ALTER TABLE irm_alerts ADD COLUMN IF NOT EXISTS evidence JSONB DEFAULT '[]'::jsonb;
+
+-- ── Threat Hunting ─────────────────────────────────────────────
+
+-- Hunt runs (each execution of a KQL query)
+CREATE TABLE IF NOT EXISTS hunt_runs (
+    id              SERIAL PRIMARY KEY,
+    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
+    template_name   TEXT,
+    question        TEXT,
+    kql_query       TEXT NOT NULL,
+    result_count    INTEGER DEFAULT 0,
+    ai_narrative    TEXT,
+    run_at          TIMESTAMPTZ DEFAULT NOW(),
+    snapshot_date   DATE DEFAULT CURRENT_DATE
+);
+
+-- Hunt results (individual findings from a hunt run)
+CREATE TABLE IF NOT EXISTS hunt_results (
+    id              SERIAL PRIMARY KEY,
+    run_id          INTEGER NOT NULL REFERENCES hunt_runs(id),
+    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
+    finding_type    TEXT NOT NULL,
+    severity        TEXT DEFAULT 'info',
+    account_upn     TEXT,
+    object_name     TEXT,
+    action_type     TEXT,
+    evidence        JSONB,
+    detected_at     TIMESTAMPTZ,
+    snapshot_date   DATE DEFAULT CURRENT_DATE
+);
+
+CREATE INDEX IF NOT EXISTS idx_hunt_runs_tenant
+    ON hunt_runs(tenant_id, snapshot_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_hunt_results_tenant
+    ON hunt_results(tenant_id, snapshot_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_hunt_results_run
+    ON hunt_results(run_id);
+
+CREATE INDEX IF NOT EXISTS idx_hunt_results_severity
+    ON hunt_results(severity);

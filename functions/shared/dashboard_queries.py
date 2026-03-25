@@ -1863,3 +1863,75 @@ def get_purview_insights(department: str | None = None, tenant_id: str | None = 
             "tenant_health": tenant_health,
         },
     }
+
+
+def get_hunt_results(
+    department: str | None = None, tenant_id: str | None = None, severity: str | None = None, days: int = 30
+) -> dict:
+    """POST /api/advisor/hunt-results — stored threat hunting results."""
+    dept_filter = ""
+    tenant_filter = ""
+    severity_filter = ""
+    params: dict = {"days": days}
+    if department:
+        dept_filter = "AND t.department = %(dept)s"
+        params["dept"] = department
+    if tenant_id:
+        tenant_filter = "AND hr.tenant_id = %(tenant_id)s"
+        params["tenant_id"] = tenant_id
+    if severity:
+        severity_filter = "AND hr.severity = %(severity)s"
+        params["severity"] = severity
+
+    results = query(
+        f"""
+        SELECT hr.id, hr.finding_type, hr.severity, hr.account_upn,
+               hr.object_name, hr.action_type, hr.evidence,
+               hr.detected_at::text, hr.snapshot_date::text,
+               run.question, run.template_name, run.kql_query
+        FROM hunt_results hr
+        JOIN hunt_runs run ON hr.run_id = run.id
+        JOIN tenants t ON hr.tenant_id = t.tenant_id
+        WHERE hr.snapshot_date >= CURRENT_DATE - %(days)s
+        {dept_filter} {tenant_filter} {severity_filter}
+        ORDER BY hr.detected_at DESC NULLS LAST
+        LIMIT 200
+        """,
+        params,
+    )
+
+    summary = query_one(
+        f"""
+        SELECT
+            COUNT(*)::int AS total,
+            COUNT(*) FILTER (WHERE hr.severity = 'high')::int AS high,
+            COUNT(*) FILTER (WHERE hr.severity = 'medium')::int AS medium,
+            COUNT(*) FILTER (WHERE hr.severity = 'low')::int AS low,
+            COUNT(*) FILTER (WHERE hr.severity = 'info')::int AS info
+        FROM hunt_results hr
+        JOIN tenants t ON hr.tenant_id = t.tenant_id
+        WHERE hr.snapshot_date >= CURRENT_DATE - %(days)s
+        {dept_filter} {tenant_filter}
+        """,
+        params,
+    )
+
+    runs = query(
+        f"""
+        SELECT run.id, run.template_name, run.question, run.result_count,
+               run.run_at::text, run.ai_narrative
+        FROM hunt_runs run
+        JOIN tenants t ON run.tenant_id = t.tenant_id
+        WHERE run.snapshot_date >= CURRENT_DATE - %(days)s
+        {dept_filter} {tenant_filter}
+        ORDER BY run.run_at DESC
+        LIMIT 20
+        """,
+        params,
+    )
+
+    return {
+        "results": results,
+        "summary": summary if summary else {"total": 0, "high": 0, "medium": 0, "low": 0, "info": 0},
+        "recent_runs": runs,
+    }

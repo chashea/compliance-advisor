@@ -10,13 +10,17 @@ dependencies = [
     "pydantic>=2.6",
     "pydantic-settings>=2.1",
     "psycopg2-binary>=2.9.9",
+    "azure-identity>=1.15",
+    "openai>=1.30",
+    "rich>=13.7",
 ]
 
 [tool.setuptools]
-packages = ["collector"]
+packages = ["collector", "collector.hunter"]
 
 [project.scripts]
 compliance-collect = "collector.cli:main"
+purview-hunt = "collector.hunter.cli:main"
 
 [tool.ruff]
 target-version = "py312"

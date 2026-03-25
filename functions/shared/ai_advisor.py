@@ -185,6 +185,25 @@ def _build_context(department: str | None = None, tenant_id: str | None = None) 
         state = a["state"]
         sections.append(f"- {a['title']}: {a['current_score']}/{a['max_score']} (gap: {gap}) — {state}, cost: {cost}")
 
+    # Threat hunting findings
+    hunt_findings = query(
+        f"""SELECT hr.finding_type, hr.severity, hr.account_upn, hr.action_type, hr.detected_at::text
+            FROM hunt_results hr
+            JOIN tenants t ON hr.tenant_id = t.tenant_id
+            WHERE hr.snapshot_date >= CURRENT_DATE - 7
+            {dept_filter} {tenant_filter}
+            ORDER BY hr.detected_at DESC NULLS LAST
+            LIMIT 10""",
+        dept_params,
+    )
+    if hunt_findings:
+        sections.append(f"\n## Recent Threat Hunt Findings ({len(hunt_findings)})")
+        for hf in hunt_findings:
+            sections.append(
+                f"- [{hf['severity']}] {hf['finding_type']}: {hf['account_upn'] or 'N/A'} "
+                f"— {hf['action_type'] or ''} ({hf['detected_at'] or 'unknown'})"
+            )
+
     return "\n".join(sections)
 
 

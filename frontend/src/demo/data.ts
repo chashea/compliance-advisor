@@ -28,6 +28,7 @@ import type {
   AssessmentsResponse,
   Assessment,
   ThreatAssessmentsResponse,
+  HuntResultsResponse,
   ThreatAssessmentRequest,
   PurviewInsightsResponse,
 } from "../types";
@@ -624,6 +625,24 @@ export function getDemoData(endpoint: string, body?: Record<string, unknown>): u
         },
       } satisfies PurviewInsightsResponse;
     }
+
+    case "hunt-results":
+      return {
+        results: [
+          { id: "1", finding_type: "Label Downgrade", severity: "high", account_upn: "jsmith@agency-a.gov", object_name: "Q4-Budget-Report.docx", action_type: "SensitivityLabelDowngraded", evidence: null, detected_at: "2026-03-24T14:22:00Z", snapshot_date: "2026-03-24", question: "Show label downgrades", template_name: "label-downgrade", kql_query: "DataSecurityEvents | where ActionType == 'SensitivityLabelDowngraded' | limit 50" },
+          { id: "2", finding_type: "Label Downgrade", severity: "high", account_upn: "jsmith@agency-a.gov", object_name: "Confidential-Memo.pdf", action_type: "SensitivityLabelDowngraded", evidence: null, detected_at: "2026-03-24T13:10:00Z", snapshot_date: "2026-03-24", question: "Show label downgrades", template_name: "label-downgrade", kql_query: "DataSecurityEvents | where ActionType == 'SensitivityLabelDowngraded' | limit 50" },
+          { id: "3", finding_type: "USB Exfiltration", severity: "high", account_upn: "mwilson@agency-b.gov", object_name: "Employee-Records.xlsx", action_type: "FileCopiedToRemovableMedia", evidence: null, detected_at: "2026-03-23T16:45:00Z", snapshot_date: "2026-03-23", question: null, template_name: "usb-exfil", kql_query: "DataSecurityEvents | where ActionType == 'FileCopiedToRemovableMedia' | limit 50" },
+          { id: "4", finding_type: "DLP Violation", severity: "medium", account_upn: "tjones@agency-a.gov", object_name: "SSN-List.csv", action_type: "FileUploadedToCloud", evidence: null, detected_at: "2026-03-23T11:30:00Z", snapshot_date: "2026-03-23", question: "DLP violations this week", template_name: null, kql_query: "DataSecurityEvents | where isnotempty(DlpPolicyMatchInfo) | limit 50" },
+          { id: "5", finding_type: "External Sharing", severity: "medium", account_upn: "agarcia@agency-c.gov", object_name: "Internal-Briefing.pptx", action_type: "SharingSet", evidence: null, detected_at: "2026-03-22T09:15:00Z", snapshot_date: "2026-03-22", question: null, template_name: "external-sharing", kql_query: "CloudAppEvents | where ActionType has 'Sharing' | limit 50" },
+          { id: "6", finding_type: "IRM Risk", severity: "low", account_upn: "blee@agency-b.gov", object_name: null, action_type: "FileDownloaded", evidence: null, detected_at: "2026-03-21T15:00:00Z", snapshot_date: "2026-03-21", question: null, template_name: "irm-risky-users", kql_query: "DataSecurityEvents | where isnotempty(IrmPolicyMatchInfo) | limit 50" },
+        ],
+        summary: { total: 6, high: 3, medium: 2, low: 1, info: 0 },
+        recent_runs: [
+          { id: 1, template_name: "label-downgrade", question: "Show label downgrades", result_count: 2, run_at: "2026-03-24T14:30:00Z", ai_narrative: "**Summary**: 2 sensitivity label downgrades detected in the past 7 days, both by jsmith@agency-a.gov.\n\n**Key Findings**:\n- jsmith@agency-a.gov downgraded labels on 2 documents containing budget and confidential data\n- Both downgrades moved from 'Confidential' to 'General'\n- Activity concentrated on March 24, suggesting intentional bulk operation\n\n**Recommendations**:\n- Review jsmith's recent file activity for potential data exfiltration\n- Consider implementing label downgrade justification requirements" },
+          { id: 2, template_name: "usb-exfil", question: null, result_count: 1, run_at: "2026-03-23T17:00:00Z", ai_narrative: "**Summary**: 1 file copied to removable media.\n\n**Key Findings**:\n- mwilson@agency-b.gov copied Employee-Records.xlsx to a USB drive\n- File contained employee PII based on sensitivity label\n\n**Recommendations**:\n- Verify this was an authorized transfer\n- Review USB access policies for Agency B" },
+          { id: 3, template_name: null, question: "DLP violations this week", result_count: 1, run_at: "2026-03-23T11:45:00Z", ai_narrative: "**Summary**: 1 DLP policy violation detected.\n\n**Key Findings**:\n- tjones@agency-a.gov uploaded SSN-List.csv to cloud storage, triggering DLP match\n\n**Recommendations**:\n- Ensure DLP policy is set to Block mode for SSN content" },
+        ],
+      } satisfies HuntResultsResponse;
 
     case "briefing":
       return { briefing: BRIEFING };

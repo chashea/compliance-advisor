@@ -21,6 +21,7 @@ const NAV_WORKLOADS = [
 const NAV_ANALYTICS = [
   { to: "/trend", label: "Trend", icon: "M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" },
   { to: "/purview-insights", label: "Purview Insights", icon: "M12 3l8 3v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-3z" },
+  { to: "/threat-hunting", label: "Threat Hunting", icon: "M15.75 15.75l-2.489-2.489m0 0a3.375 3.375 0 1 0-4.773-4.773 3.375 3.375 0 0 0 4.774 4.774ZM21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" },
 ];
 
 function NavIcon({ d }: { d: string }) {

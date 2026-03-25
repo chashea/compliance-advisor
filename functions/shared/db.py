@@ -891,3 +891,56 @@ def upsert_improvement_action(
             snapshot_date,
         ),
     )
+
+
+def insert_hunt_run(
+    tenant_id: str,
+    template_name: str | None,
+    question: str | None,
+    kql_query: str,
+    result_count: int,
+    ai_narrative: str | None,
+) -> int:
+    """Insert a hunt run and return its ID."""
+    row = query_one(
+        """
+        INSERT INTO hunt_runs
+            (tenant_id, template_name, question, kql_query, result_count, ai_narrative)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        RETURNING id
+        """,
+        (tenant_id, template_name, question, kql_query, result_count, ai_narrative),
+    )
+    return row["id"]
+
+
+def insert_hunt_result(
+    run_id: int,
+    tenant_id: str,
+    finding_type: str,
+    severity: str,
+    account_upn: str | None,
+    object_name: str | None,
+    action_type: str | None,
+    evidence: dict | None,
+    detected_at: str | None,
+) -> None:
+    execute(
+        """
+        INSERT INTO hunt_results
+            (run_id, tenant_id, finding_type, severity, account_upn,
+             object_name, action_type, evidence, detected_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """,
+        (
+            run_id,
+            tenant_id,
+            finding_type,
+            severity,
+            account_upn,
+            object_name,
+            action_type,
+            Json(evidence) if evidence else None,
+            detected_at,
+        ),
+    )
