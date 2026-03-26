@@ -202,9 +202,9 @@ def _get_body(req: func.HttpRequest) -> dict:
 def health(req: func.HttpRequest) -> func.HttpResponse:
     try:
         _ensure_dependencies_loaded()
-        from shared.db import get_pool
+        from shared.db import _get_pool
 
-        pool = get_pool()
+        pool = _get_pool()
         conn = pool.getconn()
         try:
             with conn.cursor() as cur:
