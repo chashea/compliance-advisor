@@ -13,33 +13,15 @@ export interface Tenant {
 
 export interface OverviewResponse {
   tenants: Tenant[];
-  ediscovery_summary: { total_cases: number; active_cases: number };
   labels_summary: { sensitivity_labels: number; protected_labels: number };
   dlp_summary: { total_dlp_alerts: number; high_alerts: number; medium_alerts: number; active_alerts: number };
   audit_summary: { total_records: number };
   threat_summary: { total_requests: number; spam: number; phishing: number; malware: number };
 }
 
-// /api/advisor/ediscovery
-export interface EDiscoveryCase {
-  case_id: string;
-  display_name: string;
-  status: string;
-  created: string;
-  closed: string | null;
-  external_id: string;
-  custodian_count: number;
-  tenant_name: string;
-}
-
 export interface StatusBreakdown {
   status: string;
   total: number;
-}
-
-export interface EDiscoveryResponse {
-  cases: EDiscoveryCase[];
-  status_breakdown: StatusBreakdown[];
 }
 
 // /api/advisor/labels
@@ -218,7 +200,6 @@ export interface PurviewIncidentsResponse {
 // /api/advisor/trend
 export interface TrendPoint {
   snapshot_date: string;
-  ediscovery_cases: number;
   sensitivity_labels: number;
   dlp_alerts: number;
   audit_records: number;

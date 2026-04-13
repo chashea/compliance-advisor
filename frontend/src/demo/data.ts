@@ -2,8 +2,6 @@ import type {
   StatusResponse,
   OverviewResponse,
   Tenant,
-  EDiscoveryResponse,
-  EDiscoveryCase,
   LabelsResponse,
   SensitivityLabel,
   RetentionLabel,
@@ -61,15 +59,6 @@ function daysAgo(n: number): string {
 }
 
 // --- Static data ---
-
-const ediscoveryCases: EDiscoveryCase[] = [
-  { case_id: "ec-1", display_name: "Merger Review 2026", status: "Active", created: "2026-01-10", closed: null, external_id: "EXT-001", custodian_count: 4, tenant_name: "Contoso Ltd" },
-  { case_id: "ec-2", display_name: "IP Dispute — Widget Patent", status: "Active", created: "2025-11-03", closed: null, external_id: "EXT-002", custodian_count: 2, tenant_name: "Contoso Ltd" },
-  { case_id: "ec-3", display_name: "Regulatory Inquiry Q4", status: "Closed", created: "2025-08-15", closed: "2025-12-20", external_id: "EXT-003", custodian_count: 3, tenant_name: "Fabrikam Inc" },
-  { case_id: "ec-4", display_name: "Internal Investigation — HR", status: "Active", created: "2026-02-01", closed: null, external_id: "EXT-004", custodian_count: 1, tenant_name: "Fabrikam Inc" },
-  { case_id: "ec-5", display_name: "Vendor Contract Dispute", status: "Closed", created: "2025-06-22", closed: "2025-10-10", external_id: "EXT-005", custodian_count: 5, tenant_name: "Northwind Traders" },
-  { case_id: "ec-6", display_name: "SOX Audit Hold", status: "Active", created: "2026-03-01", closed: null, external_id: "EXT-006", custodian_count: 2, tenant_name: "Northwind Traders" },
-];
 
 const sensitivityLabels: SensitivityLabel[] = [
   { label_id: "sl-1", name: "Confidential", description: "Internal confidential data", color: "#d32f2f", is_active: true, parent_id: "", priority: 1, tooltip: "Restricted access", has_protection: true, applicable_to: "email, file, site", application_mode: "manual", is_endpoint_protection_enabled: true, tenant_name: "Contoso Ltd" },
@@ -193,7 +182,6 @@ const trendData: TrendPoint[] = Array.from({ length: 30 }, (_, i) => {
   const day = 29 - i;
   return {
     snapshot_date: daysAgo(day),
-    ediscovery_cases: 4 + Math.floor(i / 10),
     sensitivity_labels: 4,
     dlp_alerts: 3 + (i % 3),
     audit_records: 80 + (i % 20),
@@ -206,7 +194,6 @@ const BRIEFING = `## Compliance Briefing — Demo
 **Active Tenants:** 3 across 2 departments (Legal, Finance)
 
 ### Key Highlights
-- **4 active eDiscovery cases** — Merger Review 2026 is the highest-priority hold
 - **2 high-severity DLP alerts** require attention (credit card sharing, SSN in attachments)
 - **1 high-severity insider risk alert** — unusual file deletions at Contoso
 - **Secure Score: 62%** (32/52 data points achieved)
@@ -260,14 +247,12 @@ export function getDemoData(endpoint: string, body?: Record<string, unknown>): u
 
     case "overview": {
       const tenants = dept ? TENANTS.filter((t) => t.department === dept) : TENANTS;
-      const cases = filterByDept(ediscoveryCases, dept || undefined);
       const dlp = filterByDept(dlpAlerts, dept || undefined);
       const sl = filterByDept(sensitivityLabels, dept || undefined);
       const ar = filterByDept(auditRecords, dept || undefined);
       const ta = filterByDept(threatAssessmentRequests, dept || undefined);
       return {
         tenants,
-        ediscovery_summary: { total_cases: cases.length, active_cases: cases.filter((c) => c.status === "Active").length },
         labels_summary: { sensitivity_labels: sl.length, protected_labels: sl.filter((l) => l.has_protection).length },
         dlp_summary: {
           total_dlp_alerts: dlp.length,
@@ -283,16 +268,6 @@ export function getDemoData(endpoint: string, body?: Record<string, unknown>): u
           malware: ta.filter((t) => t.category === "malware").length,
         },
       } satisfies OverviewResponse;
-    }
-
-    case "ediscovery": {
-      const cases = filterByDept(ediscoveryCases, dept || undefined);
-      const breakdown: Record<string, number> = {};
-      cases.forEach((c) => { breakdown[c.status] = (breakdown[c.status] ?? 0) + 1; });
-      return {
-        cases,
-        status_breakdown: Object.entries(breakdown).map(([status, total]) => ({ status, total })),
-      } satisfies EDiscoveryResponse;
     }
 
     case "labels":
@@ -594,7 +569,6 @@ export function getDemoData(endpoint: string, body?: Record<string, unknown>): u
         },
         collection_health: {
           required_datasets: [
-            "ediscovery_cases",
             "sensitivity_labels",
             "audit_records",
             "dlp_alerts",

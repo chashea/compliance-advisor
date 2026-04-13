@@ -13,21 +13,6 @@ CREATE TABLE IF NOT EXISTS tenants (
     created_at      TIMESTAMPTZ DEFAULT now()
 );
 
--- eDiscovery cases
-CREATE TABLE IF NOT EXISTS ediscovery_cases (
-    id              SERIAL PRIMARY KEY,
-    tenant_id       TEXT NOT NULL REFERENCES tenants(tenant_id),
-    case_id         TEXT NOT NULL,
-    display_name    TEXT,
-    status          TEXT,
-    created         TEXT,
-    closed          TEXT,
-    external_id     TEXT,
-    custodian_count INT DEFAULT 0,
-    snapshot_date   DATE NOT NULL DEFAULT CURRENT_DATE,
-    UNIQUE (tenant_id, case_id, snapshot_date)
-);
-
 -- Sensitivity labels (Information Protection)
 CREATE TABLE IF NOT EXISTS sensitivity_labels (
     id              SERIAL PRIMARY KEY,
@@ -320,7 +305,6 @@ CREATE TABLE IF NOT EXISTS compliance_trend (
     id                  SERIAL PRIMARY KEY,
     snapshot_date       DATE NOT NULL,
     department          TEXT,
-    ediscovery_cases    INT DEFAULT 0,
     sensitivity_labels  INT DEFAULT 0,
 
     dlp_alerts          INT DEFAULT 0,
@@ -341,9 +325,6 @@ CREATE TABLE IF NOT EXISTS ingestion_log (
 );
 
 -- ── Indexes ──────────────────────────────────────────────────────
-CREATE INDEX IF NOT EXISTS idx_ediscovery_tenant
-    ON ediscovery_cases(tenant_id, snapshot_date DESC);
-
 CREATE INDEX IF NOT EXISTS idx_sensitivity_labels_tenant
     ON sensitivity_labels(tenant_id, snapshot_date DESC);
 

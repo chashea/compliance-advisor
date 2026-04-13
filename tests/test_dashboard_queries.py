@@ -6,7 +6,6 @@ from unittest.mock import patch
 from shared.dashboard_queries import (
     get_audit,
     get_dlp,
-    get_ediscovery,
     get_governance,
     get_irm,
     get_labels,
@@ -45,9 +44,9 @@ def test_get_overview_no_filter(mock_q, mock_qo):
     mock_qo.return_value = {"some": "data"}
     result = get_overview()
     assert len(result["tenants"]) == 1
-    # query called once (tenants), query_one called 5x (ediscovery, labels, dlp, audit, threats)
+    # query called once (tenants), query_one called 4x (labels, dlp, audit, threats)
     assert mock_q.call_count == 1
-    assert mock_qo.call_count == 5
+    assert mock_qo.call_count == 4
 
 
 @patch("shared.dashboard_queries.query_one")
@@ -69,33 +68,9 @@ def test_get_overview_returns_empty_dicts_on_none(mock_q, mock_qo):
     mock_q.return_value = []
     mock_qo.return_value = None
     result = get_overview()
-    assert result["ediscovery_summary"] == {}
     assert result["labels_summary"] == {}
     assert result["dlp_summary"] == {}
     assert result["audit_summary"] == {}
-
-
-# ── get_ediscovery ────────────────────────────────────────────────
-
-
-@patch("shared.dashboard_queries.query")
-def test_get_ediscovery_returns_cases_and_breakdown(mock_q):
-    mock_q.side_effect = [
-        [{"case_id": "c1", "status": "active"}],
-        [{"status": "active", "total": 1}],
-    ]
-    result = get_ediscovery()
-    assert result["cases"] == [{"case_id": "c1", "status": "active"}]
-    assert result["status_breakdown"] == [{"status": "active", "total": 1}]
-
-
-@patch("shared.dashboard_queries.query")
-def test_get_ediscovery_with_department(mock_q):
-    mock_q.side_effect = [[], []]
-    get_ediscovery(department="HR")
-    for c in mock_q.call_args_list:
-        sql = c[0][0]
-        assert "%(dept)s" in sql
 
 
 # ── get_labels ────────────────────────────────────────────────────
@@ -243,7 +218,6 @@ def test_get_purview_insights_shape_and_metrics(mock_qo, mock_q):
                 "last_snapshot_date": "2026-03-14",
                 "last_payload_at": "2026-03-14T08:01:00+00:00",
                 "record_counts": {
-                    "ediscovery_cases": 1,
                     "sensitivity_labels": 1,
                     "audit_records": 2,
                     "dlp_alerts": 2,

@@ -60,23 +60,6 @@ def get_overview(department: str | None = None, tenant_id: str | None = None) ->
     and_dept = "AND t.department = %(dept)s" if department else ""
     and_tenant = "AND t.tenant_id = %(tenant_id)s" if tenant_id else ""
 
-    # eDiscovery summary
-    ediscovery_summary = query_one(
-        f"""
-        SELECT COUNT(*)::int AS total_cases,
-               COUNT(*) FILTER (WHERE ec.status = 'active')::int AS active_cases
-        FROM ediscovery_cases ec
-        JOIN tenants t ON t.tenant_id = ec.tenant_id
-        WHERE ec.snapshot_date = (
-                SELECT MAX(snapshot_date) FROM ediscovery_cases _sub
-                WHERE _sub.tenant_id = ec.tenant_id
-            )
-          {and_dept}
-          {and_tenant}
-        """,
-        params,
-    )
-
     # Labels summary
     labels_summary = query_one(
         f"""
@@ -158,62 +141,11 @@ def get_overview(department: str | None = None, tenant_id: str | None = None) ->
 
     return {
         "tenants": tenants,
-        "ediscovery_summary": ediscovery_summary or {},
         "labels_summary": labels_summary or {},
         "dlp_summary": dlp_summary or {},
         "audit_summary": audit_summary or {},
         "threat_summary": threat_summary or {},
     }
-
-
-def get_ediscovery(department: str | None = None, tenant_id: str | None = None) -> dict:
-    """POST /api/advisor/ediscovery — eDiscovery cases."""
-    dept_filter = ""
-    tenant_filter = ""
-    params: dict = {}
-    if department:
-        dept_filter = "AND t.department = %(dept)s"
-        params["dept"] = department
-    if tenant_id:
-        tenant_filter = "AND t.tenant_id = %(tenant_id)s"
-        params["tenant_id"] = tenant_id
-
-    cases = query(
-        f"""
-        SELECT ec.case_id, ec.display_name, ec.status, ec.created, ec.closed,
-               ec.external_id, ec.custodian_count, t.display_name AS tenant_name
-        FROM ediscovery_cases ec
-        JOIN tenants t ON t.tenant_id = ec.tenant_id
-        WHERE ec.snapshot_date = (
-                SELECT MAX(snapshot_date) FROM ediscovery_cases _sub
-                WHERE _sub.tenant_id = ec.tenant_id
-            )
-          {dept_filter}
-          {tenant_filter}
-        ORDER BY ec.created DESC
-        LIMIT 1000
-        """,
-        params,
-    )
-
-    status_breakdown = query(
-        f"""
-        SELECT ec.status, COUNT(*)::int AS total
-        FROM ediscovery_cases ec
-        JOIN tenants t ON t.tenant_id = ec.tenant_id
-        WHERE ec.snapshot_date = (
-                SELECT MAX(snapshot_date) FROM ediscovery_cases _sub
-                WHERE _sub.tenant_id = ec.tenant_id
-            )
-          {dept_filter}
-          {tenant_filter}
-        GROUP BY ec.status
-        ORDER BY total DESC
-        """,
-        params,
-    )
-
-    return {"cases": cases, "status_breakdown": status_breakdown}
 
 
 def get_labels(department: str | None = None, tenant_id: str | None = None) -> dict:
@@ -600,8 +532,6 @@ def get_trend(department: str | None = None, days: int = 30, tenant_id: str | No
         f"""
         SELECT
             ct.snapshot_date::text,
-            COALESCE((to_jsonb(ct) ->> 'ediscovery_cases')::int, (to_jsonb(ct) ->> 'ediscovery')::int, 0)
-                AS ediscovery_cases,
             COALESCE((to_jsonb(ct) ->> 'sensitivity_labels')::int, (to_jsonb(ct) ->> 'sensitivity')::int, 0)
                 AS sensitivity_labels,
             COALESCE((to_jsonb(ct) ->> 'dlp_alerts')::int, (to_jsonb(ct) ->> 'dlp')::int, 0) AS dlp_alerts,
@@ -1753,7 +1683,6 @@ def get_purview_insights(department: str | None = None, tenant_id: str | None = 
             )
 
     required_datasets = [
-        "ediscovery_cases",
         "sensitivity_labels",
         "audit_records",
         "dlp_alerts",

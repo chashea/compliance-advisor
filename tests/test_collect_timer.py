@@ -69,31 +69,9 @@ def test_skips_when_collector_imports_failed(mock_get_settings, mock_query):
 @patch("functions.function_app._COLLECTOR_IMPORT_ERROR", None)
 @patch("functions.function_app.update_tenant_status")
 @patch("functions.function_app.upsert_tenant")
-@patch("functions.function_app.upsert_ediscovery_case")
 @patch("functions.function_app.upsert_sensitivity_label")
 @patch("functions.function_app.upsert_secure_score")
 @patch("functions.function_app.upsert_user_content_policies")
-@patch(
-    "functions.function_app.collect_ediscovery_with_diagnostics",
-    return_value=(
-        [
-            {
-                "case_id": "c1",
-                "display_name": "Case 1",
-                "status": "active",
-                "created": "",
-                "closed": "",
-                "external_id": "",
-                "custodian_count": 0,
-            }
-        ],
-        {
-            "status": "ok",
-            "endpoint": "https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases",
-            "http_status": 200,
-        },
-    ),
-)
 @patch(
     "functions.function_app.collect_sensitivity_labels",
     return_value=[
@@ -159,11 +137,9 @@ def test_collects_and_upserts(
     mock_audit,
     mock_ret_events,
     mock_sens_labels,
-    mock_ediscovery,
     mock_upsert_ucp,
     mock_upsert_score,
     mock_upsert_sens,
-    mock_upsert_edisc,
     mock_upsert_tenant,
     mock_update_status,
 ):
@@ -174,7 +150,6 @@ def test_collects_and_upserts(
 
     mock_get_token.assert_called_once()
     mock_upsert_tenant.assert_called_once()
-    mock_upsert_edisc.assert_called_once()
     mock_upsert_sens.assert_called_once()
     mock_upsert_score.assert_called_once()
     mock_upsert_ucp.assert_called_once()
@@ -187,17 +162,6 @@ def test_collects_and_upserts(
 @patch("functions.function_app._COLLECTOR_IMPORT_ERROR", None)
 @patch("functions.function_app.update_tenant_status")
 @patch("functions.function_app.upsert_tenant")
-@patch(
-    "functions.function_app.collect_ediscovery_with_diagnostics",
-    return_value=(
-        [],
-        {
-            "status": "ok",
-            "endpoint": "https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases",
-            "http_status": 200,
-        },
-    ),
-)
 @patch("functions.function_app.collect_sensitivity_labels", return_value=[])
 @patch("functions.function_app.collect_retention_events", return_value=[])
 @patch("functions.function_app.collect_audit_log_records", return_value=[])
@@ -235,7 +199,6 @@ def test_per_tenant_error_isolation(
     mock_audit,
     mock_ret_events,
     mock_sens_labels,
-    mock_ediscovery,
     mock_upsert_tenant,
     mock_update_status,
 ):

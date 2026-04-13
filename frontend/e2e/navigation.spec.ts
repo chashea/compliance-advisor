@@ -2,7 +2,6 @@ import { test, expect } from "@playwright/test";
 
 const pages = [
   { path: "/", heading: /overview|compliance/i },
-  { path: "/ediscovery", heading: /ediscovery/i },
   { path: "/labels", heading: /label/i },
   { path: "/audit", heading: /audit/i },
   { path: "/alerts", heading: /alert/i },

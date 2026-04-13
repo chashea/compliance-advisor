@@ -23,8 +23,6 @@ def test_build_context_with_data(mock_query):
     mock_query.side_effect = [
         # tenants
         [{"tenant_id": "t1", "display_name": "Dept A", "department": "Finance", "risk_tier": "High"}],
-        # ediscovery
-        [{"display_name": "Case 1", "status": "Active", "custodian_count": 3}],
         # sensitivity labels
         [{"name": "Confidential", "is_active": True}],
         # dlp alerts
@@ -56,20 +54,18 @@ def test_build_context_with_data(mock_query):
     ]
     ctx = _build_context()
     assert "Dept A" in ctx
-    assert "Case 1" in ctx
-    assert "1 active" in ctx
     assert "DLP Alert 1" in ctx
     assert "42" in ctx
     assert "100/200" in ctx
     assert "Enable MFA" in ctx
-    assert mock_query.call_count == 8
+    assert mock_query.call_count == 7
 
 
 @patch("shared.ai_advisor.query")
 def test_build_context_empty(mock_query):
     mock_query.return_value = []
     # The last query for audit count returns [] too, so handle that
-    mock_query.side_effect = [[], [], [], [], [{"cnt": 0}], [], [], []]
+    mock_query.side_effect = [[], [], [], [{"cnt": 0}], [], [], []]
     ctx = _build_context(department="NonExistent")
     assert "Tenants (0)" in ctx
 

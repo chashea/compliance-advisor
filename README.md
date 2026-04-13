@@ -45,7 +45,6 @@ React SPA                 │ App Insights │
 
 | Workload | Data Source | API |
 |---|---|---|
-| eDiscovery | Cases, custodians, holds | `/security/cases/ediscoveryCases` |
 | Information Protection | Sensitivity labels | `/beta/security/informationProtection/sensitivityLabels` |
 | Records Management | Retention labels & events | `/security/labels/retentionLabels`, `/security/triggers/retentionEvents` |
 | Audit Log | Compliance activity records | `/security/auditLog/queries` (async) |
@@ -61,7 +60,7 @@ React SPA                 │ App Insights │
 
 ## Features
 
-- **React SPA frontend** with 12 pages: Overview, eDiscovery, Labels, Audit, Alerts (DLP + IRM + Purview Incidents), Info Barriers, Governance, Trend, Actions, Assessments, Threat Assessments, Purview Insights
+- **React SPA frontend** with 11 pages: Overview, Labels, Audit, Alerts (DLP + IRM + Purview Incidents), Info Barriers, Governance, Trend, Actions, Assessments, Threat Assessments, Purview Insights
 - Secure Score Data category KPI showing `current / max` points and percentage
 - Improvement Actions filtered to Data category by default with category/cost/tier filters
 - Agency/department dropdown filter with active filter state summary and clear reset
@@ -76,7 +75,6 @@ React SPA                 │ App Insights │
   - CJIS/NIST-oriented control mapping with evidence links
   - Owner-prioritized action queue
   - Collection freshness and completeness indicators per tenant
-- eDiscovery case tracking with custodian counts
 - Sensitivity and retention label inventory
 - Information Barriers policy visibility
 - Audit log activity summaries by service and operation
@@ -90,7 +88,6 @@ React SPA                 │ App Insights │
 - Azure subscription (Commercial)
 - Access to Microsoft 365 tenant(s) with compliance workloads
 - Multi-tenant Entra app registration with client credentials (client secret)
-- App service principal registered via `Connect-IPPSSession` and added to **eDiscovery Administrator** role group in Purview
 - Azure CLI (`az`)
 
 ### Required Graph API Permissions (Application)
@@ -99,7 +96,6 @@ All permissions are **Application** type (not delegated) granted to the multi-te
 
 | Permission | Workload |
 |---|---|
-| `eDiscovery.Read.All` | eDiscovery cases |
 | `InformationProtectionPolicy.Read.All` | Sensitivity labels, sensitive info types |
 | `RecordsManagement.Read.All` | Retention labels & events |
 | `AuditLogsQuery.Read.All` | Audit log queries |
@@ -109,30 +105,6 @@ All permissions are **Application** type (not delegated) granted to the multi-te
 | `Policy.Read.All` | Information barriers, DLP/IRM policies, protection scopes |
 | `User.Read.All` | User enumeration (for content policy probing) |
 | `MailboxSettings.Read` | User content policies |
-
-Additionally, the app's service principal must be registered in the **Security & Compliance PowerShell** context and assigned to the **eDiscovery Administrator** role group in each tenant. This is required for the eDiscovery Graph API to work with app-only auth:
-
-```powershell
-# Install module if needed: Install-Module ExchangeOnlineManagement
-Import-Module ExchangeOnlineManagement
-
-# Connect to Security & Compliance (NOT Connect-ExchangeOnline)
-Connect-IPPSSession
-
-# Register the service principal (use the SP Object ID from Entra in that tenant)
-New-ServicePrincipal -AppId <CLIENT_ID> -ObjectId <SP_OBJECT_ID> -DisplayName "compliance-advisor-collector"
-
-# Add as eDiscovery Case Admin (required for app-only eDiscovery API access)
-Add-eDiscoveryCaseAdmin -User <SP_OBJECT_ID>
-
-# Verify
-Get-ServicePrincipal
-Get-eDiscoveryCaseAdmin
-```
-
-Then add the service principal to the **eDiscovery Administrator** role group in the [Microsoft Purview portal](https://purview.microsoft.com) → Roles & Scopes → Permissions.
-
-> **Note:** To find the SP Object ID in each tenant: `az ad sp show --id <CLIENT_ID> --query id -o tsv`. Role changes can take up to 60 minutes to propagate. The `Connect-IPPSSession` step is critical — registering via `Connect-ExchangeOnline` alone is not sufficient.
 
 ## Local Development
 
@@ -233,8 +205,7 @@ All endpoints are `POST` to `/api/advisor/*`.
 | Endpoint | Body | Description |
 |---|---|---|
 | `/api/advisor/status` | `{}` | Active tenants count, last sync date |
-| `/api/advisor/overview` | `{department?}` | KPI summary (cases, labels, alerts, audit) |
-| `/api/advisor/ediscovery` | `{department?}` | eDiscovery cases and status breakdown |
+| `/api/advisor/overview` | `{department?}` | KPI summary (labels, alerts, audit) |
 | `/api/advisor/labels` | `{department?}` | Sensitivity labels, retention labels, events |
 | `/api/advisor/audit` | `{department?}` | Audit log records, service/operation breakdown |
 | `/api/advisor/dlp` | `{department?}` | DLP alerts, severity/policy breakdown |
@@ -327,9 +298,8 @@ Required secrets:
 1. Grant admin consent for the `compliance-advisor-collector` app in the target tenant:
    - Navigate to `https://login.microsoftonline.com/<TENANT_ID>/adminconsent?client_id=<CLIENT_ID>`
    - Or use the Entra admin center → Enterprise applications → Grant admin consent
-2. Register the app's service principal via `Connect-IPPSSession` + `New-ServicePrincipal` and add it to the **eDiscovery Administrator** role group in Purview (see PowerShell steps above)
-3. Add the tenant GUID to `ALLOWED_TENANT_IDS` in the Function App config (if allowlist is enabled)
-4. Run the collector:
+2. Add the tenant GUID to `ALLOWED_TENANT_IDS` in the Function App config (if allowlist is enabled)
+3. Run the collector:
    ```bash
    compliance-collect --tenant-id <GUID> --agency-id <NAME> --department <DEPT> --display-name "<NAME>"
    ```

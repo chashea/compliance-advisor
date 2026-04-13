@@ -25,7 +25,6 @@ PAYLOAD_SCHEMA: dict = {
         "department",
         "display_name",
         "timestamp",
-        "ediscovery_cases",
         "sensitivity_labels",
         "retention_events",
         "retention_event_types",
@@ -52,14 +51,6 @@ PAYLOAD_SCHEMA: dict = {
         "department": {"type": "string", "minLength": 1},
         "display_name": {"type": "string", "minLength": 1},
         "timestamp": {"type": "string"},
-        "ediscovery_cases": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "required": ["case_id"],
-                "properties": {"case_id": {"type": "string", "minLength": 1}},
-            },
-        },
         "sensitivity_labels": {
             "type": "array",
             "items": {

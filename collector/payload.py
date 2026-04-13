@@ -2,7 +2,6 @@
 Compliance workload payload schema for the collector.
 
 Includes data from Microsoft Graph compliance APIs:
-- eDiscovery cases
 - Sensitivity labels (Information Protection)
 - Retention events (Records Management)
 - Audit log records
@@ -33,7 +32,6 @@ class CompliancePayload:
     department: str
     display_name: str
     timestamp: str
-    ediscovery_cases: list[dict[str, Any]]
     sensitivity_labels: list[dict[str, Any]]
     retention_events: list[dict[str, Any]]
     retention_event_types: list[dict[str, Any]]

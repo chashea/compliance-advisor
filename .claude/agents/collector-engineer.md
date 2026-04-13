@@ -25,7 +25,7 @@ You are a backend engineer working on the compliance data collector for complian
 
 ## Workloads Collected
 
-eDiscovery, sensitivity labels, retention labels/events, audit log, DLP alerts, IRM alerts, protection scopes, Secure Score (Data category), improvement actions (filtered to Data category by default), subject rights requests, communication compliance, information barriers.
+Sensitivity labels, retention labels/events, audit log, DLP alerts, IRM alerts, protection scopes, Secure Score (Data category), improvement actions (filtered to Data category by default), subject rights requests, communication compliance, information barriers.
 
 ## Build & Validate
 
@@ -50,7 +50,7 @@ black .
 ## Key Design Decisions
 
 - Uses client credentials (app-only) auth. App registration: `compliance-advisor-collector` (multi-tenant).
-- Service principal must be in eDiscovery Manager and Compliance Administrator role groups in Purview.
+- Service principal must be in Compliance Administrator role group in Purview.
 - Sensitivity labels use beta API with v1.0 fallback.
 - DLP and IRM alerts use legacy `/v1.0/security/alerts` filtered by `vendorInformation/provider`.
 - Audit log API is async: POST query, poll status, GET records.

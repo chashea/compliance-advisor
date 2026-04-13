@@ -13,7 +13,6 @@ VALID_PAYLOAD = {
     "department": "DOJ",
     "display_name": "Test Tenant",
     "timestamp": "2026-03-08T00:00:00Z",
-    "ediscovery_cases": [],
     "sensitivity_labels": [],
     "retention_events": [],
     "retention_event_types": [],
@@ -62,7 +61,6 @@ def test_schema_requires_all_fields():
         "department",
         "display_name",
         "timestamp",
-        "ediscovery_cases",
         "sensitivity_labels",
         "retention_events",
         "retention_event_types",
@@ -113,12 +111,12 @@ def test_valid_payload_with_populated_arrays(mock_get):
     mock_get.return_value = _mock_settings("")
     payload = {
         **VALID_PAYLOAD,
-        "ediscovery_cases": [{"case_id": "c1"}],
+        "sensitivity_labels": [{"label_id": "sl-1"}],
         "dlp_alerts": [{"alert_id": "a1", "severity": "high"}, {"alert_id": "a2", "severity": "medium"}],
     }
     req = _mock_request(payload)
     result = validate_ingestion_request(req)
-    assert len(result["ediscovery_cases"]) == 1
+    assert len(result["sensitivity_labels"]) == 1
     assert len(result["dlp_alerts"]) == 2
 
 
@@ -157,7 +155,7 @@ def test_invalid_tenant_id_format(mock_get):
 @patch("shared.validation.get_settings")
 def test_wrong_type_for_array_field(mock_get):
     mock_get.return_value = _mock_settings("")
-    payload = {**VALID_PAYLOAD, "ediscovery_cases": "not-an-array"}
+    payload = {**VALID_PAYLOAD, "sensitivity_labels": "not-an-array"}
     req = _mock_request(payload)
     with pytest.raises(ValueError, match="Schema validation failed"):
         validate_ingestion_request(req)
@@ -229,13 +227,6 @@ def test_dlp_alert_with_evidence_accepted(mock_get):
     assert len(result["dlp_alerts"][0]["evidence"]) == 1
 
 
-@patch("shared.validation.get_settings")
-def test_ediscovery_case_missing_case_id_rejected(mock_get):
-    mock_get.return_value = _mock_settings("")
-    payload = {**VALID_PAYLOAD, "ediscovery_cases": [{"display_name": "Case 1"}]}
-    req = _mock_request(payload)
-    with pytest.raises(ValueError, match="Schema validation failed"):
-        validate_ingestion_request(req)
 
 
 @patch("shared.validation.get_settings")

@@ -148,35 +148,6 @@ def update_tenant_status(tenant_id: str, status: str) -> None:
     )
 
 
-def upsert_ediscovery_case(
-    tenant_id: str,
-    case_id: str,
-    display_name: str,
-    status: str,
-    created: str,
-    closed: str,
-    external_id: str,
-    custodian_count: int,
-    snapshot_date: str,
-) -> None:
-    execute(
-        """
-        INSERT INTO ediscovery_cases
-            (tenant_id, case_id, display_name, status, created, closed,
-             external_id, custodian_count, snapshot_date)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (tenant_id, case_id, snapshot_date) DO UPDATE SET
-            display_name = EXCLUDED.display_name,
-            status = EXCLUDED.status,
-            created = EXCLUDED.created,
-            closed = EXCLUDED.closed,
-            external_id = EXCLUDED.external_id,
-            custodian_count = EXCLUDED.custodian_count
-        """,
-        (tenant_id, case_id, display_name, status, created, closed, external_id, custodian_count, snapshot_date),
-    )
-
-
 def upsert_sensitivity_label(
     tenant_id: str,
     label_id: str,
@@ -536,7 +507,6 @@ def upsert_info_barrier_policy(
 def upsert_trend(
     snapshot_date: str,
     department: str | None,
-    ediscovery_cases: int,
     sensitivity_labels: int,
     dlp_alerts: int,
     audit_records: int,
@@ -545,11 +515,10 @@ def upsert_trend(
     execute(
         """
         INSERT INTO compliance_trend
-            (snapshot_date, department, ediscovery_cases, sensitivity_labels,
+            (snapshot_date, department, sensitivity_labels,
              dlp_alerts, audit_records, tenant_count)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s)
         ON CONFLICT (snapshot_date, department) DO UPDATE SET
-            ediscovery_cases = EXCLUDED.ediscovery_cases,
             sensitivity_labels = EXCLUDED.sensitivity_labels,
             dlp_alerts = EXCLUDED.dlp_alerts,
             audit_records = EXCLUDED.audit_records,
@@ -558,7 +527,6 @@ def upsert_trend(
         (
             snapshot_date,
             department,
-            ediscovery_cases,
             sensitivity_labels,
             dlp_alerts,
             audit_records,

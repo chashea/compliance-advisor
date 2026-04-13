@@ -14,7 +14,6 @@ def _make_payload(**overrides) -> CompliancePayload:
         "department": "DOJ",
         "display_name": "Test Tenant",
         "timestamp": "2026-03-08T00:00:00Z",
-        "ediscovery_cases": [],
         "sensitivity_labels": [],
         "retention_events": [],
         "retention_event_types": [],
@@ -76,7 +75,6 @@ def test_to_dict_contains_all_fields():
         "department",
         "display_name",
         "timestamp",
-        "ediscovery_cases",
         "sensitivity_labels",
         "retention_events",
         "retention_event_types",
@@ -101,10 +99,10 @@ def test_to_dict_contains_all_fields():
 
 
 def test_to_dict_preserves_values():
-    cases = [{"case_id": "c1", "status": "active"}]
-    p = _make_payload(ediscovery_cases=cases)
+    labels = [{"label_id": "sl-1", "name": "Confidential"}]
+    p = _make_payload(sensitivity_labels=labels)
     d = p.to_dict()
-    assert d["ediscovery_cases"] == cases
+    assert d["sensitivity_labels"] == labels
     assert d["tenant_id"] == TENANT_ID
 
 

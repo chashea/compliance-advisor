@@ -59,7 +59,6 @@ try:
         get_compliance_assessments,
         get_dlp,
         get_dlp_policies,
-        get_ediscovery,
         get_governance,
         get_hunt_results,
         get_improvement_actions,
@@ -83,7 +82,6 @@ try:
         upsert_compliance_assessment,
         upsert_dlp_alert,
         upsert_dlp_policy,
-        upsert_ediscovery_case,
         upsert_improvement_action,
         upsert_info_barrier_policy,
         upsert_irm_alert,
@@ -121,9 +119,6 @@ try:
     )
     from collector.compliance_client import (
         get_dlp_policies as collect_dlp_policies,
-    )
-    from collector.compliance_client import (
-        get_ediscovery_cases_with_diagnostics as collect_ediscovery_with_diagnostics,
     )
     from collector.compliance_client import (
         get_improvement_actions as collect_improvement_actions,
@@ -246,21 +241,6 @@ def advisor_overview(req: func.HttpRequest) -> func.HttpResponse:
         return _json_response(get_overview(department=body.get("department"), tenant_id=body.get("tenant_id")))
     except Exception as e:
         log.exception("advisor/overview error: %s", e)
-        return _json_response({"error": str(e)}, 500)
-
-
-@app.function_name("advisor_ediscovery")
-@app.route(route="advisor/ediscovery", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
-def advisor_ediscovery(req: func.HttpRequest) -> func.HttpResponse:
-    try:
-        _ensure_dependencies_loaded()
-        principal = require_auth(req)
-        if principal is None:
-            return get_auth_error_response()
-        body = _get_body(req)
-        return _json_response(get_ediscovery(department=body.get("department"), tenant_id=body.get("tenant_id")))
-    except Exception as e:
-        log.exception("advisor/ediscovery error: %s", e)
         return _json_response({"error": str(e)}, 500)
 
 
@@ -730,20 +710,6 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
             department=payload["department"],
         )
 
-        # Upsert eDiscovery cases
-        for ec in payload.get("ediscovery_cases", []):
-            upsert_ediscovery_case(
-                tenant_id=tenant_id,
-                case_id=ec.get("case_id", ""),
-                display_name=ec.get("display_name", ""),
-                status=ec.get("status", ""),
-                created=ec.get("created", ""),
-                closed=ec.get("closed", ""),
-                external_id=ec.get("external_id", ""),
-                custodian_count=ec.get("custodian_count", 0),
-                snapshot_date=snapshot_date,
-            )
-
         # Upsert sensitivity labels
         for sl in payload.get("sensitivity_labels", []):
             upsert_sensitivity_label(
@@ -1016,7 +982,6 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
             )
 
         counts = {
-            "ediscovery_cases": len(payload.get("ediscovery_cases", [])),
             "sensitivity_labels": len(payload.get("sensitivity_labels", [])),
             "audit_records": len(payload.get("audit_records", [])),
             "dlp_alerts": len(payload.get("dlp_alerts", [])),
@@ -1033,12 +998,11 @@ def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
         record_ingestion(tenant_id, snapshot_date, payload_hash, counts)
 
         log.info(
-            "Ingested: tenant=%s dept=%s ediscovery=%d labels=%d audit=%d dlp=%d "
+            "Ingested: tenant=%s dept=%s labels=%d audit=%d dlp=%d "
             "irm=%d info_barriers=%d scopes=%d scores=%d actions=%d "
             "dlp_policies=%d irm_policies=%d sit=%d assessments=%d threats=%d incidents=%d",
             tenant_id,
             payload["department"],
-            counts["ediscovery_cases"],
             counts["sensitivity_labels"],
             counts["audit_records"],
             counts["dlp_alerts"],
@@ -1094,7 +1058,6 @@ def _collect_single_tenant(
         )
         token = get_graph_token(auth_settings)
 
-        ediscovery, ediscovery_diagnostics = collect_ediscovery_with_diagnostics(token)
         sensitivity = collect_sensitivity_labels(token)
         ret_events = collect_retention_events(token)
         ret_event_types = collect_retention_event_types(token)
@@ -1116,18 +1079,6 @@ def _collect_single_tenant(
 
         upsert_tenant(tenant_id=tid, display_name=display_name, department=department)
 
-        for ec in ediscovery:
-            upsert_ediscovery_case(
-                tenant_id=tid,
-                case_id=ec.get("case_id", ""),
-                display_name=ec.get("display_name", ""),
-                status=ec.get("status", ""),
-                created=ec.get("created", ""),
-                closed=ec.get("closed", ""),
-                external_id=ec.get("external_id", ""),
-                custodian_count=ec.get("custodian_count", 0),
-                snapshot_date=today,
-            )
         for sl in sensitivity:
             upsert_sensitivity_label(
                 tenant_id=tid,
@@ -1362,7 +1313,6 @@ def _collect_single_tenant(
             )
 
         counts = {
-            "ediscovery": len(ediscovery),
             "sensitivity_labels": len(sensitivity),
             "audit_records": len(audit),
             "dlp_alerts": len(dlp),
@@ -1372,27 +1322,12 @@ def _collect_single_tenant(
             "threat_assessments": len(threats),
             "purview_incidents": len(incidents),
         }
-        diagnostics = {"ediscovery": ediscovery_diagnostics}
         log.info("_collect_single_tenant: tenant=%s dept=%s counts=%s", tid, department, counts)
-        if ediscovery_diagnostics.get("status") == "error":
-            log.warning(
-                "_collect_single_tenant: eDiscovery failed tenant=%s status=%s code=%s message=%s",
-                tid,
-                ediscovery_diagnostics.get("http_status"),
-                ediscovery_diagnostics.get("error_code"),
-                ediscovery_diagnostics.get("message"),
-            )
-        elif counts["ediscovery"] == 0:
-            log.warning(
-                "_collect_single_tenant: eDiscovery returned zero cases tenant=%s endpoint=%s",
-                tid,
-                ediscovery_diagnostics.get("endpoint"),
-            )
         try:
             update_tenant_status(tid, "active")
         except Exception:
             log.debug("update_tenant_status not available yet (run schema migration)")
-        return {"status": "ok", "tenant_id": tid, "record_counts": counts, "diagnostics": diagnostics}
+        return {"status": "ok", "tenant_id": tid, "record_counts": counts}
 
     except Exception as e:
         log.exception("_collect_single_tenant: failed for tenant=%s: %s", tid, e)
@@ -1571,12 +1506,6 @@ def compute_aggregates(timer: func.TimerRequest) -> None:
         # Get per-tenant counts for each workload
         tenant_counts = query("""
             SELECT t.tenant_id, t.department,
-                (SELECT COUNT(*) FROM ediscovery_cases ec
-                 WHERE ec.tenant_id = t.tenant_id
-                   AND ec.snapshot_date = (
-                     SELECT MAX(snapshot_date) FROM ediscovery_cases
-                     WHERE tenant_id = t.tenant_id)
-                )::int AS ediscovery,
                 (SELECT COUNT(*) FROM sensitivity_labels sl
                  WHERE sl.tenant_id = t.tenant_id
                    AND sl.snapshot_date = (
@@ -1606,7 +1535,6 @@ def compute_aggregates(timer: func.TimerRequest) -> None:
         upsert_trend(
             snapshot_date=today,
             department=None,
-            ediscovery_cases=sum(r["ediscovery"] for r in tenant_counts),
             sensitivity_labels=sum(r["sensitivity"] for r in tenant_counts),
             dlp_alerts=sum(r["dlp"] for r in tenant_counts),
             audit_records=sum(r["audit"] for r in tenant_counts),
@@ -1624,7 +1552,6 @@ def compute_aggregates(timer: func.TimerRequest) -> None:
             upsert_trend(
                 snapshot_date=today,
                 department=dept,
-                ediscovery_cases=sum(r["ediscovery"] for r in rows),
                 sensitivity_labels=sum(r["sensitivity"] for r in rows),
                 dlp_alerts=sum(r["dlp"] for r in rows),
                 audit_records=sum(r["audit"] for r in rows),

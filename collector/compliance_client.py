@@ -2,7 +2,6 @@
 Microsoft Graph API client for compliance workload data collection.
 
 Pulls data from:
-- GET  /v1.0/security/cases/ediscoveryCases                     — eDiscovery cases
 - GET  /v1.0/security/dataSecurityAndGovernance/sensitivityLabels — sensitivity labels (v1.0 GA)
 - GET  /v1.0/security/triggers/retentionEvents                   — retention events
 - GET  /v1.0/security/triggerTypes/retentionEventTypes           — retention event types
@@ -17,7 +16,6 @@ Pulls data from:
 - GET  /beta/security/complianceManagement/assessments            — compliance assessments
 
 Required Microsoft Graph Application permissions:
-- eDiscovery.Read.All                     — eDiscovery cases
 - InformationProtectionPolicy.Read.All    — sensitivity labels (beta endpoint)
 - SensitivityLabel.Read                   — sensitivity labels (v1.0 fallback)
 - RecordsManagement.Read.All              — retention labels (delegated only!), retention events, retention event types
@@ -103,73 +101,6 @@ def _log_api_error(label: str, exc: requests.exceptions.RequestException, hint: 
         log.debug("%s response body: %s", label, body)
 
 
-# ── eDiscovery ────────────────────────────────────────────────────
-
-
-def get_ediscovery_cases(token: str) -> list[dict[str, Any]]:
-    """Return eDiscovery cases."""
-    cases, _ = get_ediscovery_cases_with_diagnostics(token)
-    return cases
-
-
-def get_ediscovery_cases_with_diagnostics(token: str) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """Return eDiscovery cases plus diagnostic details for troubleshooting."""
-    sess = _session(token)
-    url = f"{GRAPH_BASE}/security/cases/ediscoveryCases"
-
-    try:
-        items = _paginate(sess, url)
-    except requests.exceptions.RequestException as e:
-        _log_api_error("ediscoveryCases", e, "eDiscovery.Read.All")
-        http_status = getattr(getattr(e, "response", None), "status_code", None)
-        error_code = ""
-        error_message = str(e)
-        if getattr(e, "response", None) is not None:
-            try:
-                body = e.response.json()
-                graph_error = body.get("error", {}) if isinstance(body, dict) else {}
-                if isinstance(graph_error, dict):
-                    error_code = str(graph_error.get("code", ""))
-                    error_message = str(graph_error.get("message", error_message))
-            except Exception:
-                pass
-
-        return [], {
-            "status": "error",
-            "endpoint": url,
-            "http_status": http_status,
-            "error_code": error_code,
-            "message": error_message,
-        }
-
-    cases = []
-    for item in items:
-        custodians = item.get("custodians", [])
-        cases.append(
-            {
-                "case_id": item.get("id", ""),
-                "display_name": item.get("displayName", ""),
-                "status": item.get("status", ""),
-                "created": item.get("createdDateTime", ""),
-                "closed": item.get("closedDateTime", ""),
-                "external_id": item.get("externalId", ""),
-                "custodian_count": len(custodians) if isinstance(custodians, list) else 0,
-            }
-        )
-
-    log.info("Retrieved %d eDiscovery cases", len(cases))
-    return (
-        cases,
-        {
-            "status": "ok",
-            "endpoint": url,
-            "http_status": 200,
-            "count": len(cases),
-            "message": "No eDiscovery cases returned from Microsoft Graph." if not cases else "",
-        },
-    )
-
-
 # ── Information Protection (sensitivity labels) ───────────────────
 
 
@@ -195,7 +126,9 @@ def get_sensitivity_labels(token: str) -> list[dict[str, Any]]:
     except requests.exceptions.RequestException as e:
         _log_api_error("sensitivityLabels (v1.0/dataSecurityAndGovernance)", e, "SensitivityLabel.Read")
 
-    # Fallback: beta informationProtection endpoint
+    # Fallback: beta informationProtection endpoint (DEPRECATED by Microsoft —
+    # will be removed once all tenants reliably support the v1.0 GA endpoint above).
+    log.warning("v1.0 sensitivityLabels endpoint failed or returned empty; falling back to deprecated beta endpoint")
     url = f"{GRAPH_BETA}/security/informationProtection/sensitivityLabels"
     try:
         items = _paginate(sess, url)
@@ -204,7 +137,7 @@ def get_sensitivity_labels(token: str) -> list[dict[str, Any]]:
         return []
 
     labels = _map_sensitivity_labels(items)
-    log.info("Retrieved %d sensitivity labels (beta/informationProtection)", len(labels))
+    log.info("Retrieved %d sensitivity labels (beta/informationProtection — deprecated fallback)", len(labels))
     return labels
 
 
@@ -883,7 +816,12 @@ def get_info_barrier_policies(token: str) -> list[dict[str, Any]]:
 
 
 def get_dlp_policies(token: str) -> list[dict[str, Any]]:
-    """Return DLP policies (beta informationProtection API)."""
+    """Return DLP policies (beta informationProtection API).
+
+    TODO: Monitor Graph changelog — this endpoint may migrate from
+    informationProtection to dataSecurityAndGovernance namespace (like
+    sensitivity labels did). Check https://developer.microsoft.com/en-us/graph/changelog
+    """
     sess = _session(token)
     url = f"{GRAPH_BETA}/security/informationProtection/dataLossPreventionPolicies"
 

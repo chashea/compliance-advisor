@@ -3,7 +3,6 @@
 import pytest
 from shared.dashboard_queries import (
     get_dlp,
-    get_ediscovery,
     get_governance,
     get_improvement_actions,
     get_irm,
@@ -15,7 +14,6 @@ from shared.dashboard_queries import (
 )
 from shared.db import (
     upsert_dlp_alert,
-    upsert_ediscovery_case,
     upsert_improvement_action,
     upsert_irm_alert,
     upsert_protection_scope,
@@ -48,30 +46,28 @@ class TestGetStatus:
 class TestGetOverview:
     def test_empty_db(self, db_conn):
         result = get_overview()
-        assert "ediscovery_summary" in result
+        assert "labels_summary" in result
 
     def test_with_data(self, db_conn):
         _seed_tenant()
-        upsert_ediscovery_case("t-001", "case-1", "Test Case", "active", "2024-01-01", "", "", 2, "2024-06-01")
+        upsert_sensitivity_label(
+            "t-001", "lbl-1", "Confidential", "", "", True, "", 1, "", "2024-06-01",
+            has_protection=True,
+        )
         result = get_overview()
-        assert result["ediscovery_summary"]["total_cases"] >= 1
+        assert result["labels_summary"]["sensitivity_labels"] >= 1
 
     def test_department_filter(self, db_conn):
         _seed_tenant("t-001", "Contoso", "IT")
         _seed_tenant("t-002", "Fabrikam", "Finance")
-        upsert_ediscovery_case("t-001", "case-1", "IT Case", "active", "2024-01-01", "", "", 1, "2024-06-01")
-        upsert_ediscovery_case("t-002", "case-2", "Finance Case", "active", "2024-01-01", "", "", 1, "2024-06-01")
+        upsert_sensitivity_label(
+            "t-001", "lbl-1", "IT Label", "", "", True, "", 1, "", "2024-06-01", has_protection=True,
+        )
+        upsert_sensitivity_label(
+            "t-002", "lbl-2", "Finance Label", "", "", True, "", 1, "", "2024-06-01", has_protection=True,
+        )
         result = get_overview(department="IT")
-        assert result["ediscovery_summary"]["total_cases"] == 1
-
-
-class TestGetEdiscovery:
-    def test_returns_cases(self, db_conn):
-        _seed_tenant()
-        upsert_ediscovery_case("t-001", "case-1", "Test Case", "Active", "2024-01-01", "", "", 3, "2024-06-01")
-        result = get_ediscovery()
-        assert len(result["cases"]) == 1
-        assert result["cases"][0]["display_name"] == "Test Case"
+        assert result["labels_summary"]["sensitivity_labels"] == 1
 
 
 class TestGetLabels:
@@ -127,8 +123,8 @@ class TestGetTrend:
         today = date.today()
         d1 = (today - timedelta(days=2)).isoformat()
         d2 = (today - timedelta(days=1)).isoformat()
-        upsert_trend(d1, None, 10, 20, 5, 100, 3)
-        upsert_trend(d2, None, 12, 22, 6, 110, 3)
+        upsert_trend(d1, None, 20, 5, 100, 3)
+        upsert_trend(d2, None, 22, 6, 110, 3)
         result = get_trend(days=30)
         assert len(result["trend"]) >= 2
 

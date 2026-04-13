@@ -22,10 +22,6 @@ class DashboardUser(HttpUser):
         self.client.post("/api/advisor/overview", json={})
 
     @task(5)
-    def ediscovery(self):
-        self.client.post("/api/advisor/ediscovery", json={})
-
-    @task(5)
     def labels(self):
         self.client.post("/api/advisor/labels", json={})
 

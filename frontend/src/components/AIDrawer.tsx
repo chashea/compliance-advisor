@@ -63,7 +63,6 @@ const SUGGESTED_PROMPTS = [
   "What are our top compliance risks right now?",
   "Summarize our DLP alert trends",
   "Which sensitivity labels have the lowest adoption?",
-  "Are there any open eDiscovery cases that need attention?",
   "How is our Secure Score trending over time?",
   "What improvement actions should we prioritize?",
 ];

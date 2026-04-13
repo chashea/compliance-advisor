@@ -4,7 +4,6 @@ import { TenantProvider } from "./components/TenantContext";
 import { ThemeProvider } from "./components/ThemeContext";
 import Layout from "./components/Layout";
 import Overview from "./pages/Overview";
-import EDiscovery from "./pages/EDiscovery";
 import Labels from "./pages/Labels";
 import Audit from "./pages/Audit";
 import Alerts from "./pages/Alerts";
@@ -24,7 +23,6 @@ export default function App() {
         <Routes>
           <Route element={<Layout />}>
             <Route index element={<Overview />} />
-            <Route path="ediscovery" element={<EDiscovery />} />
             <Route path="labels" element={<Labels />} />
             <Route path="audit" element={<Audit />} />
             <Route path="alerts" element={<Alerts />} />

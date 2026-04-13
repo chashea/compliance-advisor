@@ -26,5 +26,5 @@ compliance-collect \
 ```
 
 **After collection:**
-- Report what workloads were collected (eDiscovery, labels, DLP, IRM, etc.)
+- Report what workloads were collected (labels, DLP, IRM, etc.)
 - Report any Graph API errors or missing permissions.

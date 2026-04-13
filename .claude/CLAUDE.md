@@ -92,7 +92,7 @@ python3.12 -m pytest tests/test_validation.py::test_valid_payload
 
 Multi-tenant compliance workload platform. Two core runtime components share a PostgreSQL database:
 
-1. **Collector** (`collector/`) — Python CLI (`compliance-collect`) that authenticates to tenants via MSAL client credentials (app-only), pulls compliance workload data from Microsoft Graph API (eDiscovery, sensitivity labels, retention labels/events, audit log, DLP alerts, IRM alerts, protection scopes, Secure Score with Data category breakdown, improvement actions filtered to Data category by default, subject rights requests, communication compliance, information barriers), and POSTs a payload to the Function App's `/api/ingest` endpoint. DLP and IRM alerts use `/security/alerts_v2` filtered by `serviceSource`. Use `--actions-category` (env: `ACTIONS_CATEGORY`, default: `Data`) to control which Secure Score category is collected.
+1. **Collector** (`collector/`) — Python CLI (`compliance-collect`) that authenticates to tenants via MSAL client credentials (app-only), pulls compliance workload data from Microsoft Graph API (sensitivity labels, retention labels/events, audit log, DLP alerts, IRM alerts, protection scopes, Secure Score with Data category breakdown, improvement actions filtered to Data category by default, subject rights requests, communication compliance, information barriers), and POSTs a payload to the Function App's `/api/ingest` endpoint. DLP and IRM alerts use `/security/alerts_v2` filtered by `serviceSource`. Use `--actions-category` (env: `ACTIONS_CATEGORY`, default: `Data`) to control which Secure Score category is collected.
 
 2. **Function App** (`functions/`) — Azure Functions v2 Python (decorator-based, no `function.json` files). All routes defined in `function_app.py`. Three categories:
    - **Ingest** (`/api/ingest`) — FUNCTION-level auth, validates payload via JSON schema (`shared/validation.py`), upserts to PostgreSQL (`shared/db.py`).
@@ -115,7 +115,6 @@ All dashboard routes are `POST` with optional `{ "department": "..." }` body fil
 |---|---|---|
 | `advisor/status` | ANONYMOUS | System status |
 | `advisor/overview` | ANONYMOUS | Dashboard overview |
-| `advisor/ediscovery` | ANONYMOUS | eDiscovery cases |
 | `advisor/labels` | ANONYMOUS | Sensitivity + retention labels |
 | `advisor/audit` | ANONYMOUS | Audit log records |
 | `advisor/dlp` | ANONYMOUS | DLP alerts + stats |
@@ -201,7 +200,7 @@ When a task requires specialized work, delegate to subagents (`.claude/agents/`)
 
 - All dashboard API routes are POST (not GET) — body contains optional filters.
 - DATABASE_URL is stored as a Key Vault reference in Function App app settings (`@Microsoft.KeyVault(SecretUri=...)`). The Function App's SystemAssigned managed identity has `Key Vault Secrets User` RBAC.
-- Collector uses client credentials (app-only) auth via MSAL `ConfidentialClientApplication` — `CLIENT_ID` + `CLIENT_SECRET` in `.env`. App registration: `compliance-advisor-collector` (28ce4587-667e-4eec-8740-190dee3634da), multi-tenant. Service principal must be in eDiscovery Manager and Compliance Administrator role groups in Purview.
+- Collector uses client credentials (app-only) auth via MSAL `ConfidentialClientApplication` — `CLIENT_ID` + `CLIENT_SECRET` in `.env`. App registration: `compliance-advisor-collector` (28ce4587-667e-4eec-8740-190dee3634da), multi-tenant. Service principal must be in Compliance Administrator role group in Purview.
 - Config uses pydantic-settings: `functions/shared/config.py` (`FunctionSettings`) and `collector/config.py` (`CollectorSettings`).
 - Audit log API is async: POST query, poll status, GET records.
 - Sensitivity labels use beta API with v1.0 fallback.

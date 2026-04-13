@@ -10,7 +10,6 @@ from shared.db import (
     upsert_compliance_assessment,
     upsert_dlp_alert,
     upsert_dlp_policy,
-    upsert_ediscovery_case,
     upsert_improvement_action,
     upsert_info_barrier_policy,
     upsert_irm_alert,
@@ -76,31 +75,6 @@ class TestUpdateTenantStatus:
         update_tenant_status("t-010", "collected")
         rows = _query(db_conn, "SELECT status FROM tenants WHERE tenant_id = 't-010'")
         assert rows[0]["status"] == "collected"
-
-
-# -- eDiscovery ------------------------------------------------------------
-
-
-class TestUpsertEdiscoveryCase:
-    def test_insert(self, db_conn):
-        upsert_tenant("t-100", "Test Tenant", "IT", "Medium")
-        upsert_ediscovery_case("t-100", "case-1", "Case Alpha", "Active", "2024-01-01", "", "ext-1", 3, "2024-06-01")
-        rows = _query(db_conn, "SELECT * FROM ediscovery_cases WHERE tenant_id = 't-100'")
-        assert len(rows) == 1
-        assert rows[0]["display_name"] == "Case Alpha"
-        assert rows[0]["custodian_count"] == 3
-
-    def test_update_on_conflict(self, db_conn):
-        upsert_tenant("t-100", "Test Tenant", "IT", "Medium")
-        upsert_ediscovery_case("t-100", "case-1", "Case Alpha", "Active", "2024-01-01", "", "ext-1", 3, "2024-06-01")
-        upsert_ediscovery_case(
-            "t-100", "case-1", "Case Alpha Updated", "Closed", "2024-01-01", "2024-06-15", "ext-1", 5, "2024-06-01"
-        )
-        rows = _query(db_conn, "SELECT * FROM ediscovery_cases WHERE tenant_id = 't-100'")
-        assert len(rows) == 1
-        assert rows[0]["display_name"] == "Case Alpha Updated"
-        assert rows[0]["status"] == "Closed"
-        assert rows[0]["custodian_count"] == 5
 
 
 # -- Sensitivity Labels ----------------------------------------------------
@@ -217,16 +191,16 @@ class TestIngestionIdempotency:
 
 class TestUpsertTrend:
     def test_insert(self, db_conn):
-        upsert_trend("2024-06-01", "IT", 10, 20, 5, 100, 3)
+        upsert_trend("2024-06-01", "IT", 20, 5, 100, 3)
         rows = _query(
             db_conn,
             "SELECT * FROM compliance_trend WHERE snapshot_date = '2024-06-01' AND department = 'IT'",
         )
         assert len(rows) == 1
-        assert rows[0]["ediscovery_cases"] == 10
+        assert rows[0]["sensitivity_labels"] == 20
 
     def test_null_department(self, db_conn):
-        upsert_trend("2024-06-01", None, 10, 20, 5, 100, 3)
+        upsert_trend("2024-06-01", None, 20, 5, 100, 3)
         rows = _query(
             db_conn,
             "SELECT * FROM compliance_trend WHERE snapshot_date = '2024-06-01' AND department IS NULL",
@@ -234,14 +208,14 @@ class TestUpsertTrend:
         assert len(rows) == 1
 
     def test_update_on_conflict(self, db_conn):
-        upsert_trend("2024-06-02", "IT", 10, 20, 5, 100, 3)
-        upsert_trend("2024-06-02", "IT", 15, 25, 8, 150, 4)
+        upsert_trend("2024-06-02", "IT", 20, 5, 100, 3)
+        upsert_trend("2024-06-02", "IT", 25, 8, 150, 4)
         rows = _query(
             db_conn,
             "SELECT * FROM compliance_trend WHERE snapshot_date = '2024-06-02' AND department = 'IT'",
         )
         assert len(rows) == 1
-        assert rows[0]["ediscovery_cases"] == 15
+        assert rows[0]["sensitivity_labels"] == 25
 
 
 # -- User Content Policies -------------------------------------------------

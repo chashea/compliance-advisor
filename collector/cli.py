@@ -18,7 +18,6 @@ from collector.compliance_client import (
     get_compliance_assessments,
     get_dlp_alerts,
     get_dlp_policies,
-    get_ediscovery_cases,
     get_improvement_actions,
     get_info_barrier_policies,
     get_irm_alerts,
@@ -110,10 +109,6 @@ def main(
 
     click.echo("Authenticated. Collecting compliance data from Microsoft Graph...")
 
-    # Collect data
-    click.echo("  eDiscovery Cases...")
-    ediscovery_cases = get_ediscovery_cases(token)
-
     click.echo("  Sensitivity Labels...")
     sensitivity_labels = get_sensitivity_labels(token)
 
@@ -171,7 +166,7 @@ def main(
     threat_assessment_requests = get_threat_assessment_requests(token)
 
     click.echo(
-        f"\neDiscovery: {len(ediscovery_cases)} | Labels: {len(sensitivity_labels)} "
+        f"\nLabels: {len(sensitivity_labels)} "
         f"| Retention Events: {len(retention_events)} | Retention Labels: {len(retention_labels)} "
         f"| Audit: {len(audit_records)} | DLP: {len(dlp_alerts)} | IRM: {len(irm_alerts)} "
         f"| InfoBarriers: {len(info_barrier_policies)} "
@@ -190,7 +185,6 @@ def main(
         department=settings.DEPARTMENT,
         display_name=settings.DISPLAY_NAME or settings.AGENCY_ID,
         timestamp=CompliancePayload.now_iso(),
-        ediscovery_cases=ediscovery_cases,
         sensitivity_labels=sensitivity_labels,
         retention_events=retention_events,
         retention_event_types=retention_event_types,
@@ -231,7 +225,6 @@ def main(
                 "agency_id": settings.AGENCY_ID,
                 "status": "success",
                 "duplicate": result.get("duplicate", False),
-                "ediscovery_cases": len(ediscovery_cases),
                 "sensitivity_labels": len(sensitivity_labels),
                 "dlp_alerts": len(dlp_alerts),
                 "audit_records": len(audit_records),

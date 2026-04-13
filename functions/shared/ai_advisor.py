@@ -96,19 +96,6 @@ def _build_context(department: str | None = None, tenant_id: str | None = None) 
     for t in tenants:
         sections.append(f"- {t['display_name']} ({t['department']}) — risk: {t['risk_tier']}")
 
-    # eDiscovery cases
-    cases = query(
-        f"""SELECT ec.display_name, ec.status, ec.custodian_count
-            FROM ediscovery_cases ec
-            JOIN tenants t ON ec.tenant_id = t.tenant_id
-            WHERE ec.snapshot_date = (SELECT MAX(snapshot_date) FROM ediscovery_cases WHERE tenant_id = ec.tenant_id)
-            {dept_filter} {tenant_filter}""",
-        dept_params,
-    )
-    sections.append(f"\n## eDiscovery Cases ({len(cases)})")
-    for c in cases:
-        sections.append(f"- {c['display_name']}: {c['status']} ({c['custodian_count']} custodians)")
-
     # Sensitivity labels
     labels = query(
         f"""SELECT sl.name, sl.is_active
@@ -248,7 +235,7 @@ def generate_briefing(department: str | None = None, tenant_id: str | None = Non
         "1. Overall compliance posture and Secure Score trends\n"
         "2. Critical risks requiring immediate attention\n"
         "3. Top improvement opportunities (highest score gap)\n"
-        "4. eDiscovery and DLP alert status\n"
+        "4. DLP alert status\n"
         "5. Recommended next steps",
         department=department,
         tenant_id=tenant_id,
