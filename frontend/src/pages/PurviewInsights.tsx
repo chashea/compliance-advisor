@@ -557,6 +557,18 @@ export default function PurviewInsights() {
             <p className="text-navy-400">Unprotected labels</p>
             <p className="text-lg font-semibold text-teal-400">{risk.components.unprotected_labels}</p>
           </div>
+          {(risk.components.hunt_high_findings ?? 0) > 0 && (
+            <div>
+              <p className="text-navy-400">Hunt findings (high)</p>
+              <p className="text-lg font-semibold text-red-400">{risk.components.hunt_high_findings}</p>
+            </div>
+          )}
+          {(risk.components.hunt_medium_findings ?? 0) > 0 && (
+            <div>
+              <p className="text-navy-400">Hunt findings (medium)</p>
+              <p className="text-lg font-semibold text-amber-400">{risk.components.hunt_medium_findings}</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -587,6 +599,44 @@ export default function PurviewInsights() {
           )}
         </div>
       </div>
+
+      {data.threat_hunting && data.threat_hunting.summary.total > 0 && (
+        <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5">
+          <h3 className="mb-3 text-sm font-semibold text-navy-100">Threat Hunting</h3>
+          <div className="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-navy-400">Total Findings</p>
+              <p className="mt-1 text-2xl font-bold text-white">{data.threat_hunting.summary.total}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-navy-400">High</p>
+              <p className="mt-1 text-2xl font-bold text-red-400">{data.threat_hunting.summary.high}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-navy-400">Medium</p>
+              <p className="mt-1 text-2xl font-bold text-amber-400">{data.threat_hunting.summary.medium}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-navy-400">Low / Info</p>
+              <p className="mt-1 text-2xl font-bold text-sky-400">{data.threat_hunting.summary.low + data.threat_hunting.summary.info}</p>
+            </div>
+          </div>
+          {data.threat_hunting.top_findings.length > 0 && (
+            <DataTable<(typeof data.threat_hunting.top_findings)[number] & Record<string, unknown>>
+              columns={[
+                { key: "severity", label: "Severity" },
+                { key: "finding_type", label: "Type" },
+                { key: "account_upn", label: "User" },
+                { key: "object_name", label: "Object" },
+                { key: "tenant_name", label: "Tenant" },
+                { key: "detected_at", label: "Detected" },
+              ]}
+              data={data.threat_hunting.top_findings as ((typeof data.threat_hunting.top_findings)[number] & Record<string, unknown>)[]}
+              keyField="detected_at"
+            />
+          )}
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div>

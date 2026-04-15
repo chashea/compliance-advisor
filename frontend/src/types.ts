@@ -435,13 +435,43 @@ export interface PurviewInsightsResponse {
       unresolved_medium_alerts: number;
       active_incidents: number;
       unprotected_labels: number;
+      hunt_high_findings?: number;
+      hunt_medium_findings?: number;
     };
     weighted_points: {
       high_alert_weighted: number;
       medium_alert_weighted: number;
       active_incident_weighted: number;
       unprotected_label_weighted: number;
+      hunt_high_weighted?: number;
+      hunt_medium_weighted?: number;
     };
+  };
+  threat_hunting?: {
+    summary: {
+      total: number;
+      high: number;
+      medium: number;
+      low: number;
+      info: number;
+    };
+    top_findings: {
+      finding_type: string;
+      severity: string;
+      account_upn: string | null;
+      object_name: string | null;
+      action_type: string | null;
+      detected_at: string | null;
+      tenant_name: string;
+    }[];
+    recent_runs: {
+      template_name: string | null;
+      question: string | null;
+      result_count: number;
+      run_at: string;
+      tenant_id: string;
+      tenant_name: string;
+    }[];
   };
   control_mapping: {
     framework_summary: {
