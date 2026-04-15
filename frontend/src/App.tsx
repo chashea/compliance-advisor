@@ -4,7 +4,6 @@ import { TenantProvider } from "./components/TenantContext";
 import { ThemeProvider } from "./components/ThemeContext";
 import Layout from "./components/Layout";
 import Overview from "./pages/Overview";
-import Labels from "./pages/Labels";
 import Audit from "./pages/Audit";
 import Alerts from "./pages/Alerts";
 import Trend from "./pages/Trend";
@@ -12,7 +11,6 @@ import ThreatAssessments from "./pages/ThreatAssessments";
 import Assessments from "./pages/Assessments";
 import PurviewInsights from "./pages/PurviewInsights";
 import ThreatHunting from "./pages/ThreatHunting";
-import SensitiveInfoTypes from "./pages/SensitiveInfoTypes";
 
 
 export default function App() {
@@ -24,7 +22,6 @@ export default function App() {
         <Routes>
           <Route element={<Layout />}>
             <Route index element={<Overview />} />
-            <Route path="labels" element={<Labels />} />
             <Route path="audit" element={<Audit />} />
             <Route path="alerts" element={<Alerts />} />
             <Route path="threat-assessments" element={<ThreatAssessments />} />
@@ -32,7 +29,6 @@ export default function App() {
             <Route path="trend" element={<Trend />} />
             <Route path="purview-insights" element={<PurviewInsights />} />
             <Route path="threat-hunting" element={<ThreatHunting />} />
-            <Route path="sensitive-info-types" element={<SensitiveInfoTypes />} />
           </Route>
         </Routes>
       </TenantProvider>
