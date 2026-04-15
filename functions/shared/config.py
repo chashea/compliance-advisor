@@ -15,9 +15,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 log = logging.getLogger(__name__)
 
-_KV_REF_PATTERN = re.compile(
-    r"^@Microsoft\.KeyVault\(SecretUri=(?P<uri>https://[^)]+)\)$"
-)
+_KV_REF_PATTERN = re.compile(r"^@Microsoft\.KeyVault\(SecretUri=(?P<uri>https://[^)]+)\)$")
 
 
 def _resolve_keyvault_reference(ref: str) -> str:

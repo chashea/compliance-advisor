@@ -51,7 +51,16 @@ class TestGetOverview:
     def test_with_data(self, db_conn):
         _seed_tenant()
         upsert_sensitivity_label(
-            "t-001", "lbl-1", "Confidential", "", "", True, "", 1, "", "2024-06-01",
+            "t-001",
+            "lbl-1",
+            "Confidential",
+            "",
+            "",
+            True,
+            "",
+            1,
+            "",
+            "2024-06-01",
             has_protection=True,
         )
         result = get_overview()
@@ -61,10 +70,30 @@ class TestGetOverview:
         _seed_tenant("t-001", "Contoso", "IT")
         _seed_tenant("t-002", "Fabrikam", "Finance")
         upsert_sensitivity_label(
-            "t-001", "lbl-1", "IT Label", "", "", True, "", 1, "", "2024-06-01", has_protection=True,
+            "t-001",
+            "lbl-1",
+            "IT Label",
+            "",
+            "",
+            True,
+            "",
+            1,
+            "",
+            "2024-06-01",
+            has_protection=True,
         )
         upsert_sensitivity_label(
-            "t-002", "lbl-2", "Finance Label", "", "", True, "", 1, "", "2024-06-01", has_protection=True,
+            "t-002",
+            "lbl-2",
+            "Finance Label",
+            "",
+            "",
+            True,
+            "",
+            1,
+            "",
+            "2024-06-01",
+            has_protection=True,
         )
         result = get_overview(department="IT")
         assert result["labels_summary"]["sensitivity_labels"] == 1
@@ -74,7 +103,16 @@ class TestGetLabels:
     def test_returns_labels(self, db_conn):
         _seed_tenant()
         upsert_sensitivity_label(
-            "t-001", "lbl-1", "Confidential", "Desc", "#ff0000", True, "", 1, "tip", "2024-06-01",
+            "t-001",
+            "lbl-1",
+            "Confidential",
+            "Desc",
+            "#ff0000",
+            True,
+            "",
+            1,
+            "tip",
+            "2024-06-01",
             has_protection=True,
         )
         result = get_labels()
@@ -86,8 +124,16 @@ class TestGetDlp:
     def test_returns_alerts(self, db_conn):
         _seed_tenant()
         upsert_dlp_alert(
-            "t-001", "dlp-1", "DLP Alert", "High", "New", "Exfiltration", "Policy 1",
-            "2024-06-01", "", "2024-06-01",
+            "t-001",
+            "dlp-1",
+            "DLP Alert",
+            "High",
+            "New",
+            "Exfiltration",
+            "Policy 1",
+            "2024-06-01",
+            "",
+            "2024-06-01",
         )
         result = get_dlp()
         assert len(result["alerts"]) >= 1
@@ -95,10 +141,28 @@ class TestGetDlp:
     def test_severity_breakdown(self, db_conn):
         _seed_tenant()
         upsert_dlp_alert(
-            "t-001", "dlp-1", "Alert 1", "High", "New", "Cat", "Pol", "2024-06-01", "", "2024-06-01",
+            "t-001",
+            "dlp-1",
+            "Alert 1",
+            "High",
+            "New",
+            "Cat",
+            "Pol",
+            "2024-06-01",
+            "",
+            "2024-06-01",
         )
         upsert_dlp_alert(
-            "t-001", "dlp-2", "Alert 2", "Low", "New", "Cat", "Pol", "2024-06-01", "", "2024-06-01",
+            "t-001",
+            "dlp-2",
+            "Alert 2",
+            "Low",
+            "New",
+            "Cat",
+            "Pol",
+            "2024-06-01",
+            "",
+            "2024-06-01",
         )
         result = get_dlp()
         assert len(result["alerts"]) == 2
@@ -109,8 +173,16 @@ class TestGetIrm:
     def test_returns_alerts(self, db_conn):
         _seed_tenant()
         upsert_irm_alert(
-            "t-001", "irm-1", "IRM Alert", "Medium", "New", "Data theft", "IRM Policy",
-            "2024-06-01", "", "2024-06-01",
+            "t-001",
+            "irm-1",
+            "IRM Alert",
+            "Medium",
+            "New",
+            "Data theft",
+            "IRM Policy",
+            "2024-06-01",
+            "",
+            "2024-06-01",
         )
         result = get_irm()
         assert len(result["alerts"]) >= 1
@@ -142,9 +214,22 @@ class TestGetImprovementActions:
         _seed_tenant()
         upsert_secure_score("t-001", 75.0, 100.0, "2024-06-01", "2024-06-01", 60.0, 80.0)
         upsert_improvement_action(
-            "t-001", "ctrl-1", "Enable MFA", "Data", 10.0, 5.0,
-            "Low", "Low", "Tier1", "Azure AD", "Credential theft",
-            "Enable MFA for all users", "Default", False, 1, "2024-06-01",
+            "t-001",
+            "ctrl-1",
+            "Enable MFA",
+            "Data",
+            10.0,
+            5.0,
+            "Low",
+            "Low",
+            "Tier1",
+            "Azure AD",
+            "Credential theft",
+            "Enable MFA for all users",
+            "Default",
+            False,
+            1,
+            "2024-06-01",
         )
         result = get_improvement_actions()
         assert "secure_score" in result
@@ -156,8 +241,19 @@ class TestGetPurviewIncidents:
     def test_returns_incidents(self, db_conn):
         _seed_tenant()
         upsert_purview_incident(
-            "t-001", "inc-1", "Breach", "High", "Active", "TruePositive", "Confirmed",
-            "2024-06-01", "2024-06-02", "admin", 5, 3, "2024-06-01",
+            "t-001",
+            "inc-1",
+            "Breach",
+            "High",
+            "Active",
+            "TruePositive",
+            "Confirmed",
+            "2024-06-01",
+            "2024-06-02",
+            "admin",
+            5,
+            3,
+            "2024-06-01",
         )
         result = get_purview_incidents()
         assert len(result["incidents"]) >= 1

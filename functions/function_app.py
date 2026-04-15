@@ -1671,9 +1671,7 @@ def hunt_single(req: func.HttpRequest) -> func.HttpResponse:
         _ensure_dependencies_loaded()
 
         if _HUNTER_IMPORT_ERROR is not None:
-            return _json_response(
-                {"error": "Hunter modules unavailable", "detail": str(_HUNTER_IMPORT_ERROR)}, 503
-            )
+            return _json_response({"error": "Hunter modules unavailable", "detail": str(_HUNTER_IMPORT_ERROR)}, 503)
 
         tenant_id = req.route_params.get("tenant_id", "").strip()
         if not tenant_id:

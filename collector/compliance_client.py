@@ -504,9 +504,7 @@ def _derive_purview_incidents_from_alerts(purview_alerts: list[dict[str, Any]]) 
         is_active = any(status not in {"resolved", "dismissed"} for status in statuses)
         created_values = [str(a.get("created", "")) for a in alerts if a.get("created")]
         last_update_values = [
-            str(a.get("resolved", "") or a.get("created", ""))
-            for a in alerts
-            if a.get("resolved") or a.get("created")
+            str(a.get("resolved", "") or a.get("created", "")) for a in alerts if a.get("resolved") or a.get("created")
         ]
         incidents.append(
             {

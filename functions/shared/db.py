@@ -185,9 +185,20 @@ def upsert_sensitivity_label(
             is_endpoint_protection_enabled = EXCLUDED.is_endpoint_protection_enabled
         """,
         (
-            tenant_id, label_id, name, description, color, is_active,
-            parent_id, priority, tooltip, has_protection, applicable_to,
-            application_mode, is_endpoint_protection_enabled, snapshot_date,
+            tenant_id,
+            label_id,
+            name,
+            description,
+            color,
+            is_active,
+            parent_id,
+            priority,
+            tooltip,
+            has_protection,
+            applicable_to,
+            application_mode,
+            is_endpoint_protection_enabled,
+            snapshot_date,
         ),
     )
 
@@ -270,9 +281,17 @@ def upsert_retention_label(
             modified = EXCLUDED.modified
         """,
         (
-            tenant_id, label_id, name, description, is_in_use,
-            retention_duration, action_after, default_record_behavior,
-            created, modified, snapshot_date,
+            tenant_id,
+            label_id,
+            name,
+            description,
+            is_in_use,
+            retention_duration,
+            action_after,
+            default_record_behavior,
+            created,
+            modified,
+            snapshot_date,
         ),
     )
 
@@ -478,8 +497,6 @@ def upsert_irm_alert(
             snapshot_date,
         ),
     )
-
-
 
 
 def upsert_info_barrier_policy(

@@ -227,8 +227,6 @@ def test_dlp_alert_with_evidence_accepted(mock_get):
     assert len(result["dlp_alerts"][0]["evidence"]) == 1
 
 
-
-
 @patch("shared.validation.get_settings")
 def test_secure_score_missing_required_fields_rejected(mock_get):
     mock_get.return_value = _mock_settings("")

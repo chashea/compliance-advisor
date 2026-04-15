@@ -133,8 +133,6 @@ def main(
     click.echo("  Purview Incidents...")
     purview_incidents = get_purview_incidents(token, [*dlp_alerts, *irm_alerts])
 
-
-
     click.echo("  Information Barrier Policies...")
     info_barrier_policies = get_info_barrier_policies(token)
 

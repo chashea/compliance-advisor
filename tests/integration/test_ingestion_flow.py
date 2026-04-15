@@ -35,8 +35,16 @@ class TestIngestionFlow:
             is_endpoint_protection_enabled=False,
         )
         upsert_dlp_alert(
-            "t-flow", "dlp-1", "Flow Alert", "High", "New", "Cat", "Policy",
-            "2024-06-01", "", "2024-06-01",
+            "t-flow",
+            "dlp-1",
+            "Flow Alert",
+            "High",
+            "New",
+            "Cat",
+            "Policy",
+            "2024-06-01",
+            "",
+            "2024-06-01",
         )
         record_ingestion("t-flow", "2024-06-01", "flowhash", {"sensitivity_labels": 1, "dlp_alerts": 1})
 

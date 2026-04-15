@@ -84,8 +84,18 @@ class TestUpsertSensitivityLabel:
     def test_insert(self, db_conn):
         upsert_tenant("t-200", "Label Tenant", "IT", "Medium")
         upsert_sensitivity_label(
-            "t-200", "lbl-1", "Confidential", "Top secret", "#ff0000", True, "", 1, "Do not share", "2024-06-01",
-            has_protection=True, applicable_to="Files,Emails",
+            "t-200",
+            "lbl-1",
+            "Confidential",
+            "Top secret",
+            "#ff0000",
+            True,
+            "",
+            1,
+            "Do not share",
+            "2024-06-01",
+            has_protection=True,
+            applicable_to="Files,Emails",
         )
         rows = _query(db_conn, "SELECT * FROM sensitivity_labels WHERE tenant_id = 't-200'")
         assert len(rows) == 1
@@ -101,8 +111,17 @@ class TestUpsertDlpAlert:
         upsert_tenant("t-300", "DLP Tenant", "IT", "Medium")
         evidence = [{"type": "file", "name": "secret.docx"}]
         upsert_dlp_alert(
-            "t-300", "dlp-1", "DLP Hit", "High", "New", "Exfiltration", "DLP Policy 1",
-            "2024-06-01", "", "2024-06-01", evidence=evidence,
+            "t-300",
+            "dlp-1",
+            "DLP Hit",
+            "High",
+            "New",
+            "Exfiltration",
+            "DLP Policy 1",
+            "2024-06-01",
+            "",
+            "2024-06-01",
+            evidence=evidence,
         )
         rows = _query(db_conn, "SELECT * FROM dlp_alerts WHERE tenant_id = 't-300'")
         assert len(rows) == 1
@@ -112,12 +131,28 @@ class TestUpsertDlpAlert:
     def test_update_on_conflict(self, db_conn):
         upsert_tenant("t-300", "DLP Tenant", "IT", "Medium")
         upsert_dlp_alert(
-            "t-300", "dlp-2", "DLP Hit", "High", "New", "Exfiltration", "Policy",
-            "2024-06-01", "", "2024-06-01",
+            "t-300",
+            "dlp-2",
+            "DLP Hit",
+            "High",
+            "New",
+            "Exfiltration",
+            "Policy",
+            "2024-06-01",
+            "",
+            "2024-06-01",
         )
         upsert_dlp_alert(
-            "t-300", "dlp-2", "DLP Hit Updated", "Medium", "Resolved", "Exfiltration", "Policy",
-            "2024-06-01", "2024-06-02", "2024-06-01",
+            "t-300",
+            "dlp-2",
+            "DLP Hit Updated",
+            "Medium",
+            "Resolved",
+            "Exfiltration",
+            "Policy",
+            "2024-06-01",
+            "2024-06-02",
+            "2024-06-01",
         )
         rows = _query(db_conn, "SELECT * FROM dlp_alerts WHERE alert_id = 'dlp-2'")
         assert len(rows) == 1
@@ -132,8 +167,16 @@ class TestUpsertIrmAlert:
     def test_insert(self, db_conn):
         upsert_tenant("t-400", "IRM Tenant", "IT", "Medium")
         upsert_irm_alert(
-            "t-400", "irm-1", "Insider Risk", "Medium", "New", "Data theft", "IRM Policy",
-            "2024-06-01", "", "2024-06-01",
+            "t-400",
+            "irm-1",
+            "Insider Risk",
+            "Medium",
+            "New",
+            "Data theft",
+            "IRM Policy",
+            "2024-06-01",
+            "",
+            "2024-06-01",
         )
         rows = _query(db_conn, "SELECT * FROM irm_alerts WHERE tenant_id = 't-400'")
         assert len(rows) == 1
@@ -159,9 +202,22 @@ class TestUpsertImprovementAction:
     def test_insert(self, db_conn):
         upsert_tenant("t-600", "Action Tenant", "IT", "Medium")
         upsert_improvement_action(
-            "t-600", "ctrl-1", "Enable MFA", "Identity", 10.0, 5.0,
-            "Low", "Low", "Tier1", "Azure AD", "Credential theft",
-            "Enable MFA for all users", "Default", False, 1, "2024-06-01",
+            "t-600",
+            "ctrl-1",
+            "Enable MFA",
+            "Identity",
+            10.0,
+            5.0,
+            "Low",
+            "Low",
+            "Tier1",
+            "Azure AD",
+            "Credential theft",
+            "Enable MFA for all users",
+            "Default",
+            False,
+            1,
+            "2024-06-01",
         )
         rows = _query(db_conn, "SELECT * FROM improvement_actions WHERE tenant_id = 't-600'")
         assert len(rows) == 1
@@ -245,8 +301,19 @@ class TestUpsertPurviewIncident:
     def test_insert(self, db_conn):
         upsert_tenant("t-900", "Incident Tenant", "IT", "Medium")
         upsert_purview_incident(
-            "t-900", "inc-1", "Data Breach", "High", "Active", "TruePositive", "Confirmed",
-            "2024-06-01", "2024-06-02", "admin@contoso.com", 5, 3, "2024-06-01",
+            "t-900",
+            "inc-1",
+            "Data Breach",
+            "High",
+            "Active",
+            "TruePositive",
+            "Confirmed",
+            "2024-06-01",
+            "2024-06-02",
+            "admin@contoso.com",
+            5,
+            3,
+            "2024-06-01",
         )
         rows = _query(db_conn, "SELECT * FROM purview_incidents WHERE tenant_id = 't-900'")
         assert len(rows) == 1
@@ -266,8 +333,13 @@ class TestRemainingUpserts:
     def test_retention_event_type(self, db_conn):
         upsert_tenant("t-misc2", "Misc2", "IT", "Medium")
         upsert_retention_event_type(
-            "t-misc2", "type-1", "Employee Hire", "Triggered on hire",
-            "2024-01-01", "2024-02-01", "2024-06-01",
+            "t-misc2",
+            "type-1",
+            "Employee Hire",
+            "Triggered on hire",
+            "2024-01-01",
+            "2024-02-01",
+            "2024-06-01",
         )
         rows = _query(db_conn, "SELECT * FROM retention_event_types WHERE tenant_id = 't-misc2'")
         assert len(rows) == 1
@@ -275,8 +347,14 @@ class TestRemainingUpserts:
     def test_audit_record(self, db_conn):
         upsert_tenant("t-misc3", "Misc3", "IT", "Medium")
         upsert_audit_record(
-            "t-misc3", "rec-1", "AuditLog", "FileAccessed", "SharePoint",
-            "user@contoso.com", "2024-06-01", "2024-06-01",
+            "t-misc3",
+            "rec-1",
+            "AuditLog",
+            "FileAccessed",
+            "SharePoint",
+            "user@contoso.com",
+            "2024-06-01",
+            "2024-06-01",
         )
         rows = _query(db_conn, "SELECT * FROM audit_records WHERE tenant_id = 't-misc3'")
         assert len(rows) == 1
@@ -296,8 +374,16 @@ class TestRemainingUpserts:
     def test_dlp_policy(self, db_conn):
         upsert_tenant("t-misc6", "Misc6", "IT", "Medium")
         upsert_dlp_policy(
-            "t-misc6", "pol-1", "Credit Card Policy", "Enabled", "DLP",
-            3, "2024-01-01", "2024-06-01", "Enforce", "2024-06-01",
+            "t-misc6",
+            "pol-1",
+            "Credit Card Policy",
+            "Enabled",
+            "DLP",
+            3,
+            "2024-01-01",
+            "2024-06-01",
+            "Enforce",
+            "2024-06-01",
         )
         rows = _query(db_conn, "SELECT * FROM dlp_policies WHERE tenant_id = 't-misc6'")
         assert len(rows) == 1
@@ -305,8 +391,14 @@ class TestRemainingUpserts:
     def test_irm_policy(self, db_conn):
         upsert_tenant("t-misc7", "Misc7", "IT", "Medium")
         upsert_irm_policy(
-            "t-misc7", "irm-pol-1", "Data Theft", "Enabled", "IRM",
-            "2024-01-01", "Sequence,CumulativeExfiltration", "2024-06-01",
+            "t-misc7",
+            "irm-pol-1",
+            "Data Theft",
+            "Enabled",
+            "IRM",
+            "2024-01-01",
+            "Sequence,CumulativeExfiltration",
+            "2024-06-01",
         )
         rows = _query(db_conn, "SELECT * FROM irm_policies WHERE tenant_id = 't-misc7'")
         assert len(rows) == 1
@@ -314,8 +406,15 @@ class TestRemainingUpserts:
     def test_sensitive_info_type(self, db_conn):
         upsert_tenant("t-misc8", "Misc8", "IT", "Medium")
         upsert_sensitive_info_type(
-            "t-misc8", "sit-1", "SSN", "Social Security Number",
-            False, "PII", "Organization", "Enabled", "2024-06-01",
+            "t-misc8",
+            "sit-1",
+            "SSN",
+            "Social Security Number",
+            False,
+            "PII",
+            "Organization",
+            "Enabled",
+            "2024-06-01",
         )
         rows = _query(db_conn, "SELECT * FROM sensitive_info_types WHERE tenant_id = 't-misc8'")
         assert len(rows) == 1
@@ -323,8 +422,15 @@ class TestRemainingUpserts:
     def test_compliance_assessment(self, db_conn):
         upsert_tenant("t-misc9", "Misc9", "IT", "Medium")
         upsert_compliance_assessment(
-            "t-misc9", "assess-1", "NIST 800-171", "Active", "NIST",
-            75.5, "2024-01-01", "Data Protection", "2024-06-01",
+            "t-misc9",
+            "assess-1",
+            "NIST 800-171",
+            "Active",
+            "NIST",
+            75.5,
+            "2024-01-01",
+            "Data Protection",
+            "2024-06-01",
         )
         rows = _query(db_conn, "SELECT * FROM compliance_assessments WHERE tenant_id = 't-misc9'")
         assert len(rows) == 1
@@ -332,8 +438,15 @@ class TestRemainingUpserts:
     def test_threat_assessment_request(self, db_conn):
         upsert_tenant("t-misc10", "Misc10", "IT", "Medium")
         upsert_threat_assessment_request(
-            "t-misc10", "tar-1", "malware", "file", "completed",
-            "2024-06-01", "clean", "No threats detected", "2024-06-01",
+            "t-misc10",
+            "tar-1",
+            "malware",
+            "file",
+            "completed",
+            "2024-06-01",
+            "clean",
+            "No threats detected",
+            "2024-06-01",
         )
         rows = _query(db_conn, "SELECT * FROM threat_assessment_requests WHERE tenant_id = 't-misc10'")
         assert len(rows) == 1

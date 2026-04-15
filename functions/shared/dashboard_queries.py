@@ -640,8 +640,6 @@ def get_irm(department: str | None = None, tenant_id: str | None = None) -> dict
     }
 
 
-
-
 def get_info_barriers(department: str | None = None, tenant_id: str | None = None) -> dict:
     """POST /api/advisor/info-barriers — Information Barrier policies."""
     dept_filter = ""
@@ -1159,8 +1157,9 @@ def get_purview_insights(department: str | None = None, tenant_id: str | None = 
         params,
     )
 
-    alert_metrics = query_one(
-        f"""
+    alert_metrics = (
+        query_one(
+            f"""
         WITH latest_alerts AS (
             SELECT
                 da.tenant_id,
@@ -1223,8 +1222,10 @@ def get_purview_insights(department: str | None = None, tenant_id: str | None = 
             )::real AS mttr_hours
         FROM latest_alerts
         """,
-        params,
-    ) or {}
+            params,
+        )
+        or {}
+    )
 
     repeat_offenders = query(
         f"""
@@ -1282,8 +1283,9 @@ def get_purview_insights(department: str | None = None, tenant_id: str | None = 
         params,
     )
 
-    label_summary = query_one(
-        f"""
+    label_summary = (
+        query_one(
+            f"""
         SELECT
             COUNT(*)::int AS total_labels,
             COUNT(*) FILTER (WHERE sl.has_protection = TRUE)::int AS protected_labels
@@ -1295,8 +1297,10 @@ def get_purview_insights(department: str | None = None, tenant_id: str | None = 
           {dept_filter}
           {tenant_filter}
         """,
-        params,
-    ) or {}
+            params,
+        )
+        or {}
+    )
 
     coverage_breakdown = query(
         f"""
@@ -1542,8 +1546,9 @@ def get_purview_insights(department: str | None = None, tenant_id: str | None = 
     active_incidents_now = sum(1 for i in open_incidents)
 
     # Hunt findings (from automated threat hunting)
-    hunt_summary = query_one(
-        f"""
+    hunt_summary = (
+        query_one(
+            f"""
         SELECT
             COUNT(*)::int AS total,
             COUNT(*) FILTER (WHERE hr.severity = 'high')::int AS high,
@@ -1555,8 +1560,10 @@ def get_purview_insights(department: str | None = None, tenant_id: str | None = 
         WHERE hr.snapshot_date >= CURRENT_DATE - %(days_param)s
         {dept_filter} {tenant_filter}
         """,
-        {**params, "days_param": days},
-    ) or {}
+            {**params, "days_param": days},
+        )
+        or {}
+    )
 
     hunt_recent_runs = query(
         f"""
