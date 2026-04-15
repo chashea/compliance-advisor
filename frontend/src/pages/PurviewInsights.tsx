@@ -641,17 +641,23 @@ export default function PurviewInsights() {
       <div className="grid gap-4 lg:grid-cols-2">
         <div>
           <h3 className="mb-3 text-sm font-semibold text-navy-100">Owner Prioritization</h3>
-          <DataTable<OwnerLoad & Record<string, unknown>>
-            columns={[
-              { key: "owner", label: "Owner" },
-              { key: "open_alerts", label: "Open Alerts" },
-              { key: "high_severity", label: "High Severity" },
-              { key: "active_incidents", label: "Active Incidents" },
-              { key: "avg_age_days", label: "Avg Age (Days)" },
-            ]}
-            data={ownerActions.owners as (OwnerLoad & Record<string, unknown>)[]}
-            keyField="owner"
-          />
+          {ownerActions.owners.length > 0 ? (
+            <DataTable<OwnerLoad & Record<string, unknown>>
+              columns={[
+                { key: "owner", label: "Owner" },
+                { key: "open_alerts", label: "Open Alerts" },
+                { key: "high_severity", label: "High Severity" },
+                { key: "active_incidents", label: "Active Incidents" },
+                { key: "avg_age_days", label: "Avg Age (Days)" },
+              ]}
+              data={ownerActions.owners as (OwnerLoad & Record<string, unknown>)[]}
+              keyField="owner"
+            />
+          ) : (
+            <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5 text-sm text-navy-400">
+              No DLP or Insider Risk alerts have been collected yet. Owner workload data will appear once alerts are generated in your tenants.
+            </div>
+          )}
         </div>
         <div>
           <h3 className="mb-3 text-sm font-semibold text-navy-100">Priority Actions</h3>
@@ -689,47 +695,63 @@ export default function PurviewInsights() {
       <div className="grid gap-4 lg:grid-cols-2">
         <div>
           <h3 className="mb-3 text-sm font-semibold text-navy-100">CJIS / NIST Framework Summary</h3>
-          <DataTable<(PurviewInsightsResponse["control_mapping"]["framework_summary"][number] & Record<string, unknown>)>
-            columns={[
-              { key: "framework", label: "Framework" },
-              { key: "total_assessments", label: "Assessments" },
-              { key: "avg_completion", label: "Avg Completion %" },
-              { key: "estimated_gap_count", label: "Estimated Gaps" },
-            ]}
-            data={mapping.framework_summary as (PurviewInsightsResponse["control_mapping"]["framework_summary"][number] & Record<string, unknown>)[]}
-            keyField="framework"
-          />
+          {mapping.framework_summary.length > 0 ? (
+            <DataTable<(PurviewInsightsResponse["control_mapping"]["framework_summary"][number] & Record<string, unknown>)>
+              columns={[
+                { key: "framework", label: "Framework" },
+                { key: "total_assessments", label: "Assessments" },
+                { key: "avg_completion", label: "Avg Completion %" },
+                { key: "estimated_gap_count", label: "Estimated Gaps" },
+              ]}
+              data={mapping.framework_summary as (PurviewInsightsResponse["control_mapping"]["framework_summary"][number] & Record<string, unknown>)[]}
+              keyField="framework"
+            />
+          ) : (
+            <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5 text-sm text-navy-400">
+              No compliance assessments found. Create CJIS or NIST assessments in{" "}
+              <a href="https://purview.microsoft.com/compliancemanager" target="_blank" rel="noreferrer" className="text-sky-400 underline">
+                Compliance Manager
+              </a>{" "}
+              to see framework mapping here.
+            </div>
+          )}
         </div>
         <div>
           <h3 className="mb-3 text-sm font-semibold text-navy-100">Mapped Controls + Evidence</h3>
-          <DataTable<MappedControl & Record<string, unknown>>
-            columns={[
-              { key: "framework", label: "Framework" },
-              { key: "control_id", label: "Control ID" },
-              { key: "control_title", label: "Control" },
-              { key: "priority", label: "Priority" },
-              { key: "owner", label: "Owner" },
-              {
-                key: "evidence_links",
-                label: "Evidence",
-                render: (v) => {
-                  const links = (v as { label: string; url: string }[]) || [];
-                  if (links.length === 0) return <span className="text-navy-400">—</span>;
-                  return (
-                    <div className="flex flex-col gap-1">
-                      {links.slice(0, 2).map((link) => (
-                        <a key={link.url} href={link.url} target="_blank" rel="noreferrer" className="text-xs text-sky-400 underline">
-                          {link.label}
-                        </a>
-                      ))}
-                    </div>
-                  );
+          {mapping.controls.length > 0 ? (
+            <DataTable<MappedControl & Record<string, unknown>>
+              columns={[
+                { key: "framework", label: "Framework" },
+                { key: "control_id", label: "Control ID" },
+                { key: "control_title", label: "Control" },
+                { key: "priority", label: "Priority" },
+                { key: "owner", label: "Owner" },
+                {
+                  key: "evidence_links",
+                  label: "Evidence",
+                  render: (v) => {
+                    const links = (v as { label: string; url: string }[]) || [];
+                    if (links.length === 0) return <span className="text-navy-400">—</span>;
+                    return (
+                      <div className="flex flex-col gap-1">
+                        {links.slice(0, 2).map((link) => (
+                          <a key={link.url} href={link.url} target="_blank" rel="noreferrer" className="text-xs text-sky-400 underline">
+                            {link.label}
+                          </a>
+                        ))}
+                      </div>
+                    );
+                  },
                 },
-              },
-            ]}
-            data={mapping.controls as (MappedControl & Record<string, unknown>)[]}
-            keyField="control_id"
-          />
+              ]}
+              data={mapping.controls as (MappedControl & Record<string, unknown>)[]}
+              keyField="control_id"
+            />
+          ) : (
+            <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-5 text-sm text-navy-400">
+              Control mapping requires compliance assessments. No frameworks detected yet.
+            </div>
+          )}
         </div>
       </div>
 
