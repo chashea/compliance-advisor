@@ -10,6 +10,7 @@ Functions:
 import hashlib
 import json
 import logging
+import threading
 import time
 import uuid
 from collections import defaultdict
@@ -75,6 +76,8 @@ try:
     )
     from shared.db import (
         check_ingestion_duplicate,
+        insert_hunt_result,
+        insert_hunt_run,
         query,
         record_ingestion,
         update_tenant_status,
@@ -165,6 +168,15 @@ try:
 except Exception as e:
     _COLLECTOR_IMPORT_ERROR = e
     log.warning("Collector imports unavailable (timer will be disabled): %s", e)
+
+_HUNTER_IMPORT_ERROR: Exception | None = None
+
+try:
+    from collector.hunter.graph import HuntingQueryError, run_hunting_query
+    from collector.hunter.templates import TEMPLATES, render_template
+except Exception as e:
+    _HUNTER_IMPORT_ERROR = e
+    log.warning("Hunter imports unavailable (threat hunting will be disabled): %s", e)
 
 
 def _ensure_dependencies_loaded() -> None:
@@ -1327,6 +1339,22 @@ def _collect_single_tenant(
             update_tenant_status(tid, "active")
         except Exception:
             log.debug("update_tenant_status not available yet (run schema migration)")
+
+        # Run threat hunting templates (failures here don't break collection)
+        try:
+            hunt_result = _hunt_single_tenant(
+                tid=tid,
+                client_id=client_id,
+                client_secret=client_secret,
+                days=1,
+            )
+            counts["hunt_findings"] = hunt_result.get("total_findings", 0)
+            counts["hunt_templates_run"] = hunt_result.get("templates_run", 0)
+        except Exception:
+            log.exception("_collect_single_tenant: hunting failed for tenant=%s (non-fatal)", tid)
+            counts["hunt_findings"] = 0
+            counts["hunt_templates_run"] = 0
+
         return {"status": "ok", "tenant_id": tid, "record_counts": counts}
 
     except Exception as e:
@@ -1402,6 +1430,151 @@ def collect_tenants(timer: func.TimerRequest) -> None:
 
     except Exception as e:
         log.exception("collect_tenants: fatal error: %s", e)
+
+
+# ── Automated threat hunting ──────────────────────────────────────
+
+# Semaphore to cap concurrent Graph API hunting calls across all tenants
+_HUNT_SEMAPHORE = threading.Semaphore(3)
+
+# Templates that use summarize (aggregate rows, not individual findings)
+_AGGREGATE_TEMPLATES = {"irm-risky-users", "alert-by-user"}
+
+# Default severity by template name; overridden by row-level Severity when present
+_TEMPLATE_SEVERITY: dict[str, str] = {
+    "usb-exfil": "high",
+    "high-severity": "high",
+    "label-downgrade": "medium",
+    "label-removal": "medium",
+    "dlp-violations": "medium",
+    "cloud-upload": "medium",
+    "external-sharing": "medium",
+    "email-dlp": "medium",
+    "comm-compliance": "medium",
+    "admin-activity": "low",
+    "purview-alerts": "info",
+    "print-sensitive": "info",
+}
+
+
+def _hunt_single_tenant(
+    tid: str,
+    client_id: str,
+    client_secret: str,
+    days: int = 1,
+) -> dict:
+    """Run all hunt templates against a tenant and persist results.
+
+    Returns a dict with 'status' ('ok', 'skipped', or 'error'), template run counts,
+    and total findings.
+    """
+    if _HUNTER_IMPORT_ERROR is not None:
+        log.info("_hunt_single_tenant: hunter imports unavailable, skipping tenant=%s", tid)
+        return {"status": "skipped", "tenant_id": tid, "reason": "hunter_unavailable"}
+
+    import msal
+
+    authority = f"https://login.microsoftonline.com/{tid}"
+    msal_app = msal.ConfidentialClientApplication(
+        client_id=client_id,
+        client_credential=client_secret,
+        authority=authority,
+    )
+    result = msal_app.acquire_token_for_client(scopes=["https://graph.microsoft.com/.default"])
+    if "access_token" not in result:
+        error = result.get("error_description", result.get("error", "Unknown"))
+        log.warning("_hunt_single_tenant: auth failed for tenant=%s: %s", tid, error)
+        return {"status": "error", "tenant_id": tid, "error": f"Auth failed: {error}"}
+
+    token = result["access_token"]
+
+    templates_run = 0
+    total_findings = 0
+    skipped = 0
+
+    for template in TEMPLATES:
+        if template.name in _AGGREGATE_TEMPLATES:
+            skipped += 1
+            continue
+
+        kql = render_template(template, days=days, limit=50)
+
+        with _HUNT_SEMAPHORE:
+            try:
+                query_result = run_hunting_query(kql=kql, token=token)
+            except HuntingQueryError as exc:
+                if exc.status_code == 403:
+                    log.warning(
+                        "_hunt_single_tenant: ThreatHunting.Read.All not granted for tenant=%s, "
+                        "skipping all hunting",
+                        tid,
+                    )
+                    return {
+                        "status": "skipped",
+                        "tenant_id": tid,
+                        "reason": "missing_permission",
+                    }
+                if exc.status_code == 400:
+                    log.warning(
+                        "_hunt_single_tenant: bad KQL for template=%s tenant=%s: %s",
+                        template.name,
+                        tid,
+                        exc.kql_error,
+                    )
+                    skipped += 1
+                    continue
+                log.warning(
+                    "_hunt_single_tenant: error on template=%s tenant=%s: %s",
+                    template.name,
+                    tid,
+                    exc,
+                )
+                skipped += 1
+                continue
+
+        run_id = insert_hunt_run(
+            tenant_id=tid,
+            template_name=template.name,
+            question=template.description,
+            kql_query=kql,
+            result_count=query_result.row_count,
+            ai_narrative=None,
+        )
+        templates_run += 1
+
+        default_severity = _TEMPLATE_SEVERITY.get(template.name, "info")
+
+        for row in query_result.results:
+            row_severity = row.get("Severity", "").lower() if row.get("Severity") else ""
+            severity = row_severity if row_severity in ("high", "medium", "low", "info") else default_severity
+
+            insert_hunt_result(
+                run_id=run_id,
+                tenant_id=tid,
+                finding_type=template.name,
+                severity=severity,
+                account_upn=row.get("AccountUpn") or row.get("AccountDisplayName"),
+                object_name=row.get("ObjectName") or row.get("Title"),
+                action_type=row.get("ActionType"),
+                evidence=row,
+                detected_at=row.get("Timestamp"),
+            )
+            total_findings += 1
+
+    log.info(
+        "_hunt_single_tenant: tenant=%s templates_run=%d findings=%d skipped=%d",
+        tid,
+        templates_run,
+        total_findings,
+        skipped,
+    )
+    return {
+        "status": "ok",
+        "tenant_id": tid,
+        "templates_run": templates_run,
+        "total_findings": total_findings,
+        "skipped_templates": skipped,
+    }
 
 
 # ── On-demand collection ──────────────────────────────────────────
@@ -1487,6 +1660,58 @@ def collect_single(req: func.HttpRequest) -> func.HttpResponse:
 
     except Exception as e:
         log.exception("collect_single error: %s", e)
+        return _json_response({"error": "Internal server error"}, 500)
+
+
+@app.function_name("hunt_single")
+@app.route(route="hunt/{tenant_id}", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
+def hunt_single(req: func.HttpRequest) -> func.HttpResponse:
+    """On-demand: run threat hunting templates for a specific tenant."""
+    try:
+        _ensure_dependencies_loaded()
+
+        if _HUNTER_IMPORT_ERROR is not None:
+            return _json_response(
+                {"error": "Hunter modules unavailable", "detail": str(_HUNTER_IMPORT_ERROR)}, 503
+            )
+
+        tenant_id = req.route_params.get("tenant_id", "").strip()
+        if not tenant_id:
+            return _json_response({"error": "Missing tenant_id in route"}, 400)
+
+        try:
+            uuid.UUID(tenant_id)
+        except ValueError:
+            return _json_response({"error": "Invalid tenant_id: must be a valid UUID"}, 400)
+
+        rows = query("SELECT tenant_id FROM tenants WHERE tenant_id = %s", (tenant_id,))
+        if not rows:
+            return _json_response({"error": f"Tenant {tenant_id} not found"}, 404)
+
+        from shared.config import get_settings
+
+        settings = get_settings()
+        client_id = settings.COLLECTOR_CLIENT_ID
+        client_secret = settings.COLLECTOR_CLIENT_SECRET
+
+        if not client_id or not client_secret:
+            return _json_response({"error": "COLLECTOR_CLIENT_ID/SECRET not configured"}, 503)
+
+        body = _get_body(req)
+        days = body.get("days", 30)
+
+        result = _hunt_single_tenant(
+            tid=tenant_id,
+            client_id=client_id,
+            client_secret=client_secret,
+            days=days,
+        )
+
+        status_code = 200 if result["status"] == "ok" else 502
+        return _json_response(result, status_code)
+
+    except Exception as e:
+        log.exception("hunt_single error: %s", e)
         return _json_response({"error": "Internal server error"}, 500)
 
 
