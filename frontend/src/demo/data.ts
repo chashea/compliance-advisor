@@ -624,6 +624,37 @@ export function getDemoData(endpoint: string, body?: Record<string, unknown>): u
     case "ask":
       return { answer: ASK_ANSWER };
 
+    case "info-barriers":
+      return {
+        policies: [
+          { policy_id: "ib-1", display_name: "Finance ↔ Trading Wall", state: "Active", segments_applied: "Finance, Trading", tenant_name: "Contoso" },
+          { policy_id: "ib-2", display_name: "Legal ↔ Sales Wall", state: "Active", segments_applied: "Legal, Sales", tenant_name: "Contoso" },
+        ],
+        state_breakdown: [
+          { state: "Active", total: 2 },
+        ],
+      };
+
+    case "governance":
+      return {
+        scopes: [
+          { scope_type: "Exchange", execution_mode: "Enforce", locations: "All mailboxes", activity_types: "Send, Receive", tenant_name: "Contoso" },
+          { scope_type: "SharePoint", execution_mode: "Monitor", locations: "All sites", activity_types: "Upload, Download, Share", tenant_name: "Contoso" },
+          { scope_type: "OneDrive", execution_mode: "Enforce", locations: "All accounts", activity_types: "Upload, Download, Sync", tenant_name: "Contoso" },
+        ],
+      };
+
+    case "sensitive-info-types":
+      return {
+        types: [
+          { type_id: "sit-1", name: "Credit Card Number", description: "Detects credit card numbers", is_custom: false, category: "Financial", scope: "All", state: "Enabled", tenant_name: "Contoso" },
+          { type_id: "sit-2", name: "U.S. Social Security Number", description: "Detects SSNs", is_custom: false, category: "PII", scope: "All", state: "Enabled", tenant_name: "Contoso" },
+          { type_id: "sit-3", name: "CJIS Case ID", description: "Custom pattern for CJIS case numbers", is_custom: true, category: "Custom", scope: "Exchange, SharePoint", state: "Enabled", tenant_name: "Contoso" },
+        ],
+        custom_count: 1,
+        builtin_count: 2,
+      };
+
     default:
       return {};
   }

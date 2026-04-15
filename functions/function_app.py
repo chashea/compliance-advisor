@@ -70,6 +70,7 @@ try:
         get_overview,
         get_purview_incidents,
         get_purview_insights,
+        get_sensitive_info_types,
         get_status,
         get_threat_assessments,
         get_trend,
@@ -490,6 +491,22 @@ def advisor_threat_assessments(req: func.HttpRequest) -> func.HttpResponse:
         return _json_response(result)
     except Exception as e:
         log.exception("advisor/threat-assessments error: %s", e)
+        return _json_response({"error": str(e)}, 500)
+
+
+@app.function_name("advisor_sensitive_info_types")
+@app.route(route="advisor/sensitive-info-types", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def advisor_sensitive_info_types(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        _ensure_dependencies_loaded()
+        principal = require_auth(req)
+        if principal is None:
+            return get_auth_error_response()
+        body = _get_body(req)
+        result = get_sensitive_info_types(department=body.get("department"), tenant_id=body.get("tenant_id"))
+        return _json_response(result)
+    except Exception as e:
+        log.exception("advisor/sensitive-info-types error: %s", e)
         return _json_response({"error": str(e)}, 500)
 
 

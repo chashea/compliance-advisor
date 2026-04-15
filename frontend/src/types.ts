@@ -541,3 +541,21 @@ export interface BriefingResponse {
 export interface AskResponse {
   answer: string;
 }
+
+// /api/advisor/sensitive-info-types
+export interface SensitiveInfoType {
+  type_id: string;
+  name: string;
+  description: string;
+  is_custom: boolean;
+  category: string;
+  scope: string;
+  state: string;
+  tenant_name: string;
+}
+
+export interface SensitiveInfoTypesResponse {
+  types: SensitiveInfoType[];
+  custom_count: number;
+  builtin_count: number;
+}
