@@ -656,12 +656,12 @@ def get_protection_scopes(token: str) -> list[dict[str, Any]]:
 # ── Secure Score ──────────────────────────────────────────────────
 
 
-def get_secure_scores(token: str) -> list[dict[str, Any]]:
-    """Return the most recent Secure Score snapshot with Data category breakdown."""
+def get_secure_scores(token: str, days: int = 30) -> list[dict[str, Any]]:
+    """Return Secure Score snapshots for the last N days with Data category breakdown."""
     sess = _session(token)
 
     try:
-        resp = sess.get(f"{GRAPH_BASE}/security/secureScores?$top=1", timeout=30)
+        resp = sess.get(f"{GRAPH_BASE}/security/secureScores?$top={days}", timeout=30)
         resp.raise_for_status()
         items = resp.json().get("value", [])
     except requests.exceptions.RequestException as e:
@@ -671,17 +671,9 @@ def get_secure_scores(token: str) -> list[dict[str, Any]]:
     if not items:
         return []
 
-    # Build per-control current score lookup from the snapshot
-    item = items[0]
-    control_scores: dict[str, float] = {
-        cs["controlName"]: float(cs.get("score") or 0)
-        for cs in item.get("controlScores", [])
-        if isinstance(cs, dict) and cs.get("controlName")
-    }
-
-    # Fetch Data category control profiles to compute Data score
-    data_current = 0.0
+    # Fetch Data category control profiles once for data score computation
     data_max = 0.0
+    data_profile_ids: set[str] = set()
     try:
         profiles = _paginate(
             sess,
@@ -692,21 +684,37 @@ def get_secure_scores(token: str) -> list[dict[str, Any]]:
             if p.get("deprecated", False):
                 continue
             data_max += float(p.get("maxScore") or 0)
-            data_current += control_scores.get(p.get("id", ""), 0)
+            if p.get("id"):
+                data_profile_ids.add(p["id"])
     except requests.exceptions.RequestException as e:
         _log_api_error("secureScoreControlProfiles (Data)", e, "SecurityEvents.Read.All")
 
-    scores = [
-        {
-            "current_score": item.get("currentScore", 0),
-            "max_score": item.get("maxScore", 0),
-            "score_date": item.get("createdDateTime", "")[:10],
-            "data_current_score": round(data_current, 2),
-            "data_max_score": round(data_max, 2),
-        }
-    ]
+    scores = []
+    seen_dates: set[str] = set()
+    for item in items:
+        score_date = item.get("createdDateTime", "")[:10]
+        if not score_date or score_date in seen_dates:
+            continue
+        seen_dates.add(score_date)
 
-    log.info("Retrieved secure score snapshot (data: %.1f/%.1f)", data_current, data_max)
+        control_scores: dict[str, float] = {
+            cs["controlName"]: float(cs.get("score") or 0)
+            for cs in item.get("controlScores", [])
+            if isinstance(cs, dict) and cs.get("controlName")
+        }
+        data_current = sum(control_scores.get(pid, 0) for pid in data_profile_ids)
+
+        scores.append(
+            {
+                "current_score": item.get("currentScore", 0),
+                "max_score": item.get("maxScore", 0),
+                "score_date": score_date,
+                "data_current_score": round(data_current, 2),
+                "data_max_score": round(data_max, 2),
+            }
+        )
+
+    log.info("Retrieved %d secure score snapshots (data max: %.1f)", len(scores), data_max)
     return scores
 
 

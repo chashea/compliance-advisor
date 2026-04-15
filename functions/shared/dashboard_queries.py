@@ -1351,18 +1351,18 @@ def get_purview_insights(department: str | None = None, tenant_id: str | None = 
         ) inc ON inc.snapshot_date = day_bucket.snapshot_date
         LEFT JOIN (
             SELECT
-                ss.snapshot_date,
+                ss.score_date::date AS score_day,
                 CASE
                     WHEN SUM(ss.data_max_score) = 0 THEN 0
                     ELSE ROUND((((SUM(ss.data_current_score) / SUM(ss.data_max_score)) * 100.0)::numeric), 2)
                 END::real AS data_score_pct
             FROM secure_scores ss
             JOIN tenants t ON t.tenant_id = ss.tenant_id
-            WHERE ss.snapshot_date BETWEEN %(start_date)s::date AND %(end_date)s::date
+            WHERE ss.score_date::date BETWEEN %(start_date)s::date AND %(end_date)s::date
               {dept_filter}
               {tenant_filter}
-            GROUP BY ss.snapshot_date
-        ) scores ON scores.snapshot_date = day_bucket.snapshot_date
+            GROUP BY ss.score_date::date
+        ) scores ON scores.score_day = day_bucket.snapshot_date
         LEFT JOIN (
             SELECT p.change_date AS snapshot_date, COUNT(*)::int AS policy_changes
             FROM (
