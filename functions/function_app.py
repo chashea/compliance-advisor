@@ -1370,9 +1370,9 @@ def _collect_single_tenant(
 
 
 @app.function_name("collect_tenants")
-@app.timer_trigger(schedule="0 0 2 * * *", arg_name="timer", run_on_startup=False)
+@app.timer_trigger(schedule="0 0 14 * * 1-5", arg_name="timer", run_on_startup=False)
 def collect_tenants(timer: func.TimerRequest) -> None:
-    """Daily at 2:00 AM UTC: collect compliance data from all registered tenants."""
+    """Weekdays at 2:00 PM UTC (10 AM ET): collect compliance data from all registered tenants."""
     try:
         _ensure_dependencies_loaded()
 
@@ -1719,9 +1719,9 @@ def hunt_single(req: func.HttpRequest) -> func.HttpResponse:
 
 
 @app.function_name("compute_aggregates")
-@app.timer_trigger(schedule="0 0 6 * * *", arg_name="timer", run_on_startup=False)
+@app.timer_trigger(schedule="0 0 16 * * 1-5", arg_name="timer", run_on_startup=False)
 def compute_aggregates(timer: func.TimerRequest) -> None:
-    """Daily at 6:00 AM UTC: compute compliance workload trend rows."""
+    """Weekdays at 4:00 PM UTC (12 PM ET): compute compliance workload trend rows."""
     try:
         _ensure_dependencies_loaded()
         from datetime import date
