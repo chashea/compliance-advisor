@@ -78,7 +78,7 @@ Multi-tenant compliance workload platform. Three core runtime components share a
    - **On-demand Collection** (`/api/collect/{tenant_id}`) — FUNCTION-level auth, triggers collection for a single tenant.
    - **Timers** — `collect_tenants` (daily 2am UTC, all registered tenants), `compute_aggregates` (daily 6am UTC, rolls up trend data).
 
-4. **Frontend** (`frontend/`) — React 19 SPA with TypeScript, Vite, Tailwind CSS v4, Recharts, React Router v7. 10 pages mapping to dashboard API endpoints. Has a demo mode (`npm run demo`) that uses mock data without a backend. Deployed to `cadvisor-web-prod` (Azure App Service).
+4. **Frontend** (`frontend/`) — React 19 SPA with TypeScript, Vite, Tailwind CSS v4, Recharts, React Router v7. 8 pages mapping to dashboard API endpoints. Has a demo mode (`npm run demo`) that uses mock data without a backend. Deployed to `cadvisor-web-prod` (Azure App Service).
 
 **Database**: PostgreSQL with 24 tables (schema in `sql/schema.sql`). Connection pool via psycopg2 `ThreadedConnectionPool` in `shared/db.py`.
 

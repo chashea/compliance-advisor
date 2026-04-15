@@ -101,7 +101,7 @@ Multi-tenant compliance workload platform. Two core runtime components share a P
    - **On-demand Collection** (`/api/collect/{tenant_id}`) — FUNCTION-level auth, triggers collection for a single tenant. Also called automatically on tenant onboard.
    - **Timer** (`collect_tenants`) — daily 2am UTC, collects compliance data from all registered tenants. (`compute_aggregates`) — daily 6am UTC, rolls up workload counts into `compliance_trend`.
 
-3. **Frontend** (`frontend/`) — React 19 SPA with TypeScript, Vite, Tailwind CSS v4, Recharts, React Router v7. 12 pages mapping to dashboard API endpoints. Has a demo mode (`npm run demo`) that uses mock data without a backend. Deployed to `cadvisor-web-prod` (Azure App Service).
+3. **Frontend** (`frontend/`) — React 19 SPA with TypeScript, Vite, Tailwind CSS v4, Recharts, React Router v7. 8 pages mapping to dashboard API endpoints. Has a demo mode (`npm run demo`) that uses mock data without a backend. Deployed to `cadvisor-web-prod` (Azure App Service).
 
 **Database**: PostgreSQL with 17 tables (schema in `sql/schema.sql`). Connection pool via psycopg2 `ThreadedConnectionPool` in `shared/db.py`.
 
@@ -119,16 +119,17 @@ All dashboard routes are `POST` with optional `{ "department": "..." }` body fil
 | `advisor/audit` | ANONYMOUS | Audit log records |
 | `advisor/dlp` | ANONYMOUS | DLP alerts + stats |
 | `advisor/irm` | ANONYMOUS | IRM alerts + stats |
-| `advisor/subject-rights` | ANONYMOUS | Subject rights requests |
-| `advisor/comm-compliance` | ANONYMOUS | Communication compliance policies |
+| `advisor/purview-incidents` | ANONYMOUS | Purview security incidents |
 | `advisor/info-barriers` | ANONYMOUS | Information barrier policies |
 | `advisor/governance` | ANONYMOUS | Governance compliance data |
 | `advisor/trend` | ANONYMOUS | Trend over configurable days (1-365, default 30) |
+| `advisor/purview-insights` | ANONYMOUS | Purview insights analytics |
 | `advisor/actions` | ANONYMOUS | Improvement actions |
 | `advisor/dlp-policies` | ANONYMOUS | DLP policy configurations |
 | `advisor/irm-policies` | ANONYMOUS | IRM policy configurations |
-| `advisor/sensitive-info-types` | ANONYMOUS | Sensitive information types |
 | `advisor/assessments` | ANONYMOUS | Compliance assessments |
+| `advisor/threat-assessments` | ANONYMOUS | Threat assessment requests |
+| `advisor/hunt-results` | ANONYMOUS | Threat hunting results |
 | `advisor/briefing` | ANONYMOUS | AI briefing (rate-limited: 10/min per IP) |
 | `advisor/ask` | ANONYMOUS | AI chat (rate-limited: 10/min per IP, requires `question`) |
 | `tenants` | FUNCTION | Register/update tenant |
@@ -149,13 +150,13 @@ functions/
   shared/            — DB, queries, validation, AI advisor, config
   function_app.py    — All route/timer definitions
 frontend/
-  src/pages/         — 13 page components
+  src/pages/         — 8 page components
   src/demo/          — Mock data for demo mode
   src/hooks/         — useApi, useDemo, useDepartment, useTheme
   src/contexts/      — React context definitions
 infra/               — Bicep modules
 sql/                 — PostgreSQL schema
-tests/               — 71 tests across 7 files
+tests/               — 148 tests across 13 files
 ```
 
 ## Key File Paths
@@ -174,7 +175,7 @@ tests/               — 71 tests across 7 files
 | DB schema | `sql/schema.sql` | PostgreSQL table definitions |
 | Infra entry | `infra/main.bicep` | Bicep entry point |
 | Frontend entry | `frontend/src/App.tsx` | React app with routing |
-| Frontend pages | `frontend/src/pages/` | 13 page components (Overview, DLP, IRM, etc.) |
+| Frontend pages | `frontend/src/pages/` | 8 page components (Overview, Audit, Alerts, etc.) |
 | Frontend API | `frontend/src/api/` | API client + demo data |
 | CI/CD Deploy | `.github/workflows/deploy.yml` | OIDC deploy for infra, Functions, and frontend |
 

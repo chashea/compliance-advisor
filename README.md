@@ -60,7 +60,7 @@ React SPA                 │ App Insights │
 
 ## Features
 
-- **React SPA frontend** with 11 pages: Overview, Labels, Audit, Alerts (DLP + IRM + Purview Incidents), Info Barriers, Governance, Trend, Actions, Assessments, Threat Assessments, Purview Insights
+- **React SPA frontend** with 8 pages: Overview, Audit, Alerts (DLP + IRM + Purview Incidents), Assessments, Trend, Threat Assessments, Purview Insights, Threat Hunting
 - Secure Score Data category KPI showing `current / max` points and percentage
 - Improvement Actions filtered to Data category by default with category/cost/tier filters
 - Agency/department dropdown filter with active filter state summary and clear reset
@@ -75,8 +75,6 @@ React SPA                 │ App Insights │
   - CJIS/NIST-oriented control mapping with evidence links
   - Owner-prioritized action queue
   - Collection freshness and completeness indicators per tenant
-- Sensitivity and retention label inventory
-- Information Barriers policy visibility
 - Audit log activity summaries by service and operation
 - Data governance protection scope visibility
 - **AI Advisor** — executive compliance briefings and Q&A powered by Azure OpenAI Assistants API with managed identity auth
@@ -159,7 +157,7 @@ cd frontend
 npm run demo
 ```
 
-Launches the frontend with static demo data — no Azure credentials, Function App, or database needed. All 12 pages render with 3 sample tenants across 2 departments. An amber "DEMO MODE" banner appears at the top. Demo data is tree-shaken from production builds.
+Launches the frontend with static demo data — no Azure credentials, Function App, or database needed. All 8 pages render with 3 sample tenants across 2 departments. An amber "DEMO MODE" banner appears at the top. Demo data is tree-shaken from production builds.
 
 ## Collector Usage
 
@@ -361,7 +359,7 @@ locust -f loadtest/locustfile.py --host https://cadvisor-func-prod.azurewebsites
 
 ```
 compliance-advisor/
-├── frontend/          React 19 + TypeScript + Vite SPA (12 pages)
+├── frontend/          React 19 + TypeScript + Vite SPA (8 pages)
 ├── collector/          Per-tenant data collector (Python CLI)
 ├── functions/          Azure Functions v2 API backend
 ├── sql/                PostgreSQL schema (22 tables)
