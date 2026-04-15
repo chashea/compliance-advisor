@@ -297,6 +297,27 @@ def test_get_purview_insights_shape_and_metrics(mock_qo, mock_q):
                 "tenant_name": "Contoso",
             }
         ],
+        [
+            {
+                "template_name": "high-severity",
+                "question": "High and medium severity security alerts",
+                "result_count": 2,
+                "run_at": "2026-03-14T09:00:00+00:00",
+                "tenant_id": "t1",
+                "tenant_name": "Contoso",
+            }
+        ],
+        [
+            {
+                "finding_type": "high-severity",
+                "severity": "high",
+                "account_upn": "user@contoso.com",
+                "object_name": None,
+                "action_type": None,
+                "detected_at": "2026-03-14T08:30:00+00:00",
+                "tenant_name": "Contoso",
+            }
+        ],
     ]
     mock_qo.side_effect = [
         {
@@ -309,6 +330,7 @@ def test_get_purview_insights_shape_and_metrics(mock_qo, mock_q):
             "mttr_hours": 12.5,
         },
         {"total_labels": 10, "protected_labels": 7},
+        {"total": 3, "high": 2, "medium": 1, "low": 0, "info": 0},
     ]
 
     result = get_purview_insights(days=30)
@@ -317,6 +339,7 @@ def test_get_purview_insights_shape_and_metrics(mock_qo, mock_q):
     assert "classification_coverage" in result
     assert "policy_drift" in result
     assert "data_at_risk" in result
+    assert "threat_hunting" in result
     assert "control_mapping" in result
     assert "owner_actions" in result
     assert "collection_health" in result
@@ -324,3 +347,5 @@ def test_get_purview_insights_shape_and_metrics(mock_qo, mock_q):
     assert result["classification_coverage"]["coverage_pct"] == 70.0
     assert result["collection_health"]["complete_tenants"] == 1
     assert result["owner_actions"]["priority_actions"]
+    assert result["threat_hunting"]["summary"]["high"] == 2
+    assert result["data_at_risk"]["components"]["hunt_high_findings"] == 2

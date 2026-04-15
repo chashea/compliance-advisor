@@ -1540,11 +1540,67 @@ def get_purview_insights(department: str | None = None, tenant_id: str | None = 
     unresolved_high = int(alert_metrics.get("unresolved_high_alerts") or 0)
     unresolved_medium = int(alert_metrics.get("unresolved_medium_alerts") or 0)
     active_incidents_now = sum(1 for i in open_incidents)
+
+    # Hunt findings (from automated threat hunting)
+    hunt_summary = query_one(
+        f"""
+        SELECT
+            COUNT(*)::int AS total,
+            COUNT(*) FILTER (WHERE hr.severity = 'high')::int AS high,
+            COUNT(*) FILTER (WHERE hr.severity = 'medium')::int AS medium,
+            COUNT(*) FILTER (WHERE hr.severity = 'low')::int AS low,
+            COUNT(*) FILTER (WHERE hr.severity = 'info')::int AS info
+        FROM hunt_results hr
+        JOIN tenants t ON hr.tenant_id = t.tenant_id
+        WHERE hr.snapshot_date >= CURRENT_DATE - %(days_param)s
+        {dept_filter} {tenant_filter}
+        """,
+        {**params, "days_param": days},
+    ) or {}
+
+    hunt_recent_runs = query(
+        f"""
+        SELECT run.template_name, run.question, run.result_count,
+               run.run_at::text, run.tenant_id,
+               t.display_name AS tenant_name
+        FROM hunt_runs run
+        JOIN tenants t ON run.tenant_id = t.tenant_id
+        WHERE run.snapshot_date >= CURRENT_DATE - %(days_param)s
+        {dept_filter} {tenant_filter}
+        ORDER BY run.run_at DESC
+        LIMIT 20
+        """,
+        {**params, "days_param": days},
+    )
+
+    hunt_top_findings = query(
+        f"""
+        SELECT hr.finding_type, hr.severity, hr.account_upn,
+               hr.object_name, hr.action_type, hr.detected_at::text,
+               t.display_name AS tenant_name
+        FROM hunt_results hr
+        JOIN tenants t ON hr.tenant_id = t.tenant_id
+        WHERE hr.severity IN ('high', 'medium')
+          AND hr.snapshot_date >= CURRENT_DATE - %(days_param)s
+          {dept_filter} {tenant_filter}
+        ORDER BY
+            CASE hr.severity WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
+            hr.detected_at DESC NULLS LAST
+        LIMIT 20
+        """,
+        {**params, "days_param": days},
+    )
+
+    hunt_high = int(hunt_summary.get("high") or 0)
+    hunt_medium = int(hunt_summary.get("medium") or 0)
+
     weighted_points = {
         "high_alert_weighted": unresolved_high * 5,
         "medium_alert_weighted": unresolved_medium * 3,
         "active_incident_weighted": active_incidents_now * 4,
         "unprotected_label_weighted": unprotected_labels * 2,
+        "hunt_high_weighted": hunt_high * 3,
+        "hunt_medium_weighted": hunt_medium * 1,
     }
     risk_score = min(100.0, round(sum(weighted_points.values()) * 1.5, 1))
     if risk_score >= 80:
@@ -1773,8 +1829,21 @@ def get_purview_insights(department: str | None = None, tenant_id: str | None = 
                 "unresolved_medium_alerts": unresolved_medium,
                 "active_incidents": active_incidents_now,
                 "unprotected_labels": unprotected_labels,
+                "hunt_high_findings": hunt_high,
+                "hunt_medium_findings": hunt_medium,
             },
             "weighted_points": weighted_points,
+        },
+        "threat_hunting": {
+            "summary": {
+                "total": int(hunt_summary.get("total") or 0),
+                "high": hunt_high,
+                "medium": hunt_medium,
+                "low": int(hunt_summary.get("low") or 0),
+                "info": int(hunt_summary.get("info") or 0),
+            },
+            "top_findings": hunt_top_findings,
+            "recent_runs": hunt_recent_runs,
         },
         "control_mapping": {
             "framework_summary": framework_summary,
