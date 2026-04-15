@@ -25,20 +25,48 @@ export default function ThreatAssessments() {
         Threat Assessment Requests ({data.requests.length})
       </h2>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {[
-          { label: "Total", value: data.requests.length, color: "text-sky-400" },
-          { label: "Spam", value: data.category_breakdown.find((c) => c.category === "spam")?.total ?? 0, color: "text-amber-400" },
-          { label: "Phishing", value: data.category_breakdown.find((c) => c.category === "phishing")?.total ?? 0, color: "text-red-400" },
-          { label: "Malware", value: data.category_breakdown.find((c) => c.category === "malware")?.total ?? 0, color: "text-rose-500" },
-        ].map((stat) => (
-          <div key={stat.label} className="rounded-xl border border-navy-700 bg-navy-800/60 p-4 text-center">
-            <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-            <p className="text-xs text-navy-300">{stat.label}</p>
+      {data.requests.length === 0 ? (
+        <div className="rounded-xl border border-navy-700 bg-navy-800/60 p-6 text-center">
+          <p className="text-sm text-navy-300">
+            No threat assessment requests have been submitted yet. This data populates when users or admins submit email, URL, or file assessments via{" "}
+            <a
+              href="https://security.microsoft.com/threatassessment"
+              target="_blank"
+              rel="noreferrer"
+              className="text-sky-400 underline"
+            >
+              Microsoft Security
+            </a>{" "}
+            or the{" "}
+            <a
+              href="https://learn.microsoft.com/en-us/graph/api/informationprotection-post-threatassessmentrequests"
+              target="_blank"
+              rel="noreferrer"
+              className="text-sky-400 underline"
+            >
+              Graph API
+            </a>.
+          </p>
+          <p className="mt-2 text-xs text-navy-400">
+            Requires <code className="rounded bg-navy-700 px-1">ThreatAssessment.Read.All</code> permission on the collector app registration.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Stat cards */}
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {[
+              { label: "Total", value: data.requests.length, color: "text-sky-400" },
+              { label: "Spam", value: data.category_breakdown.find((c) => c.category === "spam")?.total ?? 0, color: "text-amber-400" },
+              { label: "Phishing", value: data.category_breakdown.find((c) => c.category === "phishing")?.total ?? 0, color: "text-red-400" },
+              { label: "Malware", value: data.category_breakdown.find((c) => c.category === "malware")?.total ?? 0, color: "text-rose-500" },
+            ].map((stat) => (
+              <div key={stat.label} className="rounded-xl border border-navy-700 bg-navy-800/60 p-4 text-center">
+                <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
+                <p className="text-xs text-navy-300">{stat.label}</p>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
       {/* Charts */}
       <div className="grid gap-6 md:grid-cols-2">
@@ -85,6 +113,8 @@ export default function ThreatAssessments() {
         data={data.requests as (ThreatAssessmentRequest & Record<string, unknown>)[]}
         keyField="request_id"
       />
+        </>
+      )}
     </div>
   );
 }
