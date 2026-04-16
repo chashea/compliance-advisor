@@ -456,8 +456,8 @@ def _alerts_v2(token: str, service_source: str, label: str) -> list[dict[str, An
 
 
 def get_dlp_alerts(token: str) -> list[dict[str, Any]]:
-    """Return DLP alerts (alerts_v2, serviceSource=microsoftDataLossPrevention)."""
-    return _alerts_v2(token, "microsoftDataLossPrevention", "DLP")
+    """Return DLP alerts (alerts_v2, serviceSource=dataLossPrevention)."""
+    return _alerts_v2(token, "dataLossPrevention", "DLP")
 
 
 # ── Insider Risk Management alerts ────────────────────────────────

@@ -16,11 +16,6 @@ import type {
 } from "../types";
 
 /* ── tiny SVG icons for KPI cards ─────────────────────────────────── */
-const IconTag = (
-  <svg className="h-5 w-5 text-gold-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z" />
-  </svg>
-);
 const IconAlert = (
   <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
@@ -184,14 +179,6 @@ export default function Overview() {
             iconBg="bg-emerald-600/20"
             value={s.active_tenants}
             label="Active Tenants"
-          />
-          <KPICard
-            icon={IconTag}
-            iconBg="bg-gold-500/20"
-            value={o.labels_summary?.sensitivity_labels ?? 0}
-            label="Sensitivity Labels"
-            delta={`${o.labels_summary?.protected_labels ?? 0} protected`}
-            deltaUp
           />
           <KPICard
             icon={IconClipboard}
