@@ -296,7 +296,7 @@ def get_retention_labels(token: str) -> list[dict[str, Any]]:
 # ── Audit Log (async query API) ───────────────────────────────────
 
 
-def get_audit_log_records(token: str, days: int = 1) -> list[dict[str, Any]]:
+def get_audit_log_records(token: str, days: int = 7) -> list[dict[str, Any]]:
     """Create an audit log query, poll until complete, then fetch records."""
     sess = _session(token)
     now = datetime.now(timezone.utc)
@@ -308,15 +308,19 @@ def get_audit_log_records(token: str, days: int = 1) -> list[dict[str, Any]]:
         "filterStartDateTime": start,
         "filterEndDateTime": end,
         "recordTypeFilters": [
-            "dlpRule",
-            "retentionPolicy",
             "sensitivityLabelAction",
             "sensitivityLabeledFileAction",
-            "eDDiscovery",
+            "sensitivityLabelPolicyMatch",
             "complianceDLPExchange",
             "complianceDLPSharePoint",
             "complianceDLPSharePointClassification",
+            "complianceDLPEndpoint",
             "complianceSupervisionExchange",
+            "recordsManagement",
+            "dataGovernance",
+            "mipLabel",
+            "informationBarrierPolicyApplication",
+            "microsoftPurview",
         ],
     }
 

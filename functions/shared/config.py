@@ -70,7 +70,7 @@ class FunctionSettings(BaseSettings):
     # Collector (timer-triggered auto-collection)
     COLLECTOR_CLIENT_ID: str = Field(default="", description="App registration client ID for Graph API collection")
     COLLECTOR_CLIENT_SECRET: str = Field(default="", description="Client secret for Graph API collection")
-    COLLECTOR_AUDIT_LOG_DAYS: int = Field(default=1, description="Days of audit log history to query")
+    COLLECTOR_AUDIT_LOG_DAYS: int = Field(default=7, description="Days of audit log history to query")
 
     @property
     def allowed_tenants(self) -> set[str]:
