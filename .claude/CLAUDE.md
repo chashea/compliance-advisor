@@ -144,7 +144,7 @@ All dashboard routes are `POST` with optional `{ "department": "..." }` body fil
 ```
 .claude/
   agents/            — 6 subagent prompts
-  skills/            — 9 slash command skills
+  commands/          — 9 slash commands
 collector/           — Python CLI for Graph API collection
 functions/
   shared/            — DB, queries, validation, AI advisor, config
