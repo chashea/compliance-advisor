@@ -30,7 +30,15 @@ class CollectorSettings(BaseSettings):
 
     # Azure Function App ingestion endpoint
     FUNCTION_APP_URL: str = Field(..., description="e.g., https://cadvisor-func.azurewebsites.net/api/ingest")
-    FUNCTION_APP_KEY: str = Field(default="", description="Function-level API key")
+    FUNCTION_APP_KEY: str = Field(
+        default="",
+        description="Function-level API key (legacy; only used when INGEST_AUDIENCE is unset for local dev).",
+    )
+    INGEST_AUDIENCE: str = Field(
+        default="",
+        description="Resource URI to acquire an Entra token for, e.g. api://compliance-advisor-ingest. "
+        "When set, the collector sends Authorization: Bearer <token> instead of x-functions-key.",
+    )
 
     # Audit log query lookback window
     AUDIT_LOG_DAYS: int = Field(default=1, description="Days of audit log history to query")
@@ -45,3 +53,10 @@ class CollectorSettings(BaseSettings):
     @property
     def graph_scope(self) -> list[str]:
         return ["https://graph.microsoft.com/.default"]
+
+    @property
+    def ingest_scope(self) -> list[str]:
+        """Resource scope for the ingest API. Empty list when JWT auth is not configured."""
+        if not self.INGEST_AUDIENCE:
+            return []
+        return [f"{self.INGEST_AUDIENCE.rstrip('/')}/.default"]

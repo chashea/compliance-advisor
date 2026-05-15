@@ -70,7 +70,7 @@ jobs:
       - name: Install dependencies
         run: |
           cd frontend
-          npm ci --legacy-peer-deps
+          npm ci
 
       - name: Lint
         run: |
@@ -91,7 +91,7 @@ jobs:
     needs: [test, test-frontend]
     runs-on: ubuntu-latest
     env:
-      AZURE_RESOURCE_GROUP: rg-compliance-advisor
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
       POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
       DEPLOYER_OBJECT_ID: ${{ secrets.DEPLOYER_OBJECT_ID }}
       ENTRA_CLIENT_ID: ${{ secrets.ENTRA_CLIENT_ID }}
@@ -102,17 +102,19 @@ jobs:
       - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
-          client-id: 91df91cb-c2e4-4c09-83ef-0f35bb730ce6
-          tenant-id: 119e9fe0-c9d3-4a9d-be8b-c82d03fd0cd4
-          subscription-id: 2a71b66d-0453-47ed-a081-b0863b91a2e0
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Build Bicep
         if: env.AZURE_RESOURCE_GROUP != '' && env.POSTGRES_ADMIN_PASSWORD != ''
         run: az bicep build --file infra/main.bicep --outfile /tmp/azuredeploy.json
 
-      - name: Warn if ENTRA_CLIENT_ID is not set
+      - name: Fail if ENTRA_CLIENT_ID is not set
         if: env.ENTRA_CLIENT_ID == ''
-        run: echo "::warning::ENTRA_CLIENT_ID is not set — EasyAuth will not be enabled on the Function App. API endpoints are unauthenticated."
+        run: |
+          echo "::error::ENTRA_CLIENT_ID is not set. EasyAuth would be disabled and the dashboard API would be open to the internet. Set the ENTRA_CLIENT_ID secret before deploying."
+          exit 1
 
       - name: Warn if DEPLOYER_OBJECT_ID is not set
         if: env.DEPLOYER_OBJECT_ID == ''
@@ -133,7 +135,9 @@ jobs:
                           entraClientId="$ENTRA_CLIENT_ID" \
                          allowedTenantIds="$ALLOWED_TENANT_IDS" \
                          postgresHaMode='${{ secrets.POSTGRES_HA_MODE || 'Disabled' }}' \
-                         alertEmailAddress='${{ secrets.ALERT_EMAIL }}'
+                         alertEmailAddress='${{ secrets.ALERT_EMAIL }}' \
+                         ingestAudience='${{ secrets.INGEST_AUDIENCE }}' \
+                         ingestExpectedAppId='${{ secrets.INGEST_EXPECTED_APPID }}'
 
       - name: Deploy infrastructure
         if: env.AZURE_RESOURCE_GROUP != '' && env.POSTGRES_ADMIN_PASSWORD != ''
@@ -146,7 +150,9 @@ jobs:
                           entraClientId="$ENTRA_CLIENT_ID" \
                          allowedTenantIds="$ALLOWED_TENANT_IDS" \
                          postgresHaMode='${{ secrets.POSTGRES_HA_MODE || 'Disabled' }}' \
-                         alertEmailAddress='${{ secrets.ALERT_EMAIL }}'
+                         alertEmailAddress='${{ secrets.ALERT_EMAIL }}' \
+                         ingestAudience='${{ secrets.INGEST_AUDIENCE }}' \
+                         ingestExpectedAppId='${{ secrets.INGEST_EXPECTED_APPID }}'
 
       - name: Skip infra deployment (missing secrets)
         if: env.AZURE_RESOURCE_GROUP == '' || env.POSTGRES_ADMIN_PASSWORD == ''
@@ -157,10 +163,8 @@ jobs:
     needs: [test, test-frontend, deploy-infra]
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      FUNCTION_APP_NAME: cadvisor-func-prod
-      AZURE_RESOURCE_GROUP: rg-compliance-advisor
-      PG_SERVER_NAME: cadvisor-pg-7zez2cj3gamky
+      FUNCTION_APP_NAME: ${{ vars.FUNCTION_APP_NAME }}
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
     steps:
       - uses: actions/checkout@v4
 
@@ -177,41 +181,22 @@ jobs:
       - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
-          client-id: 91df91cb-c2e4-4c09-83ef-0f35bb730ce6
-          tenant-id: 119e9fe0-c9d3-4a9d-be8b-c82d03fd0cd4
-          subscription-id: 2a71b66d-0453-47ed-a081-b0863b91a2e0
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Install PostgreSQL client
-        if: env.DATABASE_URL != ''
+        if: false  # Migrations now run via /api/admin/migrate (PG is private-network-only)
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
-      - name: Warn if DATABASE_URL is not set
-        if: env.DATABASE_URL == ''
-        run: echo "::warning::DATABASE_URL is not set — schema migration and deployment will be skipped."
+      - name: Warn if FUNCTION_APP_NAME is not set
+        if: env.FUNCTION_APP_NAME == ''
+        run: echo "::warning::FUNCTION_APP_NAME is not set — schema migration and deployment will be skipped."
 
-      - name: Allow CI runner IP on PostgreSQL
-        if: env.DATABASE_URL != ''
+      - name: Bundle schema migrations with function package
         run: |
-          RUNNER_IP=$(curl -sf https://api.ipify.org)
-          az postgres flexible-server firewall-rule create \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$PG_SERVER_NAME" \
-            --rule-name "github-actions-runner" \
-            --start-ip-address "$RUNNER_IP" \
-            --end-ip-address "$RUNNER_IP"
-
-      - name: Run schema migration
-        if: env.DATABASE_URL != ''
-        run: psql "$DATABASE_URL" -f sql/schema.sql
-
-      - name: Remove CI runner IP from PostgreSQL
-        if: always() && env.DATABASE_URL != ''
-        run: |
-          az postgres flexible-server firewall-rule delete \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$PG_SERVER_NAME" \
-            --rule-name "github-actions-runner" \
-            --yes
+          mkdir -p functions/sql
+          cp -r sql/migrations functions/sql/migrations
 
       - name: Clear WEBSITE_RUN_FROM_PACKAGE URL
         if: env.FUNCTION_APP_NAME != '' && env.AZURE_RESOURCE_GROUP != ''
@@ -224,28 +209,70 @@ jobs:
       - name: Bundle collector package
         run: cp -r collector/ functions/collector/
 
-      - name: Deploy Azure Functions
+      - name: Deploy Azure Functions to staging slot
         if: env.FUNCTION_APP_NAME != ''
         uses: Azure/functions-action@v1
         with:
           app-name: ${{ env.FUNCTION_APP_NAME }}
+          slot-name: staging
           package: functions/
 
-      - name: Health check
+      - name: Run schema migration via staging admin endpoint
         if: env.FUNCTION_APP_NAME != ''
         run: |
-          echo "Waiting 30s for deployment to stabilize..."
+          echo "Waiting 30s for staging deployment to stabilize..."
           sleep 30
-          curl -sf https://cadvisor-func-prod.azurewebsites.net/api/advisor/status \
+          KEY=$(az functionapp keys list \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$FUNCTION_APP_NAME" --slot staging \
+            --query "functionKeys.default" -o tsv)
+          curl -fsS "https://${FUNCTION_APP_NAME}-staging.azurewebsites.net/api/admin/migrate?code=${KEY}" \
             -X POST -H "Content-Type: application/json" -d '{}' \
+            --max-time 120 --retry 3 --retry-delay 10
+
+      - name: Smoke test staging slot
+        if: env.FUNCTION_APP_NAME != ''
+        run: |
+          echo "Probing staging /api/health/deep..."
+          # Up to 5 attempts; deep probe checks DB + Key Vault + OpenAI.
+          for i in 1 2 3 4 5; do
+            HTTP=$(curl -s -o /tmp/health.json -w "%{http_code}" \
+              "https://${FUNCTION_APP_NAME}-staging.azurewebsites.net/api/health/deep" \
+              --max-time 60) || true
+            echo "attempt=$i status=$HTTP"
+            cat /tmp/health.json
+            echo
+            if [ "$HTTP" = "200" ]; then
+              echo "Staging is healthy — proceeding to swap."
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::Staging slot failed health check; aborting swap to production."
+          exit 1
+
+      - name: Swap staging into production
+        if: env.FUNCTION_APP_NAME != ''
+        run: |
+          az functionapp deployment slot swap \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$FUNCTION_APP_NAME" \
+            --slot staging --target-slot production
+          echo "Swapped staging → production"
+
+      - name: Production health check
+        if: env.FUNCTION_APP_NAME != ''
+        run: |
+          sleep 15
+          curl -sf "https://${FUNCTION_APP_NAME}.azurewebsites.net/api/health" \
             --max-time 30 --retry 3 --retry-delay 10
 
   deploy-frontend:
     needs: [test, test-frontend, deploy-infra]
     runs-on: ubuntu-latest
     env:
-      WEB_APP_NAME: cadvisor-web-prod
-      VITE_API_BASE_URL: https://cadvisor-func-prod.azurewebsites.net
+      WEB_APP_NAME: ${{ vars.WEB_APP_NAME }}
+      VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -260,7 +287,7 @@ jobs:
         if: env.WEB_APP_NAME != ''
         run: |
           cd frontend
-          npm ci --legacy-peer-deps
+          npm ci
           npm run build
         env:
           VITE_API_BASE_URL: ${{ env.VITE_API_BASE_URL }}
@@ -271,9 +298,9 @@ jobs:
         if: env.WEB_APP_NAME != ''
         uses: azure/login@v2
         with:
-          client-id: 91df91cb-c2e4-4c09-83ef-0f35bb730ce6
-          tenant-id: 119e9fe0-c9d3-4a9d-be8b-c82d03fd0cd4
-          subscription-id: 2a71b66d-0453-47ed-a081-b0863b91a2e0
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy to Azure Web App
         if: env.WEB_APP_NAME != ''

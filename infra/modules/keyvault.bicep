@@ -4,9 +4,6 @@ param keyVaultName string
 param location string
 param deployerObjectId string
 
-@secure()
-param databaseUrl string = ''
-
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: keyVaultName
   location: location
@@ -25,15 +22,6 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
       defaultAction: 'Deny'
       bypass: 'AzureServices'
     }
-  }
-}
-
-// Store database connection string
-resource dbSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(databaseUrl)) {
-  parent: keyVault
-  name: 'database-url'
-  properties: {
-    value: databaseUrl
   }
 }
 

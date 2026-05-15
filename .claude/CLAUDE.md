@@ -68,8 +68,8 @@ cd frontend && npm run build   # tsc -b && vite build
 # Frontend — Lint
 cd frontend && npm run lint
 
-# Deploy infrastructure
-az bicep build --file infra/main.bicep --outfile azuredeploy.json
+# Build Bicep locally for inspection (no longer committed as azuredeploy.json)
+az bicep build --file infra/main.bicep --outfile /tmp/azuredeploy.json
 az deployment group create --resource-group rg-compliance-advisor --template-file infra/main.bicep --parameters postgresAdminPassword='<PW>'
 ```
 
@@ -94,18 +94,19 @@ Multi-tenant compliance workload platform. Two core runtime components share a P
 
 1. **Collector** (`collector/`) — Python CLI (`compliance-collect`) that authenticates to tenants via MSAL client credentials (app-only), pulls compliance workload data from Microsoft Graph API (sensitivity labels, retention labels/events, audit log, DLP alerts, IRM alerts, protection scopes, Secure Score with Data category breakdown, improvement actions filtered to Data category by default, subject rights requests, communication compliance, information barriers), and POSTs a payload to the Function App's `/api/ingest` endpoint. DLP and IRM alerts use `/security/alerts_v2` filtered by `serviceSource`. Use `--actions-category` (env: `ACTIONS_CATEGORY`, default: `Data`) to control which Secure Score category is collected.
 
-2. **Function App** (`functions/`) — Azure Functions v2 Python (decorator-based, no `function.json` files). All routes defined in `function_app.py`. Three categories:
-   - **Ingest** (`/api/ingest`) — FUNCTION-level auth, validates payload via JSON schema (`shared/validation.py`), upserts to PostgreSQL (`shared/db.py`).
-   - **Dashboard APIs** (`/api/advisor/*`, 15 endpoints) — ANONYMOUS auth, all POST with optional `{department}` filter. SQL queries in `shared/dashboard_queries.py`. Includes AI-powered `/advisor/briefing` and `/advisor/ask` endpoints via Azure OpenAI Assistants API (rate-limited: 10 req/60s per IP).
-   - **Tenant Management** (`/api/tenants`, `/api/tenants/callback`) — Registration and Azure AD admin consent. Both auto-trigger collection for the new tenant via background thread.
-   - **On-demand Collection** (`/api/collect/{tenant_id}`) — FUNCTION-level auth, triggers collection for a single tenant. Also called automatically on tenant onboard.
-   - **Timer** (`collect_tenants`) — daily 2am UTC, collects compliance data from all registered tenants. (`compute_aggregates`) — daily 6am UTC, rolls up workload counts into `compliance_trend`.
+2. **Function App** (`functions/`) — Azure Functions v2 Python with decorator-based blueprints (no `function.json` files). Route handlers live in `functions/routes/{admin,dashboard,ai,ingest,tenants,collect,timers}.py`; `function_app.py` is a thin shell that registers each blueprint and re-exports legacy symbols for tests. Five categories:
+   - **Ingest** (`/api/ingest`) — ANONYMOUS at the host level; per-tenant Entra-issued JWT validated in code. Validates payload via JSON schema (`shared/validation.py`), upserts via `shared/persist.py`.
+   - **Dashboard APIs** (`/api/advisor/*`, 17 endpoints) — ANONYMOUS auth gated on EasyAuth + `AUTH_REQUIRED`; all POST with optional `{department, tenant_id}` filter. SQL queries in `shared/dashboard_queries.py`. AI endpoints `/advisor/briefing` + `/advisor/ask` are rate-limited (default 10 req/60s per IP, distributed via Azure Storage Tables).
+   - **Tenant Management** (`/api/tenants`, `/api/tenants/callback`) — Registration and Azure AD admin consent. Both auto-trigger collection for the new tenant via background `ThreadPoolExecutor` (note: this is fire-and-forget; instance recycle can drop work — Service Bus migration is the next planned reliability fix).
+   - **On-demand Collection** (`/api/collect/{tenant_id}`, `/api/hunt/{tenant_id}`) — FUNCTION-level auth, triggers collection or threat-hunt for a single tenant.
+   - **Admin** (`/api/health`, `/api/health/deep`, `/api/admin/migrate`) — health probes (`/health/deep` checks DB + Key Vault + OpenAI) and yoyo-managed schema migrations applied from inside the VNet.
+   - **Timers** — `collect_tenants` (weekdays 14:00 UTC = 10:00 ET) collects from all registered tenants; `compute_aggregates` (weekdays 16:00 UTC = 12:00 ET) rolls workload counts into `compliance_trend` via a CTE+LEFT JOIN query.
 
 3. **Frontend** (`frontend/`) — React 19 SPA with TypeScript, Vite, Tailwind CSS v4, Recharts, React Router v7. 8 pages mapping to dashboard API endpoints. Has a demo mode (`npm run demo`) that uses mock data without a backend. Deployed to `cadvisor-web-prod` (Azure App Service).
 
-**Database**: PostgreSQL with 17 tables (schema in `sql/schema.sql`). Connection pool via psycopg2 `ThreadedConnectionPool` in `shared/db.py`.
+**Database**: PostgreSQL with 24 tables. Schema lives in `sql/migrations/` (yoyo-migrations); apply via `POST /api/admin/migrate` (function-key auth). Connection pool in `shared/db.py` uses Entra-ID auth with auto-refresh when the token has under 5 minutes of validity left.
 
-**Infrastructure** (`infra/`): Bicep modules for PostgreSQL Flexible Server, Function App + App Service Plan, Key Vault, Azure OpenAI, Log Analytics + App Insights. Function App uses SystemAssigned managed identity with RBAC for Key Vault and Azure OpenAI (Cognitive Services OpenAI User). `azuredeploy.json` at repo root is the compiled ARM template for the "Deploy to Azure" button.
+**Infrastructure** (`infra/`): Bicep modules for PostgreSQL Flexible Server, Function App + App Service Plan, Key Vault, Azure OpenAI, Log Analytics + App Insights. Function App uses SystemAssigned managed identity with RBAC for Key Vault and Azure OpenAI (Cognitive Services OpenAI User).
 
 ## API Routes
 
@@ -172,7 +173,7 @@ tests/               — 148 tests across 13 files
 | Collector client | `collector/compliance_client.py` | Graph API calls for 12 compliance workloads |
 | Collector config | `collector/config.py` | `CollectorSettings` (pydantic-settings) |
 | Payload | `collector/payload.py` | `CompliancePayload` dataclass |
-| DB schema | `sql/schema.sql` | PostgreSQL table definitions |
+| DB schema | `sql/migrations/` | yoyo migrations (apply via /api/admin/migrate) |
 | Infra entry | `infra/main.bicep` | Bicep entry point |
 | Frontend entry | `frontend/src/App.tsx` | React app with routing |
 | Frontend pages | `frontend/src/pages/` | 8 page components (Overview, Audit, Alerts, etc.) |
@@ -188,7 +189,7 @@ When a task requires specialized work, delegate to subagents (`.claude/agents/`)
 | **Frontend Engineer** | UI pages, components, routing | types.ts, demo/data.ts, existing pages | Page component, route, nav link, demo data, types |
 | **Backend API Engineer** | Function App routes, queries | function_app.py, dashboard_queries.py, db.py | Route handler, SQL query, DB upsert |
 | **Collector Engineer** | Graph API collection | compliance_client.py, payload.py | Graph API call, payload field |
-| **Infrastructure Engineer** | Bicep, CI/CD, schema | infra/*.bicep, deploy.yml, schema.sql | Bicep module, migration, workflow |
+| **Infrastructure Engineer** | Bicep, CI/CD, schema | infra/*.bicep, deploy.yml, sql/migrations/ | Bicep module, migration, workflow |
 | **AI Advisor Engineer** | OpenAI integration | ai_advisor.py, config.py | Prompt, assistant config |
 | **Test Engineer** | Test coverage | tests/, validation.py | Test file, fixtures |
 

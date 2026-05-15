@@ -25,9 +25,9 @@ def _make_bad_json_request() -> func.HttpRequest:
 # ── Valid registration ────────────────────────────────────────────
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
-@patch("functions.function_app._trigger_collection_async")
-@patch("functions.function_app.upsert_tenant")
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("routes.tenants._trigger_collection_async")
+@patch("routes.tenants.upsert_tenant")
 def test_valid_registration(mock_upsert, mock_trigger):
     from functions.function_app import register_tenant
 
@@ -54,9 +54,9 @@ def test_valid_registration(mock_upsert, mock_trigger):
     mock_trigger.assert_called_once_with(TENANT_ID, "Contoso", "DOJ")
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
-@patch("functions.function_app._trigger_collection_async")
-@patch("functions.function_app.upsert_tenant")
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("routes.tenants._trigger_collection_async")
+@patch("routes.tenants.upsert_tenant")
 def test_valid_registration_with_risk_tier(mock_upsert, mock_trigger):
     from functions.function_app import register_tenant
 
@@ -82,7 +82,7 @@ def test_valid_registration_with_risk_tier(mock_upsert, mock_trigger):
 # ── Missing required fields ──────────────────────────────────────
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
 def test_missing_tenant_id():
     from functions.function_app import register_tenant
 
@@ -91,7 +91,7 @@ def test_missing_tenant_id():
     assert "tenant_id" in json.loads(resp.get_body())["error"]
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
 def test_missing_display_name():
     from functions.function_app import register_tenant
 
@@ -100,7 +100,7 @@ def test_missing_display_name():
     assert "display_name" in json.loads(resp.get_body())["error"]
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
 def test_missing_department():
     from functions.function_app import register_tenant
 
@@ -112,7 +112,7 @@ def test_missing_department():
 # ── Invalid UUID ──────────────────────────────────────────────────
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
 def test_invalid_uuid():
     from functions.function_app import register_tenant
 
@@ -132,9 +132,9 @@ def test_invalid_uuid():
 # ── Default risk_tier ─────────────────────────────────────────────
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
-@patch("functions.function_app._trigger_collection_async")
-@patch("functions.function_app.upsert_tenant")
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("routes.tenants._trigger_collection_async")
+@patch("routes.tenants.upsert_tenant")
 def test_default_risk_tier(mock_upsert, mock_trigger):
     from functions.function_app import register_tenant
 
@@ -160,9 +160,9 @@ def _make_callback_request(params: dict) -> func.HttpRequest:
     return req
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
-@patch("functions.function_app._trigger_collection_async")
-@patch("functions.function_app.upsert_tenant")
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("routes.tenants._trigger_collection_async")
+@patch("routes.tenants.upsert_tenant")
 def test_consent_callback_success(mock_upsert, mock_trigger):
     from functions.function_app import tenant_consent_callback
 
@@ -178,7 +178,7 @@ def test_consent_callback_success(mock_upsert, mock_trigger):
     mock_trigger.assert_called_once_with(TENANT_ID, f"Tenant {TENANT_ID[:8]}", "Pending")
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
 def test_consent_callback_error_from_azure():
     from functions.function_app import tenant_consent_callback
 
@@ -189,7 +189,7 @@ def test_consent_callback_error_from_azure():
     assert "Admin declined" in resp.get_body().decode()
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
 def test_consent_callback_no_consent():
     from functions.function_app import tenant_consent_callback
 
@@ -197,7 +197,7 @@ def test_consent_callback_no_consent():
     assert resp.status_code == 400
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
 def test_consent_callback_missing_tenant():
     from functions.function_app import tenant_consent_callback
 
@@ -205,7 +205,7 @@ def test_consent_callback_missing_tenant():
     assert resp.status_code == 400
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
 def test_consent_callback_invalid_tenant_id():
     from functions.function_app import tenant_consent_callback
 

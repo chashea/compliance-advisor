@@ -110,7 +110,8 @@ All permissions are **Application** type (not delegated) granted to the multi-te
 
 ```bash
 createdb compliance_advisor
-psql compliance_advisor -f sql/schema.sql
+# Apply all yoyo migrations
+yoyo apply --database "postgresql://localhost/compliance_advisor" sql/migrations
 ```
 
 ### 2. Configure environment
@@ -144,7 +145,7 @@ func start
 
 ```bash
 cd frontend
-npm install --legacy-peer-deps
+npm install
 npm run dev
 ```
 
@@ -232,7 +233,7 @@ All endpoints are `POST` to `/api/advisor/*`.
 
 ## Infrastructure Deployment
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fchashea%2Fcompliance-advisor%2Fmain%2Fazuredeploy.json)
+Deploy via Azure CLI from a Bicep source-of-truth (no committed ARM template — it would drift from `infra/main.bicep`):
 
 ```bash
 # Create resource group
@@ -247,49 +248,54 @@ az deployment group create \
                entraClientId='<APP-CLIENT-ID>' \
                allowedTenantIds='<GUID1>,<GUID2>'
 
-# Run schema migration
-psql "<CONNECTION_STRING>" -f sql/schema.sql
+# Apply schema migrations (via the in-VNet Function App admin endpoint)
+KEY=$(az functionapp keys list -g rg-compliance-advisor -n cadvisor-func-prod --query functionKeys.default -o tsv)
+curl -fsS "https://cadvisor-func-prod.azurewebsites.net/api/admin/migrate?code=${KEY}" -X POST
 ```
 
 ## CI/CD Deployment
 
 GitHub Actions workflow `.github/workflows/deploy.yml` now supports infra deployment (Bicep what-if + apply) before function deployment.
 
-Required secrets for infra deployment:
+### Required GitHub Actions secrets
 
-- `AZURE_RESOURCE_GROUP`
-- `POSTGRES_ADMIN_PASSWORD`
+Repository (or environment) secrets:
 
-Optional secrets:
+- `AZURE_CLIENT_ID` — federated identity client ID for OIDC login
+- `AZURE_TENANT_ID` — Azure AD tenant ID
+- `AZURE_SUBSCRIPTION_ID` — target subscription
+- `POSTGRES_ADMIN_PASSWORD` — break-glass admin password (used only for initial provisioning; Entra ID is the primary auth path)
+- `ENTRA_CLIENT_ID` — **required**; CI fails fast if unset to prevent deploying with EasyAuth disabled
+- `DATABASE_URL` — only used for ad-hoc schema migrations
+- `ALERT_EMAIL` — optional; metric alert email recipient
+- `POSTGRES_HA_MODE` — optional; `Disabled` (default) or `ZoneRedundant`
+
+Optional (rarely changed) secrets:
 
 - `DEPLOYER_OBJECT_ID`
-- `ENTRA_CLIENT_ID`
 - `ALLOWED_TENANT_IDS`
-- `ALERT_EMAIL` — email address for metric alert notifications
-- `POSTGRES_HA_MODE` — `Disabled` (default) or `ZoneRedundant`
+- `ENTRA_TENANT_ID` — for the SPA's MSAL configuration
 
-Frontend deployment secrets:
+### Required GitHub Actions repository variables
 
-- `WEB_APP_NAME` — Azure Web App name (e.g., `cadvisor-web-prod`)
-- `VITE_API_BASE_URL` — Function App URL (e.g., `https://cadvisor-func-prod.azurewebsites.net`)
+Set these as **variables** (not secrets) so deploys are portable across environments:
+
+- `AZURE_RESOURCE_GROUP` (e.g. `rg-compliance-advisor`)
+- `FUNCTION_APP_NAME` (e.g. `cadvisor-func-prod`)
+- `WEB_APP_NAME` (e.g. `cadvisor-web-prod`)
+- `PG_SERVER_NAME` (e.g. `cadvisor-pg-7zez2cj3gamky`)
+- `VITE_API_BASE_URL` (e.g. `https://cadvisor-func-prod.azurewebsites.net`)
 
 ### Scheduled App Hours (GitHub Actions)
 
 Workflow: `.github/workflows/app-hours.yml`
 
 - Runs hourly and evaluates local time in `America/New_York`.
-- Auto-starts both Function App + Web App at **9:00 AM ET** on weekdays.
+- Auto-starts both Function App + Web App at **8:00 AM ET** on weekdays.
 - Auto-stops both Function App + Web App at **8:00 PM ET** on weekdays.
 - Includes `workflow_dispatch` with actions: `auto`, `start`, `stop`, `status`.
 
-Required secrets:
-
-- `AZURE_CLIENT_ID`
-- `AZURE_TENANT_ID`
-- `AZURE_SUBSCRIPTION_ID`
-- `AZURE_RESOURCE_GROUP`
-- `FUNCTION_APP_NAME`
-- `WEB_APP_NAME`
+Uses the same secrets/variables as `deploy.yml` — `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (secrets) plus `AZURE_RESOURCE_GROUP`, `FUNCTION_APP_NAME`, `WEB_APP_NAME`, `PG_SERVER_NAME` (variables).
 
 ## Onboarding a New Tenant
 
@@ -303,6 +309,77 @@ Required secrets:
    ```
 
 ## Production Hardening
+
+### Network and credentials
+- **PostgreSQL**: `publicNetworkAccess: Disabled`, `passwordAuth: Disabled`. The server is reachable only via its private endpoint inside the VNet, and authentication is exclusively Microsoft Entra ID. The administrator password is required by the ARM API but is never used at runtime — rotate it post-deploy.
+- **Function App → PostgreSQL**: the system-assigned managed identity authenticates using `DefaultAzureCredential`. The connection pool transparently rebuilds when the AAD access token has fewer than 5 minutes of validity left.
+- **Schema migrations**: PG is private-network-only, so the deploy pipeline calls `POST /api/admin/migrate` (function-key auth) instead of `psql` from the runner. The endpoint applies pending [yoyo](https://ollycope.com/software/yoyo/latest/) migrations from `sql/migrations/` from inside the VNet using the MI.
+- **Collector authentication**: by default the in-Azure collector uses the multi-tenant app's client secret stored in Key Vault (rotation: see "Collector secret rotation" below). When `COLLECTOR_USE_FEDERATED=true` is set (Bicep param `collectorUseFederated=true`), the Function App's MI obtains a federation assertion (`api://AzureADTokenExchange`) and passes it to MSAL as `client_assertion` — eliminating the long-lived secret entirely. The CLI collector running outside Azure always uses the secret because no MI is available.
+
+### Collector secret rotation
+Two strategies, depending on which one the deployment is using:
+
+**(Recommended) Federated workload identity** — no secret to rotate.
+After the first deploy of the multi-tenant app + the Function App MI, register the federated credential on the app registration (one-time, cross-tenant operation in the home tenant):
+
+```bash
+FUNC_MI_OBJECT_ID=$(az functionapp show -g rg-compliance-advisor -n cadvisor-func-prod \
+  --query identity.principalId -o tsv)
+ISSUER_URL="https://login.microsoftonline.com/<HOME_TENANT_ID>/v2.0"
+
+az ad app federated-credential create \
+  --id <COLLECTOR_APP_OBJECT_ID> \
+  --parameters "{
+    \"name\": \"compliance-advisor-functionapp\",
+    \"issuer\": \"${ISSUER_URL}\",
+    \"subject\": \"${FUNC_MI_OBJECT_ID}\",
+    \"audiences\": [\"api://AzureADTokenExchange\"]
+  }"
+
+az functionapp config appsettings set -g rg-compliance-advisor -n cadvisor-func-prod \
+  --settings COLLECTOR_USE_FEDERATED=true
+```
+
+After this, the `gcc-password` Key Vault secret can be deleted.
+
+**(Fallback) Client secret** — manual rotation procedure:
+```bash
+NEW_SECRET=$(az ad app credential reset --id <COLLECTOR_APP_OBJECT_ID> \
+  --display-name "rotated-$(date +%Y%m%d)" --years 1 --query password -o tsv)
+az keyvault secret set --vault-name <KV_NAME> --name gcc-password --value "$NEW_SECRET"
+# Restart the Function App to flush its in-process Key-Vault reference cache:
+az functionapp restart -g rg-compliance-advisor -n cadvisor-func-prod
+```
+
+### Post-deploy bootstrap (one-time per deployment)
+After the first `azd`/Bicep deploy, the deployer (registered as the PG Entra admin) must register the Function App's MI as a PostgreSQL principal:
+
+```bash
+# As the Entra admin (deployerObjectId / deployerPrincipalName), connect via
+# psql with an AAD token from a workstation with VNet/jumpbox access:
+PGPASSWORD=$(az account get-access-token \
+  --resource-type oss-rdbms --query accessToken -o tsv) \
+psql "host=<pg-host> dbname=compliance_advisor user=<admin-upn> sslmode=require"
+
+# Inside psql, register the function app's MI and grant database access:
+SELECT pgaadauth_create_principal('<function-app-name>', false, false);
+GRANT CONNECT ON DATABASE compliance_advisor TO "<function-app-name>";
+GRANT USAGE, CREATE ON SCHEMA public TO "<function-app-name>";
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "<function-app-name>";
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "<function-app-name>";
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT ALL PRIVILEGES ON TABLES TO "<function-app-name>";
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT ALL PRIVILEGES ON SEQUENCES TO "<function-app-name>";
+```
+
+### Ingest authentication
+The `/api/ingest` endpoint validates an Entra-issued JWT instead of a shared function key:
+
+- The collector acquires an app-only token for the `INGEST_AUDIENCE` resource using its existing client credentials.
+- The Function App validates the token's signature (per-tenant JWKS), the `aud`/`exp`/`iat` claims, and that the `tid` claim is in `ALLOWED_TENANT_IDS` and matches the payload's `tenant_id`.
+- When `INGEST_EXPECTED_APPID` is set, the token's `appid`/`azp` must match the collector's app registration ID.
+- A compromised function key (the previous shared-secret model) can no longer be used to ingest data as any tenant.
 
 ### CORS
 API CORS is locked to `https://cadvisor-web-prod.azurewebsites.net`. Cross-origin requests from other domains are rejected.
@@ -339,11 +416,12 @@ Zero Trust network architecture with no public access to backend services.
 - **Log Analytics**: `cadvisor-la-prod` — 90-day retention, PerGB2018 SKU
 - **Application Insights**: `cadvisor-ai-prod` — connected to Log Analytics, ingestion mode `LogAnalytics`
 - **Diagnostic settings**: Function App, Azure OpenAI, and PostgreSQL all send `allLogs` + `AllMetrics` to Log Analytics
-- **Metric alerts** (4 rules):
+- **Metric alerts** (5 rules):
   - Function App HTTP 5xx errors > 5 in 5 min (severity 1)
   - Function App average response time > 10s over 5 min (severity 2)
   - Azure OpenAI client errors > 10 in 5 min (severity 2)
   - PostgreSQL active connections > 680 in 5 min (severity 2)
+  - PostgreSQL CPU > 80% over 10 min (severity 2; pairs with `pg_stat_statements` for slow-query investigation)
 - **Action group**: optional email notifications via `alertEmailAddress` parameter / `ALERT_EMAIL` secret
 
 ## Load Testing
@@ -355,16 +433,35 @@ locust -f loadtest/locustfile.py --host https://cadvisor-func-prod.azurewebsites
 
 18 weighted tasks covering all dashboard and AI endpoints. AI endpoints have low weight to respect rate limiting (10 req/min/IP).
 
+A non-blocking weekly load test runs automatically via `.github/workflows/loadtest.yml` (Mondays 03:00 UTC, 2 minutes / 10 users by default; override via `workflow_dispatch`). Reports upload as workflow artifacts (`loadtest-report-<run_id>`) and never block deploys — they exist purely for trend observation.
+
+## Reliability — durable tenant collection
+
+Per-tenant collection (triggered by registration, admin consent, or the daily timer) is handed off through an **Azure Service Bus queue** (`tenant-collect`) rather than the in-process `ThreadPoolExecutor` previously used. This guarantees:
+
+- Work survives Function App instance recycle, scale-in, and 230s timeouts.
+- Failed jobs retry up to 5 times with exponential backoff; after that they land in the dead-letter queue for operator review.
+- Duplicate posts within 10 minutes (same `tenant_id`) are swallowed by Service Bus duplicate detection.
+
+The Function App MI has **Service Bus Data Sender + Receiver** at the namespace scope — no shared access keys. When `SERVICE_BUS_NAMESPACE` is unset (local dev), the collector falls back to the legacy `ThreadPoolExecutor`.
+
+## Deployment — staging slot + smoke gate
+
+The deploy workflow targets a `staging` slot first, runs `/api/health/deep` against it (DB + Key Vault + OpenAI reachability), and only swaps into production on green. A failed smoke test aborts the deploy so a broken build never reaches the prod hostname. The slot inherits all production app settings except a small list of explicitly slot-bound names (`AzureWebJobsStorage__accountName`, `ServiceBus__fullyQualifiedNamespace`, `SERVICE_BUS_NAMESPACE`, `AUTH_REQUIRED`).
+
 ## Project Structure
 
 ```
 compliance-advisor/
 ├── frontend/          React 19 + TypeScript + Vite SPA (8 pages)
-├── collector/          Per-tenant data collector (Python CLI)
-├── functions/          Azure Functions v2 API backend
-├── sql/                PostgreSQL schema (22 tables)
+├── collector/          Per-tenant data collector (Python CLI + threat hunter)
+├── functions/          Azure Functions v2 API backend (routes/ subpackage)
+├── sql/migrations/     yoyo-migrations (numbered .sql files; applied via /api/admin/migrate)
 ├── infra/              Bicep IaC (PostgreSQL, Function App, Key Vault, OpenAI, VNet, Monitoring, Alerts)
 ├── loadtest/           Locust load testing
-├── tests/              pytest test suite
+├── tests/              pytest test suite (unit + integration; ~218 tests)
+├── graph-auth/         One-off Microsoft Graph admin-consent helper scripts (not part of runtime)
+├── .azure/             Azure Developer CLI (azd) config; safe to ignore for manual deploys
+├── .claude/            Claude Code project guidance (CLAUDE.md mirrors copilot-instructions.md)
 └── .github/workflows/  CI/CD (deploy + app-hours scheduler)
 ```

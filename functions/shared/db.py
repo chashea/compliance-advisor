@@ -1,11 +1,18 @@
 """
 PostgreSQL database client for the Compliance Advisor Function App.
 
-Uses psycopg2 with a connection pool. Authenticates via DATABASE_URL
-(connection string stored in Key Vault, referenced by Function App config).
+Two authentication modes:
+- Entra ID (production): DefaultAzureCredential acquires a token scoped to
+  ``https://ossrdbms-aad.database.windows.net/.default`` and uses it as the
+  PostgreSQL password. The token expires every ~24 h; we proactively rebuild
+  the pool when fewer than 5 minutes of validity remain so new connections
+  always get a fresh token.
+- Password (local dev/CI): DATABASE_URL is parsed directly.
 """
 
 import logging
+import threading
+import time
 from contextlib import contextmanager
 from typing import Any
 
@@ -16,29 +23,73 @@ from shared.config import get_settings
 
 log = logging.getLogger(__name__)
 
+_AAD_SCOPE = "https://ossrdbms-aad.database.windows.net/.default"
+_TOKEN_REFRESH_THRESHOLD_S = 300  # rebuild pool when token has <5min left
+
+_pool_lock = threading.Lock()
 _pool: ThreadedConnectionPool | None = None
+_pool_token_expires_on: float = 0.0
+_credential = None
+
+
+def _get_aad_token() -> tuple[str, float]:
+    """Return (token, expires_on_epoch_seconds) using DefaultAzureCredential."""
+    global _credential
+    if _credential is None:
+        from azure.identity import DefaultAzureCredential
+
+        _credential = DefaultAzureCredential()
+    tok = _credential.get_token(_AAD_SCOPE)
+    return tok.token, float(tok.expires_on)
+
+
+def _build_dsn() -> tuple[str, float]:
+    """Return (dsn, token_expires_on). For password mode, expires_on is +inf."""
+    settings = get_settings()
+    if settings.PG_USE_AAD:
+        token, expires_on = _get_aad_token()
+        dsn = (
+            f"host={settings.PG_HOST} dbname={settings.PG_DATABASE} "
+            f"user={settings.PG_USER} password={token} sslmode={settings.PG_SSLMODE}"
+        )
+        return dsn, expires_on
+    if settings.DATABASE_URL.startswith("@Microsoft.KeyVault("):
+        log.warning("DATABASE_URL still contains unresolved Key Vault reference — resolving via KEY_VAULT_URL")
+        from azure.identity import DefaultAzureCredential
+        from azure.keyvault.secrets import SecretClient
+
+        client = SecretClient(vault_url=settings.KEY_VAULT_URL, credential=DefaultAzureCredential())
+        return client.get_secret("database-url").value, float("inf")
+    return settings.DATABASE_URL, float("inf")
 
 
 def _get_pool() -> ThreadedConnectionPool:
-    global _pool
-    if _pool is None:
-        settings = get_settings()
-        dsn = settings.DATABASE_URL
-        if dsn.startswith("@Microsoft.KeyVault("):
-            log.warning("DATABASE_URL still contains unresolved Key Vault reference — resolving via KEY_VAULT_URL")
-            from azure.identity import DefaultAzureCredential
-            from azure.keyvault.secrets import SecretClient
-
-            client = SecretClient(vault_url=settings.KEY_VAULT_URL, credential=DefaultAzureCredential())
-            dsn = client.get_secret("database-url").value
-        _pool = ThreadedConnectionPool(
-            minconn=1,
-            maxconn=10,
-            dsn=dsn,
-            connect_timeout=10,
-            options="-c statement_timeout=30000",
-        )
-    return _pool
+    global _pool, _pool_token_expires_on
+    with _pool_lock:
+        now = time.time()
+        needs_rebuild = _pool is None or (_pool_token_expires_on - now) < _TOKEN_REFRESH_THRESHOLD_S
+        if needs_rebuild:
+            if _pool is not None:
+                log.info("PG token nearing expiry — rebuilding connection pool")
+                try:
+                    _pool.closeall()
+                except Exception:
+                    log.exception("Error while closing stale PG pool (continuing)")
+            settings = get_settings()
+            dsn, expires_on = _build_dsn()
+            options = (
+                f"-c statement_timeout={settings.PG_STATEMENT_TIMEOUT_MS} "
+                f"-c idle_in_transaction_session_timeout={settings.PG_IDLE_IN_TXN_TIMEOUT_MS}"
+            )
+            _pool = ThreadedConnectionPool(
+                minconn=settings.PG_POOL_MINCONN,
+                maxconn=settings.PG_POOL_MAXCONN,
+                dsn=dsn,
+                connect_timeout=10,
+                options=options,
+            )
+            _pool_token_expires_on = expires_on
+        return _pool
 
 
 @contextmanager

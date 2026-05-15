@@ -18,13 +18,13 @@
   "dependencies": {
     "@azure/msal-browser": "^5.6.1",
     "@azure/msal-react": "^5.1.0",
-    "@tailwindcss/vite": "^4.2.1",
+    "@tailwindcss/vite": "^4.3.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-is": "^19.2.4",
     "react-router-dom": "^7.13.1",
     "recharts": "^3.8.0",
-    "tailwindcss": "^4.2.1"
+    "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
