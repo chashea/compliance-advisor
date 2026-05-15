@@ -255,41 +255,45 @@ psql "<CONNECTION_STRING>" -f sql/schema.sql
 
 GitHub Actions workflow `.github/workflows/deploy.yml` now supports infra deployment (Bicep what-if + apply) before function deployment.
 
-Required secrets for infra deployment:
+### Required GitHub Actions secrets
 
-- `AZURE_RESOURCE_GROUP`
-- `POSTGRES_ADMIN_PASSWORD`
+Repository (or environment) secrets:
 
-Optional secrets:
+- `AZURE_CLIENT_ID` — federated identity client ID for OIDC login
+- `AZURE_TENANT_ID` — Azure AD tenant ID
+- `AZURE_SUBSCRIPTION_ID` — target subscription
+- `POSTGRES_ADMIN_PASSWORD` — break-glass admin password (used only for initial provisioning; Entra ID is the primary auth path)
+- `ENTRA_CLIENT_ID` — **required**; CI fails fast if unset to prevent deploying with EasyAuth disabled
+- `DATABASE_URL` — only used for ad-hoc schema migrations
+- `ALERT_EMAIL` — optional; metric alert email recipient
+- `POSTGRES_HA_MODE` — optional; `Disabled` (default) or `ZoneRedundant`
+
+Optional (rarely changed) secrets:
 
 - `DEPLOYER_OBJECT_ID`
-- `ENTRA_CLIENT_ID`
 - `ALLOWED_TENANT_IDS`
-- `ALERT_EMAIL` — email address for metric alert notifications
-- `POSTGRES_HA_MODE` — `Disabled` (default) or `ZoneRedundant`
+- `ENTRA_TENANT_ID` — for the SPA's MSAL configuration
 
-Frontend deployment secrets:
+### Required GitHub Actions repository variables
 
-- `WEB_APP_NAME` — Azure Web App name (e.g., `cadvisor-web-prod`)
-- `VITE_API_BASE_URL` — Function App URL (e.g., `https://cadvisor-func-prod.azurewebsites.net`)
+Set these as **variables** (not secrets) so deploys are portable across environments:
+
+- `AZURE_RESOURCE_GROUP` (e.g. `rg-compliance-advisor`)
+- `FUNCTION_APP_NAME` (e.g. `cadvisor-func-prod`)
+- `WEB_APP_NAME` (e.g. `cadvisor-web-prod`)
+- `PG_SERVER_NAME` (e.g. `cadvisor-pg-7zez2cj3gamky`)
+- `VITE_API_BASE_URL` (e.g. `https://cadvisor-func-prod.azurewebsites.net`)
 
 ### Scheduled App Hours (GitHub Actions)
 
 Workflow: `.github/workflows/app-hours.yml`
 
 - Runs hourly and evaluates local time in `America/New_York`.
-- Auto-starts both Function App + Web App at **9:00 AM ET** on weekdays.
+- Auto-starts both Function App + Web App at **8:00 AM ET** on weekdays.
 - Auto-stops both Function App + Web App at **8:00 PM ET** on weekdays.
 - Includes `workflow_dispatch` with actions: `auto`, `start`, `stop`, `status`.
 
-Required secrets:
-
-- `AZURE_CLIENT_ID`
-- `AZURE_TENANT_ID`
-- `AZURE_SUBSCRIPTION_ID`
-- `AZURE_RESOURCE_GROUP`
-- `FUNCTION_APP_NAME`
-- `WEB_APP_NAME`
+Uses the same secrets/variables as `deploy.yml` — `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (secrets) plus `AZURE_RESOURCE_GROUP`, `FUNCTION_APP_NAME`, `WEB_APP_NAME`, `PG_SERVER_NAME` (variables).
 
 ## Onboarding a New Tenant
 
@@ -303,6 +307,41 @@ Required secrets:
    ```
 
 ## Production Hardening
+
+### Network and credentials
+- **PostgreSQL**: `publicNetworkAccess: Disabled`, `passwordAuth: Disabled`. The server is reachable only via its private endpoint inside the VNet, and authentication is exclusively Microsoft Entra ID. The administrator password is required by the ARM API but is never used at runtime — rotate it post-deploy.
+- **Function App → PostgreSQL**: the system-assigned managed identity authenticates using `DefaultAzureCredential`. The connection pool transparently rebuilds when the AAD access token has fewer than 5 minutes of validity left.
+- **Schema migrations**: PG is private-network-only, so the deploy pipeline calls `POST /api/admin/migrate` (function-key auth) instead of `psql` from the runner. The endpoint executes `sql/schema.sql` from inside the VNet using the MI.
+
+### Post-deploy bootstrap (one-time per deployment)
+After the first `azd`/Bicep deploy, the deployer (registered as the PG Entra admin) must register the Function App's MI as a PostgreSQL principal:
+
+```bash
+# As the Entra admin (deployerObjectId / deployerPrincipalName), connect via
+# psql with an AAD token from a workstation with VNet/jumpbox access:
+PGPASSWORD=$(az account get-access-token \
+  --resource-type oss-rdbms --query accessToken -o tsv) \
+psql "host=<pg-host> dbname=compliance_advisor user=<admin-upn> sslmode=require"
+
+# Inside psql, register the function app's MI and grant database access:
+SELECT pgaadauth_create_principal('<function-app-name>', false, false);
+GRANT CONNECT ON DATABASE compliance_advisor TO "<function-app-name>";
+GRANT USAGE, CREATE ON SCHEMA public TO "<function-app-name>";
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "<function-app-name>";
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "<function-app-name>";
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT ALL PRIVILEGES ON TABLES TO "<function-app-name>";
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT ALL PRIVILEGES ON SEQUENCES TO "<function-app-name>";
+```
+
+### Ingest authentication
+The `/api/ingest` endpoint validates an Entra-issued JWT instead of a shared function key:
+
+- The collector acquires an app-only token for the `INGEST_AUDIENCE` resource using its existing client credentials.
+- The Function App validates the token's signature (per-tenant JWKS), the `aud`/`exp`/`iat` claims, and that the `tid` claim is in `ALLOWED_TENANT_IDS` and matches the payload's `tenant_id`.
+- When `INGEST_EXPECTED_APPID` is set, the token's `appid`/`azp` must match the collector's app registration ID.
+- A compromised function key (the previous shared-secret model) can no longer be used to ingest data as any tenant.
 
 ### CORS
 API CORS is locked to `https://cadvisor-web-prod.azurewebsites.net`. Cross-origin requests from other domains are rejected.

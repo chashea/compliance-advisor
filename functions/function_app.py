@@ -11,9 +11,7 @@ import hashlib
 import json
 import logging
 import threading
-import time
 import uuid
-from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import azure.functions as func
@@ -21,25 +19,15 @@ import azure.functions as func
 app = func.FunctionApp()
 log = logging.getLogger(__name__)
 
-# ── Rate limiting for AI endpoints ───────────────────────────────
-_RATE_LIMIT_MAX = 10  # max requests per window
-_RATE_LIMIT_WINDOW = 60  # window in seconds
-_rate_limit_store: dict[str, list[float]] = defaultdict(list)
-
 # ── Background executor for fire-and-forget collection ────────────
 _COLLECTION_EXECUTOR = ThreadPoolExecutor(max_workers=3, thread_name_prefix="collect")
 
 
 def _is_rate_limited(client_ip: str) -> bool:
-    """Return True if client_ip has exceeded _RATE_LIMIT_MAX requests in the window."""
-    now = time.monotonic()
-    timestamps = _rate_limit_store[client_ip]
-    # Prune expired entries
-    _rate_limit_store[client_ip] = [t for t in timestamps if now - t < _RATE_LIMIT_WINDOW]
-    if len(_rate_limit_store[client_ip]) >= _RATE_LIMIT_MAX:
-        return True
-    _rate_limit_store[client_ip].append(now)
-    return False
+    """Delegate to the configured rate-limit backend (memory or table storage)."""
+    from shared.rate_limit import get_rate_limiter
+
+    return get_rate_limiter().is_rate_limited(client_ip)
 
 
 def _get_client_ip(req: func.HttpRequest) -> str:
@@ -222,6 +210,52 @@ def health(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         log.exception("health check failed: %s", e)
         return _json_response({"status": "unhealthy", "error": str(e)}, 503)
+
+
+# ── Admin: schema migration ──────────────────────────────────────
+# PostgreSQL is private-network-only, so CI cannot reach it directly.
+# This endpoint runs sql/schema.sql against the database from inside the
+# VNet using the Function App's managed identity. Function-key auth.
+
+
+@app.function_name("admin_migrate")
+@app.route(route="admin/migrate", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
+def admin_migrate(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        _ensure_dependencies_loaded()
+        import os
+
+        from shared.db import get_conn
+
+        schema_path = os.environ.get("SCHEMA_PATH", "sql/schema.sql")
+        candidates = [
+            schema_path,
+            os.path.join(os.path.dirname(__file__), schema_path),
+            os.path.join(os.path.dirname(__file__), "..", schema_path),
+        ]
+        sql_text = None
+        used_path = None
+        for path in candidates:
+            try:
+                with open(path, encoding="utf-8") as f:
+                    sql_text = f.read()
+                used_path = path
+                break
+            except FileNotFoundError:
+                continue
+
+        if sql_text is None:
+            return _json_response({"error": f"schema.sql not found; tried {candidates}"}, 500)
+
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql_text)
+
+        log.info("admin_migrate: applied schema from %s (%d bytes)", used_path, len(sql_text))
+        return _json_response({"status": "ok", "applied": used_path, "bytes": len(sql_text)})
+    except Exception as e:
+        log.exception("admin_migrate error: %s", e)
+        return _json_response({"error": str(e)}, 500)
 
 
 # ── Dashboard API Routes ──────────────────────────────────────────
@@ -700,14 +734,28 @@ _CONSENT_ERROR_HTML = """<!DOCTYPE html>
 
 
 @app.function_name("ingest_compliance")
-@app.route(route="ingest", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
+@app.route(route="ingest", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
 def ingest_compliance(req: func.HttpRequest) -> func.HttpResponse:
-    """Receive JSON payload from per-tenant collector."""
+    """Receive JSON payload from per-tenant collector.
+
+    Authentication: Entra-issued bearer token (per-tenant). Function-key
+    auth is no longer accepted in production. The token's ``tid`` claim is
+    validated against the payload's ``tenant_id`` and the configured
+    allow-list, preventing one tenant from posting another tenant's data.
+    """
     try:
         _ensure_dependencies_loaded()
+        from shared.auth import IngestAuthError, verify_ingest_token
+
         payload = validate_ingestion_request(req)
         snapshot_date = payload["timestamp"][:10]
         tenant_id = payload["tenant_id"]
+
+        try:
+            verify_ingest_token(req, tenant_id)
+        except IngestAuthError as e:
+            log.warning("Ingest auth rejected for tenant=%s: %s", tenant_id, e)
+            return _json_response({"error": str(e)}, e.status_code)
 
         # Idempotency: skip re-processing exact duplicate submissions
         payload_hash = hashlib.sha256(req.get_body()).hexdigest()

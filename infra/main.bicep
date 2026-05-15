@@ -20,11 +20,24 @@ param location string = resourceGroup().location
 @description('Comma-separated list of allowed tenant GUIDs for ingestion')
 param allowedTenantIds string = ''
 
-@description('Object ID of the deployer for Key Vault access policies')
+@description('Object ID of the deployer for Key Vault access policies and PostgreSQL Entra admin')
 param deployerObjectId string = ''
+
+@description('Display name (UPN) of the deployer; required for the PostgreSQL Entra admin assignment')
+param deployerPrincipalName string = ''
+
+@allowed(['User', 'Group', 'ServicePrincipal'])
+@description('Principal type of the deployer for the PostgreSQL Entra admin assignment')
+param deployerPrincipalType string = 'User'
 
 @description('Entra ID client ID for API SSO (leave empty to skip EasyAuth)')
 param entraClientId string = ''
+
+@description('Audience claim required on ingest JWTs, e.g. api://compliance-advisor-ingest')
+param ingestAudience string = ''
+
+@description('Collector app registration client ID; ingest JWTs must have a matching appid/azp claim')
+param ingestExpectedAppId string = ''
 
 @secure()
 @description('PostgreSQL administrator password')
@@ -75,6 +88,9 @@ module postgres 'modules/postgres.bicep' = {
     location: location
     administratorPassword: postgresAdminPassword
     highAvailabilityMode: postgresHaMode
+    entraAdminObjectId: deployerObjectId
+    entraAdminPrincipalName: deployerPrincipalName
+    entraAdminPrincipalType: deployerPrincipalType
   }
 }
 
@@ -85,7 +101,6 @@ module keyVault 'modules/keyvault.bicep' = {
     keyVaultName: keyVaultName
     location: location
     deployerObjectId: deployerObjectId
-    databaseUrl: postgres.outputs.connectionString
   }
 }
 
@@ -138,6 +153,10 @@ module functionApp 'modules/function-app.bicep' = {
     entraClientId: entraClientId
     azureOpenAiEndpoint: openai.outputs.openAiEndpoint
     virtualNetworkSubnetId: network.outputs.funcIntegrationSubnetId
+    postgresHost: postgres.outputs.serverFqdn
+    postgresDatabase: postgres.outputs.databaseName
+    ingestAudience: ingestAudience
+    ingestExpectedAppId: ingestExpectedAppId
   }
 }
 
@@ -186,6 +205,17 @@ resource storageQueueRoleAssignment 'Microsoft.Authorization/roleAssignments@202
   scope: storageAccount
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '974c5e8b-45b9-4653-ba55-5f855dd0fb88')
+    principalId: functionApp.outputs.functionAppPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Storage Table Data Contributor (distributed rate-limit state)
+resource storageTableRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, storageAccount.id, functionAppName, '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')
+  scope: storageAccount
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')
     principalId: functionApp.outputs.functionAppPrincipalId
     principalType: 'ServicePrincipal'
   }

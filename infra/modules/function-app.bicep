@@ -10,6 +10,10 @@ param appInsightsConnectionString string
 param keyVaultUri string
 param allowedTenantIds string
 
+// PostgreSQL (Entra-ID-only auth from this app)
+param postgresHost string
+param postgresDatabase string = 'compliance_advisor'
+
 // Azure OpenAI
 param azureOpenAiEndpoint string = ''
 
@@ -19,6 +23,12 @@ param virtualNetworkSubnetId string = ''
 // EasyAuth params
 param entraClientId string = ''
 param entraTenantId string = subscription().tenantId
+
+// Per-tenant ingest auth (Entra-issued bearer tokens)
+@description('Audience claim required on ingest JWTs (e.g. api://compliance-advisor-ingest).')
+param ingestAudience string = ''
+@description('Expected appid/azp claim on ingest JWTs (the collector app registration client ID).')
+param ingestExpectedAppId string = ''
 
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
   name: appServicePlanName
@@ -64,7 +74,13 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         { name: 'SCM_DO_BUILD_DURING_DEPLOYMENT', value: 'true' }
         { name: 'APPINSIGHTS_INSTRUMENTATIONKEY', value: appInsightsInstrumentationKey }
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsightsConnectionString }
-        { name: 'DATABASE_URL', value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/database-url/)' }
+        // PostgreSQL via Entra ID — no password. The MI's name in PG must
+        // match the Function App name (registered via pgaadauth_create_principal
+        // by the deployer post-deploy).
+        { name: 'PG_USE_AAD', value: 'true' }
+        { name: 'PG_HOST', value: postgresHost }
+        { name: 'PG_DATABASE', value: postgresDatabase }
+        { name: 'PG_USER', value: functionAppName }
         { name: 'KEY_VAULT_URL', value: keyVaultUri }
         { name: 'WEBSITE_RUN_FROM_PACKAGE', value: '1' }
         { name: 'ALLOWED_TENANT_IDS', value: allowedTenantIds }
@@ -72,6 +88,14 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         { name: 'COLLECTOR_CLIENT_ID', value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/gcc-client-id/)' }
         { name: 'COLLECTOR_CLIENT_SECRET', value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/gcc-password/)' }
         { name: 'WEBSITE_CONTENTOVERVNET', value: !empty(virtualNetworkSubnetId) ? '1' : '0' }
+        { name: 'AUTH_REQUIRED', value: !empty(entraClientId) ? 'true' : 'false' }
+        { name: 'INGEST_REQUIRE_JWT', value: !empty(ingestAudience) ? 'true' : 'false' }
+        { name: 'INGEST_AUDIENCE', value: ingestAudience }
+        { name: 'INGEST_EXPECTED_APPID', value: ingestExpectedAppId }
+        { name: 'RATE_LIMIT_BACKEND', value: 'table' }
+        { name: 'RATE_LIMIT_STORAGE_ACCOUNT', value: storageAccountName }
+        { name: 'RATE_LIMIT_MAX', value: '10' }
+        { name: 'RATE_LIMIT_WINDOW_SECONDS', value: '60' }
       ]
     }
   }
@@ -84,7 +108,16 @@ resource authSettings 'Microsoft.Web/sites/config@2023-01-01' = if (!empty(entra
   properties: {
     globalValidation: {
       requireAuthentication: true
-      unauthenticatedClientAction: 'AllowAnonymous'
+      unauthenticatedClientAction: 'Return401'
+      excludedPaths: [
+        '/api/health'
+        '/api/tenants/callback'
+        '/api/ingest'
+        '/api/collect/{tenant_id}'
+        '/api/hunt/{tenant_id}'
+        '/api/tenants'
+        '/api/admin/migrate'
+      ]
     }
     identityProviders: {
       azureActiveDirectory: {

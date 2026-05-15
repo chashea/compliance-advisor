@@ -1,6 +1,7 @@
 azure-functions>=1.17.0
 azure-identity>=1.15.0
 azure-keyvault-secrets>=4.8.0
+azure-data-tables>=12.5.0
 cryptography==41.0.7
 openai>=1.14.0
 psycopg2-binary>=2.9.9
@@ -8,4 +9,5 @@ pydantic>=2.6.0
 pydantic-settings>=2.1.0
 jsonschema>=4.21.0
 msal>=1.28
+PyJWT[crypto]>=2.8.0
 requests>=2.31
