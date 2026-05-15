@@ -41,10 +41,14 @@ PAYLOAD_SCHEMA: dict = {
         "irm_policies",
         "sensitive_info_types",
         "compliance_assessments",
-        "threat_assessment_requests",
         "purview_incidents",
         "collector_version",
     ],
+    # threat_assessment_requests was removed from required because the
+    # Graph endpoint /v1.0/informationProtection/threatAssessmentRequests
+    # only supports delegated auth. The collector no longer populates it,
+    # but the property is still accepted (and validated) for backward
+    # compatibility with payloads from older collector versions.
     "properties": {
         "tenant_id": {"type": "string", "pattern": "^[0-9a-fA-F-]{36}$"},
         "agency_id": {"type": "string", "minLength": 1, "maxLength": 64},

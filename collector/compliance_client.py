@@ -939,14 +939,25 @@ def get_sensitive_info_types(token: str) -> list[dict[str, Any]]:
 
 
 def get_compliance_assessments(token: str) -> list[dict[str, Any]]:
-    """Return compliance assessments (beta complianceManagement API)."""
+    """Return compliance assessments.
+
+    NOTE: ``/beta/security/complianceManagement/assessments`` is not
+    documented in the current Microsoft Graph reference (verified May
+    2026 against MS Learn). The endpoint may be undocumented-but-active,
+    deprecated, or removed entirely. Failures are logged at DEBUG so they
+    don't add noise to normal operation; existing rows in the
+    ``compliance_assessments`` table remain visible in the dashboard.
+
+    See PR #14 follow-up for the full audit.
+    """
     sess = _session(token)
     url = f"{GRAPH_BETA}/security/complianceManagement/assessments"
 
     try:
         items = _paginate(sess, url)
     except requests.exceptions.RequestException as e:
-        _log_api_error("compliance assessments", e, "ComplianceManager.Read.All")
+        # DEBUG instead of WARNING — endpoint is undocumented; failures expected.
+        log.debug("compliance assessments unavailable (endpoint not documented): %s", e)
         return []
 
     results = []
@@ -971,40 +982,17 @@ def get_compliance_assessments(token: str) -> list[dict[str, Any]]:
 
 
 def get_threat_assessment_requests(token: str) -> list[dict[str, Any]]:
-    """Return threat assessment requests (v1.0 informationProtection API)."""
-    sess = _session(token)
-    url = f"{GRAPH_BASE}/informationProtection/threatAssessmentRequests"
+    """DEPRECATED: returns an empty list.
 
-    try:
-        items = _paginate(sess, url, max_pages=10)
-    except requests.exceptions.RequestException as e:
-        _log_api_error("threatAssessmentRequests", e, "ThreatAssessment.Read.All")
-        return []
+    The ``/v1.0/informationProtection/threatAssessmentRequests`` endpoint
+    only supports **delegated** authentication; the multi-tenant collector
+    runs app-only and always received 401 from this endpoint. Removed from
+    the active collection path; the function is kept as a no-op so any
+    downstream caller (or test) that imports it continues to work.
 
-    results = []
-    for item in items:
-        result_type = ""
-        result_message = ""
-        assessment_results = item.get("results", [])
-        if assessment_results:
-            first = assessment_results[0]
-            result_type = first.get("resultType", "")
-            result_message = first.get("message", "")
-
-        results.append(
-            {
-                "request_id": item.get("id", ""),
-                "category": item.get("category", ""),
-                "content_type": item.get("contentType", item.get("@odata.type", "").split(".")[-1]),
-                "status": item.get("status", ""),
-                "created": item.get("createdDateTime", ""),
-                "result_type": result_type,
-                "result_message": result_message,
-            }
-        )
-
-    log.info("Retrieved %d threat assessment requests", len(results))
-    return results
+    See the API audit in PR #14 for the full rationale.
+    """
+    return []
 
 
 # ── User Content Policies (userDataSecurityAndGovernance) ─────────

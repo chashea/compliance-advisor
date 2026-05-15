@@ -94,15 +94,19 @@ All permissions are **Application** type (not delegated) granted to the multi-te
 
 | Permission | Workload |
 |---|---|
-| `InformationProtectionPolicy.Read.All` | Sensitivity labels, sensitive info types |
-| `RecordsManagement.Read.All` | Retention labels & events |
-| `AuditLogsQuery.Read.All` | Audit log queries |
-| `SecurityEvents.Read.All` | Secure Score, Improvement Actions |
-| `SecurityAlert.Read.All` | DLP alerts, IRM alerts |
+| `SensitivityLabels.Read.All` | Sensitivity labels (`/v1.0/security/dataSecurityAndGovernance/sensitivityLabels`) |
+| `InformationProtectionPolicy.Read.All` | Legacy fallback for the deprecated `/beta/security/informationProtection/sensitivityLabels` and sensitive info types |
+| `RecordsManagement.Read.All` | Retention events + retention event types (retention labels themselves are delegated-only and skipped under app auth) |
+| `AuditLogsQuery.Read.All` | Audit log queries (catch-all). For least privilege, narrow to per-service variants: `AuditLogsQuery-Entra.Read.All`, `AuditLogsQuery-Exchange.Read.All`, `AuditLogsQuery-SharePoint.Read.All`, `AuditLogsQuery-OneDrive.Read.All`, `AuditLogsQuery-Endpoint.Read.All`, `AuditLogsQuery-CRM.Read.All` |
+| `SecurityEvents.Read.All` | Secure Score, improvement actions |
+| `SecurityAlert.Read.All` | DLP alerts, IRM alerts (alerts_v2) |
 | `SecurityIncident.Read.All` | Purview incidents |
+| `ThreatHunting.Read.All` | KQL hunting queries (Defender XDR) |
 | `Policy.Read.All` | Information barriers, DLP/IRM policies, protection scopes |
 | `User.Read.All` | User enumeration (for content policy probing) |
 | `MailboxSettings.Read` | User content policies |
+
+> **Removed in this release:** `ThreatAssessment.ReadWrite` — the `/v1.0/informationProtection/threatAssessmentRequests` endpoint only supports delegated authentication, so the multi-tenant collector cannot use it. The collector no longer calls it; existing rows in the `threat_assessment_requests` table remain visible in the dashboard for historical reference.
 
 ## Local Development
 
