@@ -27,14 +27,14 @@ def _make_request(tenant_id: str) -> func.HttpRequest:
 # ── Happy path ───────────────────────────────────────────────────
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
-@patch("functions.function_app._COLLECTOR_IMPORT_ERROR", None)
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("routes.collect._COLLECTOR_IMPORT_ERROR", None)
 @patch(
-    "functions.function_app._collect_single_tenant",
+    "routes.collect._collect_single_tenant",
     return_value={"status": "ok", "tenant_id": TENANT_ID, "record_counts": {}},
 )
 @patch(
-    "functions.function_app.query",
+    "routes.collect.query",
     return_value=[{"tenant_id": TENANT_ID, "display_name": "Test", "department": "DOJ"}],
 )
 @patch("shared.config.get_settings")
@@ -52,8 +52,8 @@ def test_collect_single_success(mock_settings, mock_query, mock_collect):
 # ── Invalid UUID ─────────────────────────────────────────────────
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
-@patch("functions.function_app._COLLECTOR_IMPORT_ERROR", None)
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("routes.collect._COLLECTOR_IMPORT_ERROR", None)
 def test_collect_single_invalid_uuid():
     from functions.function_app import collect_single
 
@@ -65,9 +65,9 @@ def test_collect_single_invalid_uuid():
 # ── Tenant not found ─────────────────────────────────────────────
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
-@patch("functions.function_app._COLLECTOR_IMPORT_ERROR", None)
-@patch("functions.function_app.query", return_value=[])
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("routes.collect._COLLECTOR_IMPORT_ERROR", None)
+@patch("routes.collect.query", return_value=[])
 def test_collect_single_tenant_not_found(mock_query):
     from functions.function_app import collect_single
 
@@ -79,8 +79,8 @@ def test_collect_single_tenant_not_found(mock_query):
 # ── Collector imports unavailable ────────────────────────────────
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
-@patch("functions.function_app._COLLECTOR_IMPORT_ERROR", RuntimeError("no msal"))
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("routes.collect._COLLECTOR_IMPORT_ERROR", RuntimeError("no msal"))
 def test_collect_single_collector_unavailable():
     from functions.function_app import collect_single
 
@@ -92,10 +92,10 @@ def test_collect_single_collector_unavailable():
 # ── Credentials not configured ───────────────────────────────────
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
-@patch("functions.function_app._COLLECTOR_IMPORT_ERROR", None)
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("routes.collect._COLLECTOR_IMPORT_ERROR", None)
 @patch(
-    "functions.function_app.query",
+    "routes.collect.query",
     return_value=[{"tenant_id": TENANT_ID, "display_name": "Test", "department": "DOJ"}],
 )
 @patch("shared.config.get_settings")
@@ -111,14 +111,14 @@ def test_collect_single_no_credentials(mock_settings, mock_query):
 # ── Collection failure returns 502 ───────────────────────────────
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
-@patch("functions.function_app._COLLECTOR_IMPORT_ERROR", None)
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("routes.collect._COLLECTOR_IMPORT_ERROR", None)
 @patch(
-    "functions.function_app._collect_single_tenant",
+    "routes.collect._collect_single_tenant",
     return_value={"status": "error", "tenant_id": TENANT_ID, "error": "auth failed"},
 )
 @patch(
-    "functions.function_app.query",
+    "routes.collect.query",
     return_value=[{"tenant_id": TENANT_ID, "display_name": "Test", "department": "DOJ"}],
 )
 @patch("shared.config.get_settings")

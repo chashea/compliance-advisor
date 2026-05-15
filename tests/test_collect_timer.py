@@ -22,9 +22,9 @@ def _timer_request():
 # ── Skip when not configured ─────────────────────────────────────
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
-@patch("functions.function_app._COLLECTOR_IMPORT_ERROR", None)
-@patch("functions.function_app.query")
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("routes.timers._COLLECTOR_IMPORT_ERROR", None)
+@patch("routes.timers.query")
 @patch("shared.config.get_settings")
 def test_skips_when_client_id_empty(mock_get_settings, mock_query):
     mock_get_settings.return_value = _mock_settings(client_id="", client_secret="")
@@ -34,9 +34,9 @@ def test_skips_when_client_id_empty(mock_get_settings, mock_query):
     mock_query.assert_not_called()
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
-@patch("functions.function_app._COLLECTOR_IMPORT_ERROR", None)
-@patch("functions.function_app.query")
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("routes.timers._COLLECTOR_IMPORT_ERROR", None)
+@patch("routes.timers.query")
 @patch("shared.config.get_settings")
 def test_skips_when_no_tenants(mock_get_settings, mock_query):
     mock_get_settings.return_value = _mock_settings()
@@ -50,9 +50,9 @@ def test_skips_when_no_tenants(mock_get_settings, mock_query):
 # ── Collector import error ───────────────────────────────────────
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
-@patch("functions.function_app._COLLECTOR_IMPORT_ERROR", RuntimeError("no msal"))
-@patch("functions.function_app.query")
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("routes.timers._COLLECTOR_IMPORT_ERROR", RuntimeError("no msal"))
+@patch("routes.timers.query")
 @patch("shared.config.get_settings")
 def test_skips_when_collector_imports_failed(mock_get_settings, mock_query):
     mock_get_settings.return_value = _mock_settings()
@@ -65,15 +65,15 @@ def test_skips_when_collector_imports_failed(mock_get_settings, mock_query):
 # ── Successful collection ────────────────────────────────────────
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
-@patch("functions.function_app._COLLECTOR_IMPORT_ERROR", None)
-@patch("functions.function_app.update_tenant_status")
-@patch("functions.function_app.upsert_tenant")
-@patch("functions.function_app.upsert_sensitivity_label")
-@patch("functions.function_app.upsert_secure_score")
-@patch("functions.function_app.upsert_user_content_policies")
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("routes.timers._COLLECTOR_IMPORT_ERROR", None)
+@patch("routes.collect.update_tenant_status")
+@patch("shared.persist.upsert_tenant")
+@patch("shared.persist.upsert_sensitivity_label")
+@patch("shared.persist.upsert_secure_score")
+@patch("shared.persist.upsert_user_content_policies")
 @patch(
-    "functions.function_app.collect_sensitivity_labels",
+    "routes.collect.collect_sensitivity_labels",
     return_value=[
         {
             "label_id": "l1",
@@ -87,14 +87,14 @@ def test_skips_when_collector_imports_failed(mock_get_settings, mock_query):
         }
     ],
 )
-@patch("functions.function_app.collect_retention_events", return_value=[])
-@patch("functions.function_app.collect_audit_log_records", return_value=[])
-@patch("functions.function_app.collect_dlp_alerts", return_value=[])
-@patch("functions.function_app.collect_irm_alerts", return_value=[])
-@patch("functions.function_app.collect_purview_incidents", return_value=[])
-@patch("functions.function_app.collect_protection_scopes", return_value=[])
+@patch("routes.collect.collect_retention_events", return_value=[])
+@patch("routes.collect.collect_audit_log_records", return_value=[])
+@patch("routes.collect.collect_dlp_alerts", return_value=[])
+@patch("routes.collect.collect_irm_alerts", return_value=[])
+@patch("routes.collect.collect_purview_incidents", return_value=[])
+@patch("routes.collect.collect_protection_scopes", return_value=[])
 @patch(
-    "functions.function_app.collect_secure_scores",
+    "routes.collect.collect_secure_scores",
     return_value=[
         {
             "current_score": 50,
@@ -105,16 +105,16 @@ def test_skips_when_collector_imports_failed(mock_get_settings, mock_query):
         }
     ],
 )
-@patch("functions.function_app.collect_improvement_actions", return_value=[])
-@patch("functions.function_app.collect_info_barriers", return_value=[])
-@patch("functions.function_app.collect_user_content_policies", return_value=[])
-@patch("functions.function_app.collect_dlp_policies", return_value=[])
-@patch("functions.function_app.collect_irm_policies", return_value=[])
-@patch("functions.function_app.collect_sensitive_info_types", return_value=[])
-@patch("functions.function_app.collect_assessments", return_value=[])
-@patch("functions.function_app.get_graph_token", return_value="fake-token")
+@patch("routes.collect.collect_improvement_actions", return_value=[])
+@patch("routes.collect.collect_info_barriers", return_value=[])
+@patch("routes.collect.collect_user_content_policies", return_value=[])
+@patch("routes.collect.collect_dlp_policies", return_value=[])
+@patch("routes.collect.collect_irm_policies", return_value=[])
+@patch("routes.collect.collect_sensitive_info_types", return_value=[])
+@patch("routes.collect.collect_assessments", return_value=[])
+@patch("routes.collect.get_graph_token", return_value="fake-token")
 @patch(
-    "functions.function_app.query",
+    "routes.timers.query",
     return_value=[{"tenant_id": TENANT_ID, "display_name": "Test", "department": "DOJ"}],
 )
 @patch("shared.config.get_settings")
@@ -158,27 +158,27 @@ def test_collects_and_upserts(
 # ── Per-tenant error isolation ───────────────────────────────────
 
 
-@patch("functions.function_app._DEPENDENCY_IMPORT_ERROR", None)
-@patch("functions.function_app._COLLECTOR_IMPORT_ERROR", None)
-@patch("functions.function_app.update_tenant_status")
-@patch("functions.function_app.upsert_tenant")
-@patch("functions.function_app.collect_sensitivity_labels", return_value=[])
-@patch("functions.function_app.collect_retention_events", return_value=[])
-@patch("functions.function_app.collect_audit_log_records", return_value=[])
-@patch("functions.function_app.collect_dlp_alerts", return_value=[])
-@patch("functions.function_app.collect_irm_alerts", return_value=[])
-@patch("functions.function_app.collect_purview_incidents", return_value=[])
-@patch("functions.function_app.collect_protection_scopes", return_value=[])
-@patch("functions.function_app.collect_secure_scores", return_value=[])
-@patch("functions.function_app.collect_improvement_actions", return_value=[])
-@patch("functions.function_app.collect_info_barriers", return_value=[])
-@patch("functions.function_app.collect_user_content_policies", return_value=[])
-@patch("functions.function_app.collect_dlp_policies", return_value=[])
-@patch("functions.function_app.collect_irm_policies", return_value=[])
-@patch("functions.function_app.collect_sensitive_info_types", return_value=[])
-@patch("functions.function_app.collect_assessments", return_value=[])
-@patch("functions.function_app.get_graph_token")
-@patch("functions.function_app.query")
+@patch("function_app._DEPENDENCY_IMPORT_ERROR", None)
+@patch("routes.timers._COLLECTOR_IMPORT_ERROR", None)
+@patch("routes.collect.update_tenant_status")
+@patch("shared.persist.upsert_tenant")
+@patch("routes.collect.collect_sensitivity_labels", return_value=[])
+@patch("routes.collect.collect_retention_events", return_value=[])
+@patch("routes.collect.collect_audit_log_records", return_value=[])
+@patch("routes.collect.collect_dlp_alerts", return_value=[])
+@patch("routes.collect.collect_irm_alerts", return_value=[])
+@patch("routes.collect.collect_purview_incidents", return_value=[])
+@patch("routes.collect.collect_protection_scopes", return_value=[])
+@patch("routes.collect.collect_secure_scores", return_value=[])
+@patch("routes.collect.collect_improvement_actions", return_value=[])
+@patch("routes.collect.collect_info_barriers", return_value=[])
+@patch("routes.collect.collect_user_content_policies", return_value=[])
+@patch("routes.collect.collect_dlp_policies", return_value=[])
+@patch("routes.collect.collect_irm_policies", return_value=[])
+@patch("routes.collect.collect_sensitive_info_types", return_value=[])
+@patch("routes.collect.collect_assessments", return_value=[])
+@patch("routes.collect.get_graph_token")
+@patch("routes.timers.query")
 @patch("shared.config.get_settings")
 def test_per_tenant_error_isolation(
     mock_get_settings,
