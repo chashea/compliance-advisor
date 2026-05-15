@@ -48,7 +48,7 @@ def _get_client() -> AzureOpenAI:
         _client = AzureOpenAI(
             azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
             azure_ad_token_provider=token_provider,
-            api_version="2024-05-01-preview",
+            api_version="2025-04-01-preview",
         )
     return _client
 

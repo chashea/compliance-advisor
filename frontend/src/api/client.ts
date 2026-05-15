@@ -1,4 +1,5 @@
 import { msalInstance } from "../auth/msalInstance";
+import { InteractionRequiredAuthError } from "@azure/msal-browser";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 const API_SCOPE = import.meta.env.VITE_ENTRA_CLIENT_ID
@@ -15,8 +16,16 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
       account: accounts[0],
     });
     return { Authorization: `Bearer ${result.accessToken}` };
-  } catch {
-    return {};
+  } catch (err) {
+    if (err instanceof InteractionRequiredAuthError) {
+      // Token is gone or consent was revoked — kick the user through redirect.
+      // acquireTokenRedirect navigates away; nothing else will execute.
+      await msalInstance.acquireTokenRedirect({ scopes: [API_SCOPE] });
+      return {};
+    }
+    // Anything else (network, MSAL config, etc.) is a real error: surface it.
+    console.error("Token acquisition failed:", err);
+    throw err;
   }
 }
 
