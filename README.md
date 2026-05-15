@@ -110,7 +110,8 @@ All permissions are **Application** type (not delegated) granted to the multi-te
 
 ```bash
 createdb compliance_advisor
-psql compliance_advisor -f sql/schema.sql
+# Apply all yoyo migrations
+yoyo apply --database "postgresql://localhost/compliance_advisor" sql/migrations
 ```
 
 ### 2. Configure environment
@@ -247,8 +248,9 @@ az deployment group create \
                entraClientId='<APP-CLIENT-ID>' \
                allowedTenantIds='<GUID1>,<GUID2>'
 
-# Run schema migration
-psql "<CONNECTION_STRING>" -f sql/schema.sql
+# Apply schema migrations (via the in-VNet Function App admin endpoint)
+KEY=$(az functionapp keys list -g rg-compliance-advisor -n cadvisor-func-prod --query functionKeys.default -o tsv)
+curl -fsS "https://cadvisor-func-prod.azurewebsites.net/api/admin/migrate?code=${KEY}" -X POST
 ```
 
 ## CI/CD Deployment
@@ -400,8 +402,8 @@ locust -f loadtest/locustfile.py --host https://cadvisor-func-prod.azurewebsites
 compliance-advisor/
 ├── frontend/          React 19 + TypeScript + Vite SPA (8 pages)
 ├── collector/          Per-tenant data collector (Python CLI)
-├── functions/          Azure Functions v2 API backend
-├── sql/                PostgreSQL schema (22 tables)
+├── functions/          Azure Functions v2 API backend (routes/ subpackage)
+├── sql/migrations/     yoyo-migrations (numbered .sql files; applied via /api/admin/migrate)
 ├── infra/              Bicep IaC (PostgreSQL, Function App, Key Vault, OpenAI, VNet, Monitoring, Alerts)
 ├── loadtest/           Locust load testing
 ├── tests/              pytest test suite

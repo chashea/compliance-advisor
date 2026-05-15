@@ -85,27 +85,51 @@ def compute_aggregates(timer: func.TimerRequest) -> None:
 
         today = date.today().isoformat()
 
+        # Single-roundtrip CTE per workload: pre-compute the latest snapshot
+        # per tenant, then LEFT JOIN counts back into the tenants base set.
+        # Replaces 4 correlated subqueries that scanned each table O(N) times.
         tenant_counts = query("""
+            WITH latest_sens AS (
+                SELECT tenant_id, MAX(snapshot_date) AS d
+                FROM sensitivity_labels GROUP BY tenant_id
+            ),
+            sens_counts AS (
+                SELECT sl.tenant_id, COUNT(*)::int AS n
+                FROM sensitivity_labels sl
+                JOIN latest_sens ls
+                  ON ls.tenant_id = sl.tenant_id AND ls.d = sl.snapshot_date
+                GROUP BY sl.tenant_id
+            ),
+            latest_dlp AS (
+                SELECT tenant_id, MAX(snapshot_date) AS d
+                FROM dlp_alerts GROUP BY tenant_id
+            ),
+            dlp_counts AS (
+                SELECT da.tenant_id, COUNT(*)::int AS n
+                FROM dlp_alerts da
+                JOIN latest_dlp ld
+                  ON ld.tenant_id = da.tenant_id AND ld.d = da.snapshot_date
+                GROUP BY da.tenant_id
+            ),
+            latest_audit AS (
+                SELECT tenant_id, MAX(snapshot_date) AS d
+                FROM audit_records GROUP BY tenant_id
+            ),
+            audit_counts AS (
+                SELECT ar.tenant_id, COUNT(*)::int AS n
+                FROM audit_records ar
+                JOIN latest_audit la
+                  ON la.tenant_id = ar.tenant_id AND la.d = ar.snapshot_date
+                GROUP BY ar.tenant_id
+            )
             SELECT t.tenant_id, t.department,
-                (SELECT COUNT(*) FROM sensitivity_labels sl
-                 WHERE sl.tenant_id = t.tenant_id
-                   AND sl.snapshot_date = (
-                     SELECT MAX(snapshot_date) FROM sensitivity_labels
-                     WHERE tenant_id = t.tenant_id)
-                )::int AS sensitivity,
-                (SELECT COUNT(*) FROM dlp_alerts da
-                 WHERE da.tenant_id = t.tenant_id
-                   AND da.snapshot_date = (
-                     SELECT MAX(snapshot_date) FROM dlp_alerts
-                     WHERE tenant_id = t.tenant_id)
-                )::int AS dlp,
-                (SELECT COUNT(*) FROM audit_records ar
-                 WHERE ar.tenant_id = t.tenant_id
-                   AND ar.snapshot_date = (
-                     SELECT MAX(snapshot_date) FROM audit_records
-                     WHERE tenant_id = t.tenant_id)
-                )::int AS audit
+                COALESCE(sc.n, 0) AS sensitivity,
+                COALESCE(dc.n, 0) AS dlp,
+                COALESCE(ac.n, 0) AS audit
             FROM tenants t
+            LEFT JOIN sens_counts  sc ON sc.tenant_id = t.tenant_id
+            LEFT JOIN dlp_counts   dc ON dc.tenant_id = t.tenant_id
+            LEFT JOIN audit_counts ac ON ac.tenant_id = t.tenant_id
             """)
 
         if not tenant_counts:

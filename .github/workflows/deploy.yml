@@ -193,10 +193,10 @@ jobs:
         if: env.FUNCTION_APP_NAME == ''
         run: echo "::warning::FUNCTION_APP_NAME is not set — schema migration and deployment will be skipped."
 
-      - name: Bundle schema with function package
+      - name: Bundle schema migrations with function package
         run: |
           mkdir -p functions/sql
-          cp sql/schema.sql functions/sql/schema.sql
+          cp -r sql/migrations functions/sql/migrations
 
       - name: Clear WEBSITE_RUN_FROM_PACKAGE URL
         if: env.FUNCTION_APP_NAME != '' && env.AZURE_RESOURCE_GROUP != ''

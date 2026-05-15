@@ -11,3 +11,4 @@ jsonschema>=4.21.0
 msal>=1.28
 PyJWT[crypto]>=2.8.0
 requests>=2.31
+yoyo-migrations>=9.0.0

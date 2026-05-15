@@ -75,13 +75,18 @@ def _get_pool() -> ThreadedConnectionPool:
                     _pool.closeall()
                 except Exception:
                     log.exception("Error while closing stale PG pool (continuing)")
+            settings = get_settings()
             dsn, expires_on = _build_dsn()
+            options = (
+                f"-c statement_timeout={settings.PG_STATEMENT_TIMEOUT_MS} "
+                f"-c idle_in_transaction_session_timeout={settings.PG_IDLE_IN_TXN_TIMEOUT_MS}"
+            )
             _pool = ThreadedConnectionPool(
-                minconn=1,
-                maxconn=10,
+                minconn=settings.PG_POOL_MINCONN,
+                maxconn=settings.PG_POOL_MAXCONN,
                 dsn=dsn,
                 connect_timeout=10,
-                options="-c statement_timeout=30000",
+                options=options,
             )
             _pool_token_expires_on = expires_on
         return _pool

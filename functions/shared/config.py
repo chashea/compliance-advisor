@@ -59,6 +59,16 @@ class FunctionSettings(BaseSettings):
         description="Entra principal name registered in PG (typically the Function App's MI name).",
     )
     PG_SSLMODE: str = Field(default="require", description="psycopg2 sslmode parameter.")
+    PG_POOL_MINCONN: int = Field(default=2, description="Minimum size of the psycopg2 connection pool.")
+    PG_POOL_MAXCONN: int = Field(default=25, description="Maximum size of the psycopg2 connection pool.")
+    PG_STATEMENT_TIMEOUT_MS: int = Field(
+        default=30_000,
+        description="Per-statement timeout in milliseconds (PG statement_timeout).",
+    )
+    PG_IDLE_IN_TXN_TIMEOUT_MS: int = Field(
+        default=30_000,
+        description="Kill transactions idle longer than this (PG idle_in_transaction_session_timeout).",
+    )
 
     # Key Vault (Azure Commercial)
     KEY_VAULT_URL: str = Field(..., description="https://<vault>.vault.azure.net/")
