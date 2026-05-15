@@ -72,6 +72,28 @@ resource database 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2023-06-0
   }
 }
 
+// ── pg_stat_statements (server-side query observability) ────────
+// Enabling the extension requires two steps:
+//   1. Set shared_preload_libraries=pg_stat_statements (server config; restart on change).
+//   2. CREATE EXTENSION pg_stat_statements (per-database; runs in migration 0004).
+resource preloadLibsConfig 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2023-06-01-preview' = {
+  parent: postgresServer
+  name: 'shared_preload_libraries'
+  properties: {
+    value: 'pg_stat_statements'
+    source: 'user-override'
+  }
+}
+
+resource pgssTrackConfig 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2023-06-01-preview' = {
+  parent: postgresServer
+  name: 'pg_stat_statements.track'
+  properties: {
+    value: 'all'
+    source: 'user-override'
+  }
+}
+
 // Entra ID administrator (deployer or break-glass group). Required for
 // running schema migrations and bootstrapping role grants for the Function
 // App's managed identity.

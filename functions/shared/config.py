@@ -148,6 +148,12 @@ class FunctionSettings(BaseSettings):
     COLLECTOR_CLIENT_ID: str = Field(default="", description="App registration client ID for Graph API collection")
     COLLECTOR_CLIENT_SECRET: str = Field(default="", description="Client secret for Graph API collection")
     COLLECTOR_AUDIT_LOG_DAYS: int = Field(default=7, description="Days of audit log history to query")
+    COLLECTOR_USE_FEDERATED: bool = Field(
+        default=False,
+        description="When true, the in-Azure collector uses federated workload identity (managed identity → "
+        "multi-tenant app via federated credential exchange) instead of CLIENT_SECRET. Requires a federated "
+        "identity credential on the multi-tenant app pointing at the Function App's MI.",
+    )
 
     @property
     def allowed_tenants(self) -> set[str]:

@@ -36,6 +36,9 @@ param serviceBusNamespace string = ''
 @description('Queue name for tenant collection messages.')
 param serviceBusQueueName string = 'tenant-collect'
 
+@description('When true, the collector uses federated workload identity (no CLIENT_SECRET in Key Vault).')
+param collectorUseFederated bool = false
+
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
   name: appServicePlanName
   location: location
@@ -92,7 +95,8 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         { name: 'ALLOWED_TENANT_IDS', value: allowedTenantIds }
         { name: 'AZURE_OPENAI_ENDPOINT', value: azureOpenAiEndpoint }
         { name: 'COLLECTOR_CLIENT_ID', value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/gcc-client-id/)' }
-        { name: 'COLLECTOR_CLIENT_SECRET', value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/gcc-password/)' }
+        { name: 'COLLECTOR_CLIENT_SECRET', value: collectorUseFederated ? '' : '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/gcc-password/)' }
+        { name: 'COLLECTOR_USE_FEDERATED', value: collectorUseFederated ? 'true' : 'false' }
         { name: 'WEBSITE_CONTENTOVERVNET', value: !empty(virtualNetworkSubnetId) ? '1' : '0' }
         { name: 'AUTH_REQUIRED', value: !empty(entraClientId) ? 'true' : 'false' }
         { name: 'INGEST_REQUIRE_JWT', value: !empty(ingestAudience) ? 'true' : 'false' }

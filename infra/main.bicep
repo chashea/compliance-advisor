@@ -39,6 +39,9 @@ param ingestAudience string = ''
 @description('Collector app registration client ID; ingest JWTs must have a matching appid/azp claim')
 param ingestExpectedAppId string = ''
 
+@description('When true, the in-Azure collector uses federated workload identity (no CLIENT_SECRET in Key Vault).')
+param collectorUseFederated bool = false
+
 @secure()
 @description('PostgreSQL administrator password')
 param postgresAdminPassword string
@@ -160,6 +163,7 @@ module functionApp 'modules/function-app.bicep' = {
     ingestExpectedAppId: ingestExpectedAppId
     serviceBusNamespace: serviceBus.outputs.namespaceFqdn
     serviceBusQueueName: serviceBus.outputs.queueName
+    collectorUseFederated: collectorUseFederated
   }
 }
 

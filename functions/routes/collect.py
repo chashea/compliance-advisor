@@ -161,10 +161,14 @@ def _collect_single_tenant(
 
     today = date.today().isoformat()
     try:
+        from shared.config import get_settings as _get_settings
+
+        use_federated = _get_settings().COLLECTOR_USE_FEDERATED
         auth_settings = SimpleNamespace(
             TENANT_ID=tid,
             CLIENT_ID=client_id,
             CLIENT_SECRET=client_secret,
+            USE_FEDERATED=use_federated,
             login_authority="https://login.microsoftonline.com",
             graph_scope=["https://graph.microsoft.com/.default"],
         )

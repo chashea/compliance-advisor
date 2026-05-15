@@ -70,7 +70,7 @@ jobs:
       - name: Install dependencies
         run: |
           cd frontend
-          npm ci --legacy-peer-deps
+          npm ci
 
       - name: Lint
         run: |
@@ -287,7 +287,7 @@ jobs:
         if: env.WEB_APP_NAME != ''
         run: |
           cd frontend
-          npm ci --legacy-peer-deps
+          npm ci
           npm run build
         env:
           VITE_API_BASE_URL: ${{ env.VITE_API_BASE_URL }}

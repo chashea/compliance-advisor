@@ -127,3 +127,30 @@ resource pgConnections 'Microsoft.Insights/metricAlerts@2018-03-01' = {
     actions: !empty(alertEmailAddress) ? [{ actionGroupId: actionGroup.id }] : []
   }
 }
+
+// Alert 5: PostgreSQL CPU > 80% averaged over 10 minutes (slow-query indicator)
+resource pgCpu 'Microsoft.Insights/metricAlerts@2018-03-01' = {
+  name: 'cadvisor-pg-cpu'
+  location: 'global'
+  properties: {
+    enabled: true
+    severity: 2
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT10M'
+    scopes: [postgresServerId]
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
+      allOf: [
+        {
+          name: 'CpuPercent'
+          metricName: 'cpu_percent'
+          operator: 'GreaterThan'
+          threshold: 80
+          timeAggregation: 'Average'
+          criterionType: 'StaticThresholdCriterion'
+        }
+      ]
+    }
+    actions: !empty(alertEmailAddress) ? [{ actionGroupId: actionGroup.id }] : []
+  }
+}

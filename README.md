@@ -145,7 +145,7 @@ func start
 
 ```bash
 cd frontend
-npm install --legacy-peer-deps
+npm install
 npm run dev
 ```
 
@@ -313,7 +313,43 @@ Uses the same secrets/variables as `deploy.yml` — `AZURE_CLIENT_ID`, `AZURE_TE
 ### Network and credentials
 - **PostgreSQL**: `publicNetworkAccess: Disabled`, `passwordAuth: Disabled`. The server is reachable only via its private endpoint inside the VNet, and authentication is exclusively Microsoft Entra ID. The administrator password is required by the ARM API but is never used at runtime — rotate it post-deploy.
 - **Function App → PostgreSQL**: the system-assigned managed identity authenticates using `DefaultAzureCredential`. The connection pool transparently rebuilds when the AAD access token has fewer than 5 minutes of validity left.
-- **Schema migrations**: PG is private-network-only, so the deploy pipeline calls `POST /api/admin/migrate` (function-key auth) instead of `psql` from the runner. The endpoint executes `sql/schema.sql` from inside the VNet using the MI.
+- **Schema migrations**: PG is private-network-only, so the deploy pipeline calls `POST /api/admin/migrate` (function-key auth) instead of `psql` from the runner. The endpoint applies pending [yoyo](https://ollycope.com/software/yoyo/latest/) migrations from `sql/migrations/` from inside the VNet using the MI.
+- **Collector authentication**: by default the in-Azure collector uses the multi-tenant app's client secret stored in Key Vault (rotation: see "Collector secret rotation" below). When `COLLECTOR_USE_FEDERATED=true` is set (Bicep param `collectorUseFederated=true`), the Function App's MI obtains a federation assertion (`api://AzureADTokenExchange`) and passes it to MSAL as `client_assertion` — eliminating the long-lived secret entirely. The CLI collector running outside Azure always uses the secret because no MI is available.
+
+### Collector secret rotation
+Two strategies, depending on which one the deployment is using:
+
+**(Recommended) Federated workload identity** — no secret to rotate.
+After the first deploy of the multi-tenant app + the Function App MI, register the federated credential on the app registration (one-time, cross-tenant operation in the home tenant):
+
+```bash
+FUNC_MI_OBJECT_ID=$(az functionapp show -g rg-compliance-advisor -n cadvisor-func-prod \
+  --query identity.principalId -o tsv)
+ISSUER_URL="https://login.microsoftonline.com/<HOME_TENANT_ID>/v2.0"
+
+az ad app federated-credential create \
+  --id <COLLECTOR_APP_OBJECT_ID> \
+  --parameters "{
+    \"name\": \"compliance-advisor-functionapp\",
+    \"issuer\": \"${ISSUER_URL}\",
+    \"subject\": \"${FUNC_MI_OBJECT_ID}\",
+    \"audiences\": [\"api://AzureADTokenExchange\"]
+  }"
+
+az functionapp config appsettings set -g rg-compliance-advisor -n cadvisor-func-prod \
+  --settings COLLECTOR_USE_FEDERATED=true
+```
+
+After this, the `gcc-password` Key Vault secret can be deleted.
+
+**(Fallback) Client secret** — manual rotation procedure:
+```bash
+NEW_SECRET=$(az ad app credential reset --id <COLLECTOR_APP_OBJECT_ID> \
+  --display-name "rotated-$(date +%Y%m%d)" --years 1 --query password -o tsv)
+az keyvault secret set --vault-name <KV_NAME> --name gcc-password --value "$NEW_SECRET"
+# Restart the Function App to flush its in-process Key-Vault reference cache:
+az functionapp restart -g rg-compliance-advisor -n cadvisor-func-prod
+```
 
 ### Post-deploy bootstrap (one-time per deployment)
 After the first `azd`/Bicep deploy, the deployer (registered as the PG Entra admin) must register the Function App's MI as a PostgreSQL principal:
@@ -380,11 +416,12 @@ Zero Trust network architecture with no public access to backend services.
 - **Log Analytics**: `cadvisor-la-prod` — 90-day retention, PerGB2018 SKU
 - **Application Insights**: `cadvisor-ai-prod` — connected to Log Analytics, ingestion mode `LogAnalytics`
 - **Diagnostic settings**: Function App, Azure OpenAI, and PostgreSQL all send `allLogs` + `AllMetrics` to Log Analytics
-- **Metric alerts** (4 rules):
+- **Metric alerts** (5 rules):
   - Function App HTTP 5xx errors > 5 in 5 min (severity 1)
   - Function App average response time > 10s over 5 min (severity 2)
   - Azure OpenAI client errors > 10 in 5 min (severity 2)
   - PostgreSQL active connections > 680 in 5 min (severity 2)
+  - PostgreSQL CPU > 80% over 10 min (severity 2; pairs with `pg_stat_statements` for slow-query investigation)
 - **Action group**: optional email notifications via `alertEmailAddress` parameter / `ALERT_EMAIL` secret
 
 ## Load Testing
