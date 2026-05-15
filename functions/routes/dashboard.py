@@ -34,7 +34,7 @@ from shared.dashboard_queries import (
     get_trend,
 )
 
-from routes._decorator import get_body, json_response, register_advisor_route
+from routes._decorator import get_body_or_400, json_response, register_advisor_route
 
 log = logging.getLogger(__name__)
 
@@ -80,7 +80,9 @@ def advisor_trend(req: func.HttpRequest) -> func.HttpResponse:
         principal = require_auth(req)
         if principal is None:
             return get_auth_error_response()
-        body = get_body(req)
+        body, _bad = get_body_or_400(req)
+        if _bad is not None:
+            return _bad
         days = _validated_days(body)
         if isinstance(days, func.HttpResponse):
             return days
@@ -97,7 +99,9 @@ def advisor_purview_insights(req: func.HttpRequest) -> func.HttpResponse:
         principal = require_auth(req)
         if principal is None:
             return get_auth_error_response()
-        body = get_body(req)
+        body, _bad = get_body_or_400(req)
+        if _bad is not None:
+            return _bad
         days = _validated_days(body)
         if isinstance(days, func.HttpResponse):
             return days
@@ -116,7 +120,9 @@ def advisor_hunt_results(req: func.HttpRequest) -> func.HttpResponse:
         principal = require_auth(req)
         if principal is None:
             return get_auth_error_response()
-        body = get_body(req)
+        body, _bad = get_body_or_400(req)
+        if _bad is not None:
+            return _bad
         return json_response(
             get_hunt_results(
                 department=body.get("department"),

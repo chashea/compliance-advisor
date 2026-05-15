@@ -233,7 +233,7 @@ All endpoints are `POST` to `/api/advisor/*`.
 
 ## Infrastructure Deployment
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fchashea%2Fcompliance-advisor%2Fmain%2Fazuredeploy.json)
+Deploy via Azure CLI from a Bicep source-of-truth (no committed ARM template — it would drift from `infra/main.bicep`):
 
 ```bash
 # Create resource group
@@ -401,11 +401,14 @@ locust -f loadtest/locustfile.py --host https://cadvisor-func-prod.azurewebsites
 ```
 compliance-advisor/
 ├── frontend/          React 19 + TypeScript + Vite SPA (8 pages)
-├── collector/          Per-tenant data collector (Python CLI)
+├── collector/          Per-tenant data collector (Python CLI + threat hunter)
 ├── functions/          Azure Functions v2 API backend (routes/ subpackage)
 ├── sql/migrations/     yoyo-migrations (numbered .sql files; applied via /api/admin/migrate)
 ├── infra/              Bicep IaC (PostgreSQL, Function App, Key Vault, OpenAI, VNet, Monitoring, Alerts)
 ├── loadtest/           Locust load testing
-├── tests/              pytest test suite
+├── tests/              pytest test suite (unit + integration; ~218 tests)
+├── graph-auth/         One-off Microsoft Graph admin-consent helper scripts (not part of runtime)
+├── .azure/             Azure Developer CLI (azd) config; safe to ignore for manual deploys
+├── .claude/            Claude Code project guidance (CLAUDE.md mirrors copilot-instructions.md)
 └── .github/workflows/  CI/CD (deploy + app-hours scheduler)
 ```

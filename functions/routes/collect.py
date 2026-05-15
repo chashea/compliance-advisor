@@ -29,7 +29,7 @@ from shared.db import (
 )
 from shared.persist import persist_payload
 
-from routes._decorator import get_body, json_response
+from routes._decorator import get_body_or_400, json_response
 
 log = logging.getLogger(__name__)
 
@@ -486,7 +486,9 @@ def hunt_single(req: func.HttpRequest) -> func.HttpResponse:
         if not client_id or not client_secret:
             return json_response({"error": "COLLECTOR_CLIENT_ID/SECRET not configured"}, 503)
 
-        body = get_body(req)
+        body, _bad = get_body_or_400(req)
+        if _bad is not None:
+            return _bad
         days = body.get("days", 30)
 
         result = _hunt_single_tenant(

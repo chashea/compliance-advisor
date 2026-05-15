@@ -8,7 +8,7 @@ import uuid
 import azure.functions as func
 from shared.db import upsert_tenant
 
-from routes._decorator import get_body, json_response
+from routes._decorator import get_body_or_400, json_response
 from routes.collect import _trigger_collection_async
 
 log = logging.getLogger(__name__)
@@ -21,7 +21,9 @@ bp = func.Blueprint()
 def register_tenant(req: func.HttpRequest) -> func.HttpResponse:
     """Register or update a tenant."""
     try:
-        body = get_body(req)
+        body, _bad = get_body_or_400(req)
+        if _bad is not None:
+            return _bad
 
         tenant_id = body.get("tenant_id", "").strip()
         if not tenant_id:

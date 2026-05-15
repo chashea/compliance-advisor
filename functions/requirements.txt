@@ -11,4 +11,5 @@ jsonschema~=4.26.0
 msal~=1.35.0
 PyJWT[crypto]~=2.11.0
 requests~=2.32.0
+structlog~=25.5.0
 yoyo-migrations~=9.0.0

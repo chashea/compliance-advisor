@@ -10,7 +10,7 @@ from shared.ai_advisor import AdvisorAIError, ask_advisor, generate_briefing
 from shared.auth import get_auth_error_response, require_auth
 from shared.rate_limit import get_rate_limiter
 
-from routes._decorator import get_body, json_response
+from routes._decorator import get_body_or_400, json_response
 
 log = logging.getLogger(__name__)
 
@@ -33,7 +33,9 @@ def advisor_briefing(req: func.HttpRequest) -> func.HttpResponse:
             return get_auth_error_response()
         if get_rate_limiter().is_rate_limited(_client_ip(req)):
             return json_response({"error": "Rate limit exceeded. Max 10 requests per minute."}, 429)
-        body = get_body(req)
+        body, _bad = get_body_or_400(req)
+        if _bad is not None:
+            return _bad
         briefing = generate_briefing(department=body.get("department"), tenant_id=body.get("tenant_id"))
         return json_response({"briefing": briefing})
     except AdvisorAIError as e:
@@ -53,7 +55,9 @@ def advisor_ask(req: func.HttpRequest) -> func.HttpResponse:
             return get_auth_error_response()
         if get_rate_limiter().is_rate_limited(_client_ip(req)):
             return json_response({"error": "Rate limit exceeded. Max 10 requests per minute."}, 429)
-        body = get_body(req)
+        body, _bad = get_body_or_400(req)
+        if _bad is not None:
+            return _bad
         question = body.get("question", "").strip()
         if not question:
             return json_response({"error": "Missing required field: question"}, 400)
