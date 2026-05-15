@@ -396,6 +396,22 @@ locust -f loadtest/locustfile.py --host https://cadvisor-func-prod.azurewebsites
 
 18 weighted tasks covering all dashboard and AI endpoints. AI endpoints have low weight to respect rate limiting (10 req/min/IP).
 
+A non-blocking weekly load test runs automatically via `.github/workflows/loadtest.yml` (Mondays 03:00 UTC, 2 minutes / 10 users by default; override via `workflow_dispatch`). Reports upload as workflow artifacts (`loadtest-report-<run_id>`) and never block deploys — they exist purely for trend observation.
+
+## Reliability — durable tenant collection
+
+Per-tenant collection (triggered by registration, admin consent, or the daily timer) is handed off through an **Azure Service Bus queue** (`tenant-collect`) rather than the in-process `ThreadPoolExecutor` previously used. This guarantees:
+
+- Work survives Function App instance recycle, scale-in, and 230s timeouts.
+- Failed jobs retry up to 5 times with exponential backoff; after that they land in the dead-letter queue for operator review.
+- Duplicate posts within 10 minutes (same `tenant_id`) are swallowed by Service Bus duplicate detection.
+
+The Function App MI has **Service Bus Data Sender + Receiver** at the namespace scope — no shared access keys. When `SERVICE_BUS_NAMESPACE` is unset (local dev), the collector falls back to the legacy `ThreadPoolExecutor`.
+
+## Deployment — staging slot + smoke gate
+
+The deploy workflow targets a `staging` slot first, runs `/api/health/deep` against it (DB + Key Vault + OpenAI reachability), and only swaps into production on green. A failed smoke test aborts the deploy so a broken build never reaches the prod hostname. The slot inherits all production app settings except a small list of explicitly slot-bound names (`AzureWebJobsStorage__accountName`, `ServiceBus__fullyQualifiedNamespace`, `SERVICE_BUS_NAMESPACE`, `AUTH_REQUIRED`).
+
 ## Project Structure
 
 ```

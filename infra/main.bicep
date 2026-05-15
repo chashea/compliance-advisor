@@ -64,6 +64,7 @@ var webAppName = '${prefix}-web-${environmentName}'
 var webAppPlanName = '${prefix}-wasp-${environmentName}'
 var openAiName = '${prefix}-oai-${uniqueSuffix}'
 var vnetName = '${prefix}-vnet-${environmentName}'
+var serviceBusName = '${prefix}-sb-${uniqueSuffix}'
 
 // ── Storage Account (for Azure Functions runtime) ───────────────
 // Functions runtime requires a storage account for triggers/bindings
@@ -157,6 +158,18 @@ module functionApp 'modules/function-app.bicep' = {
     postgresDatabase: postgres.outputs.databaseName
     ingestAudience: ingestAudience
     ingestExpectedAppId: ingestExpectedAppId
+    serviceBusNamespace: serviceBus.outputs.namespaceFqdn
+    serviceBusQueueName: serviceBus.outputs.queueName
+  }
+}
+
+// ── Service Bus (durable hand-off for tenant collection) ────────
+module serviceBus 'modules/servicebus.bicep' = {
+  name: 'serviceBus'
+  params: {
+    namespaceName: serviceBusName
+    location: location
+    functionAppPrincipalId: functionApp.outputs.functionAppPrincipalId
   }
 }
 
@@ -217,6 +230,50 @@ resource storageTableRoleAssignment 'Microsoft.Authorization/roleAssignments@202
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')
     principalId: functionApp.outputs.functionAppPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// ── RBAC: Staging slot mirrors the production assignments ───────
+// The slot has its own MI; without these, deploys can't read Key Vault,
+// connect to PG, write rate-limit state, or call OpenAI.
+
+resource slotKvRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, keyVaultName, functionAppName, 'staging', '4633458b')
+  scope: resourceGroup()
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
+    principalId: functionApp.outputs.stagingSlotPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource slotStorageBlobRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, storageAccount.id, functionAppName, 'staging', 'blob')
+  scope: storageAccount
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b')
+    principalId: functionApp.outputs.stagingSlotPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource slotStorageQueueRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, storageAccount.id, functionAppName, 'staging', 'queue')
+  scope: storageAccount
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '974c5e8b-45b9-4653-ba55-5f855dd0fb88')
+    principalId: functionApp.outputs.stagingSlotPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource slotStorageTableRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, storageAccount.id, functionAppName, 'staging', 'table')
+  scope: storageAccount
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')
+    principalId: functionApp.outputs.stagingSlotPrincipalId
     principalType: 'ServicePrincipal'
   }
 }

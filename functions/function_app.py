@@ -16,13 +16,13 @@ from __future__ import annotations
 import logging
 
 import azure.functions as func
-from routes import admin, ai, collect, dashboard, ingest, tenants, timers
+from routes import admin, ai, collect, collect_queue, dashboard, ingest, tenants, timers
 
 log = logging.getLogger(__name__)
 
 app = func.FunctionApp()
 
-for _bp in (admin.bp, dashboard.bp, ai.bp, ingest.bp, tenants.bp, collect.bp, timers.bp):
+for _bp in (admin.bp, dashboard.bp, ai.bp, ingest.bp, tenants.bp, collect.bp, collect_queue.bp, timers.bp):
     app.register_blueprint(_bp)
 
 

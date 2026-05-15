@@ -1,0 +1,74 @@
+name: Weekly Load Test
+
+# Non-blocking weekly load test against production. Runs Locust headless
+# for 2 minutes with 10 simulated users, then uploads the report as a
+# workflow artifact. Never fails the deploy or other workflows; this is
+# pure observability — operators inspect the artifact for trends.
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"  # Mondays 03:00 UTC (off-hours)
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: "Test duration (Locust -t format, e.g. 2m, 10m)"
+        required: false
+        default: "2m"
+      users:
+        description: "Number of simulated users"
+        required: false
+        default: "10"
+
+permissions:
+  contents: read
+
+jobs:
+  loadtest:
+    runs-on: ubuntu-latest
+    env:
+      FUNCTION_APP_NAME: ${{ vars.FUNCTION_APP_NAME }}
+      DURATION: ${{ github.event.inputs.duration || '2m' }}
+      USERS: ${{ github.event.inputs.users || '10' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Locust
+        run: pip install --quiet locust
+
+      - name: Run loadtest (non-blocking)
+        id: locust
+        continue-on-error: true
+        run: |
+          if [ -z "${FUNCTION_APP_NAME}" ]; then
+            echo "::warning::FUNCTION_APP_NAME variable is not set; skipping load test."
+            exit 0
+          fi
+          mkdir -p loadtest/reports
+          locust \
+            -f loadtest/locustfile.py \
+            --host "https://${FUNCTION_APP_NAME}.azurewebsites.net" \
+            --headless \
+            --users "${USERS}" \
+            --spawn-rate 1 \
+            --run-time "${DURATION}" \
+            --html loadtest/reports/report.html \
+            --csv loadtest/reports/report \
+            --only-summary
+
+      - name: Upload load test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: loadtest-report-${{ github.run_id }}
+          path: loadtest/reports/
+          retention-days: 60
+          if-no-files-found: ignore
+
+      - name: Surface failure summary (non-blocking)
+        if: steps.locust.outcome == 'failure'
+        run: echo "::warning::Load test reported failures — see uploaded artifact."

@@ -15,6 +15,7 @@ collapsed via :mod:`shared.persist`.
 
 from __future__ import annotations
 
+import json
 import logging
 import threading
 import uuid
@@ -372,8 +373,51 @@ def _hunt_single_tenant(
     }
 
 
+def _post_to_service_bus(tid: str, display_name: str, department: str, audit_days: int) -> bool:
+    """Post a collection message to the tenant-collect queue.
+
+    Returns True on success, False on any failure (caller falls back to
+    the in-process executor). MessageId is set to the tenant_id so the
+    queue's duplicate-detection window swallows accidental double-fires
+    from the same tenant within 10 minutes.
+    """
+    from shared.config import get_settings
+
+    settings = get_settings()
+    if not settings.SERVICE_BUS_NAMESPACE:
+        return False
+    try:
+        from azure.identity import DefaultAzureCredential
+        from azure.servicebus import ServiceBusClient, ServiceBusMessage
+
+        body = {
+            "tenant_id": tid,
+            "display_name": display_name,
+            "department": department,
+            "audit_days": audit_days,
+        }
+        with ServiceBusClient(
+            fully_qualified_namespace=settings.SERVICE_BUS_NAMESPACE,
+            credential=DefaultAzureCredential(),
+        ) as client:
+            with client.get_queue_sender(queue_name=settings.SERVICE_BUS_QUEUE_NAME) as sender:
+                msg = ServiceBusMessage(json.dumps(body).encode("utf-8"), message_id=tid)
+                sender.send_messages(msg)
+        log.info("_post_to_service_bus: queued tenant=%s", tid)
+        return True
+    except Exception:
+        log.exception("_post_to_service_bus: failed to enqueue tenant=%s — falling back to thread", tid)
+        return False
+
+
 def _trigger_collection_async(tid: str, display_name: str, department: str) -> None:
-    """Fire-and-forget collection for a single tenant in a background thread."""
+    """Hand off a collection job for a tenant.
+
+    Preferred path: post a Service Bus message that the queue trigger
+    consumes (durable across instance restarts). Fallback: in-process
+    ThreadPoolExecutor (only used when SERVICE_BUS_NAMESPACE is unset
+    or the post fails — intended for local dev).
+    """
     if _COLLECTOR_IMPORT_ERROR is not None:
         log.warning("_trigger_collection_async: collector imports unavailable, skipping tenant=%s", tid)
         return
@@ -387,6 +431,14 @@ def _trigger_collection_async(tid: str, display_name: str, department: str) -> N
     if not client_id or not client_secret:
         log.warning("_trigger_collection_async: COLLECTOR_CLIENT_ID/SECRET not configured, skipping")
         return
+
+    if _post_to_service_bus(tid, display_name, department, settings.COLLECTOR_AUDIT_LOG_DAYS):
+        return
+
+    log.warning(
+        "_trigger_collection_async: Service Bus unavailable, using in-process executor for tenant=%s",
+        tid,
+    )
 
     def _run() -> None:
         result = _collect_single_tenant(

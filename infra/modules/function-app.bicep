@@ -30,6 +30,12 @@ param ingestAudience string = ''
 @description('Expected appid/azp claim on ingest JWTs (the collector app registration client ID).')
 param ingestExpectedAppId string = ''
 
+// Service Bus (queue trigger for tenant collection)
+@description('Fully qualified Service Bus namespace, e.g. cadvisor-sb-xxxxx.servicebus.windows.net')
+param serviceBusNamespace string = ''
+@description('Queue name for tenant collection messages.')
+param serviceBusQueueName string = 'tenant-collect'
+
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
   name: appServicePlanName
   location: location
@@ -96,6 +102,11 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         { name: 'RATE_LIMIT_STORAGE_ACCOUNT', value: storageAccountName }
         { name: 'RATE_LIMIT_MAX', value: '10' }
         { name: 'RATE_LIMIT_WINDOW_SECONDS', value: '60' }
+        // Service Bus identity-based binding. Trigger refers to "ServiceBus__fullyQualifiedNamespace"
+        // via the connection string "ServiceBus" in the @bp.service_bus_queue_trigger decorator.
+        { name: 'ServiceBus__fullyQualifiedNamespace', value: serviceBusNamespace }
+        { name: 'SERVICE_BUS_NAMESPACE', value: serviceBusNamespace }
+        { name: 'SERVICE_BUS_QUEUE_NAME', value: serviceBusQueueName }
       ]
     }
   }
@@ -141,7 +152,63 @@ resource authSettings 'Microsoft.Web/sites/config@2023-01-01' = if (!empty(entra
   }
 }
 
+// ── Staging deployment slot (#22) ────────────────────────────────
+// Used by the deploy workflow: deploy → smoke-test → swap on green.
+// Inherits the production app settings except those marked sticky here.
+// The slot uses the same managed identity (parent's MI) so RBAC carries
+// over. The slot also uses the same database — bad staging deploys can
+// corrupt data; mitigation is the smoke test gate plus PG backups.
+
+resource stagingSlot 'Microsoft.Web/sites/slots@2023-01-01' = {
+  parent: functionApp
+  name: 'staging'
+  location: location
+  kind: 'functionapp,linux'
+  identity: {
+    type: 'SystemAssigned'
+  }
+  properties: {
+    serverFarmId: appServicePlan.id
+    httpsOnly: true
+    virtualNetworkSubnetId: !empty(virtualNetworkSubnetId) ? virtualNetworkSubnetId : null
+    vnetRouteAllEnabled: !empty(virtualNetworkSubnetId)
+    siteConfig: {
+      alwaysOn: true
+      healthCheckPath: '/api/health'
+      pythonVersion: '3.12'
+      linuxFxVersion: 'PYTHON|3.12'
+      minTlsVersion: '1.2'
+      ftpsState: 'Disabled'
+      cors: {
+        allowedOrigins: ['https://cadvisor-web-prod.azurewebsites.net']
+      }
+      // Same app settings as production. The slot-setting list below
+      // marks the few that should NOT be swapped (so production keeps
+      // its own RATE_LIMIT_BACKEND, etc.) — see slotConfigNames below.
+      appSettings: functionApp.properties.siteConfig.appSettings
+    }
+  }
+}
+
+// Mark which app-setting names stay with the slot during a swap.
+// AzureWebJobsStorage and the Service Bus binding stay with their
+// environment so staging never accidentally writes to a prod-only queue.
+resource slotConfigNames 'Microsoft.Web/sites/config@2023-01-01' = {
+  parent: functionApp
+  name: 'slotConfigNames'
+  properties: {
+    appSettingNames: [
+      'AzureWebJobsStorage__accountName'
+      'ServiceBus__fullyQualifiedNamespace'
+      'SERVICE_BUS_NAMESPACE'
+      'AUTH_REQUIRED'
+    ]
+  }
+}
+
 output functionAppUrl string = 'https://${functionApp.properties.defaultHostName}'
+output stagingSlotUrl string = 'https://${stagingSlot.properties.defaultHostName}'
 output functionAppPrincipalId string = functionApp.identity.principalId
+output stagingSlotPrincipalId string = stagingSlot.identity.principalId
 output functionAppName string = functionApp.name
 output functionAppId string = functionApp.id

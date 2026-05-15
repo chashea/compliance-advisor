@@ -112,6 +112,15 @@ class FunctionSettings(BaseSettings):
         description="When set, the JWT's appid/azp claim must match this value (typically the collector app ID).",
     )
 
+    # Service Bus (durable hand-off for tenant collection)
+    SERVICE_BUS_NAMESPACE: str = Field(
+        default="",
+        description="Fully qualified Service Bus namespace, e.g. cadvisor-sb-x.servicebus.windows.net. "
+        "When set, _trigger_collection_async posts to the queue; when empty, falls back to the "
+        "in-process ThreadPoolExecutor (intended for local dev only).",
+    )
+    SERVICE_BUS_QUEUE_NAME: str = Field(default="tenant-collect")
+
     # Authentication enforcement (fail-closed in prod, opt-out for local dev)
     AUTH_REQUIRED: bool = Field(
         default=True,
