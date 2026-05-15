@@ -77,7 +77,6 @@ def test_schema_requires_all_fields():
         "irm_policies",
         "sensitive_info_types",
         "compliance_assessments",
-        "threat_assessment_requests",
         "purview_incidents",
         "collector_version",
     }

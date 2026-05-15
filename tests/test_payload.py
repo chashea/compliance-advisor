@@ -135,9 +135,13 @@ def test_now_iso_is_current():
 
 
 def test_round_trip_matches_schema_required_fields():
-    """Verify to_dict() keys match the PAYLOAD_SCHEMA required fields."""
+    """Verify to_dict() keys are a superset of the schema's required fields.
+
+    The payload may carry optional fields (e.g. threat_assessment_requests,
+    kept for backward compatibility) that are no longer required.
+    """
     from shared.validation import PAYLOAD_SCHEMA
 
     p = _make_payload()
     d = p.to_dict()
-    assert set(PAYLOAD_SCHEMA["required"]) == set(d.keys())
+    assert set(PAYLOAD_SCHEMA["required"]) <= set(d.keys())

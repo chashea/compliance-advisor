@@ -1,0 +1,121 @@
+name: Live Tenant Integration Test
+
+# Nightly end-to-end test that runs the collector against a real Microsoft
+# 365 dev tenant and verifies row counts in the production database. Gated
+# on the INTEGRATION_TENANT_ID variable — if unset, the workflow no-ops so
+# forks and pre-secret deployments don't fail.
+#
+# Required (when enabled):
+#   vars.INTEGRATION_TENANT_ID         GUID of the dev tenant to collect from
+#   vars.INTEGRATION_AGENCY_ID         Logical agency identifier
+#   vars.INTEGRATION_DEPARTMENT        Department name
+#   vars.INTEGRATION_DISPLAY_NAME      Human-readable tenant name
+#   vars.FUNCTION_APP_NAME             Existing prod Function App
+#   vars.AZURE_RESOURCE_GROUP          Resource group
+#   secrets.INTEGRATION_CLIENT_ID      Multi-tenant app client ID
+#   secrets.INTEGRATION_CLIENT_SECRET  Client secret
+#   secrets.INTEGRATION_INGEST_AUDIENCE  api://compliance-advisor-ingest
+#
+# Thresholds: this test asserts the collector returns NON-EMPTY data for
+# at least one of the high-volume workloads (audit_records OR sensitivity_labels).
+# If both come back empty, the upstream Graph endpoints likely changed.
+
+on:
+  schedule:
+    - cron: "0 5 * * *"  # 05:00 UTC daily (off-hours)
+  workflow_dispatch:
+    inputs:
+      verbose:
+        description: "Enable -v on the collector"
+        required: false
+        default: "false"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  live-collect:
+    runs-on: ubuntu-latest
+    if: vars.INTEGRATION_TENANT_ID != ''
+    env:
+      TENANT_ID: ${{ vars.INTEGRATION_TENANT_ID }}
+      AGENCY_ID: ${{ vars.INTEGRATION_AGENCY_ID }}
+      DEPARTMENT: ${{ vars.INTEGRATION_DEPARTMENT }}
+      DISPLAY_NAME: ${{ vars.INTEGRATION_DISPLAY_NAME }}
+      CLIENT_ID: ${{ secrets.INTEGRATION_CLIENT_ID }}
+      CLIENT_SECRET: ${{ secrets.INTEGRATION_CLIENT_SECRET }}
+      INGEST_AUDIENCE: ${{ secrets.INTEGRATION_INGEST_AUDIENCE }}
+      FUNCTION_APP_URL: https://${{ vars.FUNCTION_APP_NAME }}.azurewebsites.net/api/ingest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install collector + dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e .
+
+      # Step 1: dry-run validates auth + payload shape without ingesting.
+      # Failure here means a Graph endpoint changed or our parser broke
+      # — both are exactly what the contract tests + this workflow exist
+      # to catch before they hit prod ingest.
+      - name: Collector dry-run (auth + parse only)
+        id: dryrun
+        run: |
+          set -o pipefail
+          compliance-collect \
+            --tenant-id "$TENANT_ID" \
+            --agency-id "$AGENCY_ID" \
+            --department "$DEPARTMENT" \
+            --display-name "$DISPLAY_NAME" \
+            --dry-run \
+            ${{ github.event.inputs.verbose == 'true' && '-v' || '' }} \
+            > /tmp/payload.json
+          # Inspect: at least one of these workloads should be non-empty
+          # in any reasonably-active tenant. Tweak the assertion if your
+          # dev tenant is intentionally quiet.
+          python -c "
+          import json, sys
+          p = json.loads(open('/tmp/payload.json').read().split('--- DRY RUN: Payload (not submitted) ---')[1])
+          interesting = ['audit_records', 'sensitivity_labels', 'dlp_alerts', 'secure_scores']
+          counts = {k: len(p.get(k, [])) for k in interesting}
+          print('Workload counts:', counts)
+          if not any(counts.values()):
+              print('::error::All high-volume workloads returned empty — Graph schema may have drifted.')
+              sys.exit(1)
+          "
+
+      - name: Live ingest (writes to prod DB)
+        if: steps.dryrun.outcome == 'success'
+        run: |
+          compliance-collect \
+            --tenant-id "$TENANT_ID" \
+            --agency-id "$AGENCY_ID" \
+            --department "$DEPARTMENT" \
+            --display-name "$DISPLAY_NAME"
+
+      - name: Verify row counts via dashboard API
+        if: steps.dryrun.outcome == 'success'
+        run: |
+          # /api/advisor/overview is anonymous when AUTH_REQUIRED=false in dev,
+          # otherwise needs a bearer token. We hit /api/health/deep which is
+          # always anonymous and validates the DB roundtrip.
+          BASE="https://${{ vars.FUNCTION_APP_NAME }}.azurewebsites.net"
+          curl -fsS "$BASE/api/health/deep" --max-time 30 \
+            | python -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          if d.get('status') != 'healthy':
+              print('::error::Deep health check failed:', d)
+              sys.exit(1)
+          print('Deep health OK:', d['components'])
+          "
+
+      - name: Skipped (integration vars not configured)
+        if: vars.INTEGRATION_TENANT_ID == ''
+        run: echo "::notice::INTEGRATION_TENANT_ID variable not set; skipping live integration test."

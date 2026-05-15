@@ -30,7 +30,6 @@ from collector.compliance_client import (
     get_secure_scores,
     get_sensitive_info_types,
     get_sensitivity_labels,
-    get_threat_assessment_requests,
     get_user_content_policies,
 )
 from collector.config import CollectorSettings
@@ -160,8 +159,9 @@ def main(
     click.echo("  Compliance Assessments...")
     compliance_assessments = get_compliance_assessments(token)
 
-    click.echo("  Threat Assessment Requests...")
-    threat_assessment_requests = get_threat_assessment_requests(token)
+    # threat_assessment_requests removed: the Graph endpoint only supports
+    # delegated auth and the multi-tenant collector runs app-only.
+    threat_assessment_requests: list = []
 
     click.echo(
         f"\nLabels: {len(sensitivity_labels)} "
