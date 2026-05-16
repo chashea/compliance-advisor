@@ -28,10 +28,10 @@ jobs:
   app-hours:
     runs-on: ubuntu-latest
     env:
-      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-      FUNCTION_APP_NAME: ${{ vars.FUNCTION_APP_NAME }}
-      WEB_APP_NAME: ${{ vars.WEB_APP_NAME }}
-      PG_SERVER_NAME: ${{ vars.PG_SERVER_NAME }}
+      AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+      FUNCTION_APP_NAME: ${{ secrets.FUNCTION_APP_NAME }}
+      WEB_APP_NAME: ${{ secrets.WEB_APP_NAME }}
+      PG_SERVER_NAME: ${{ secrets.PG_SERVER_NAME }}
       REQUESTED_ACTION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.action || 'auto' }}
     steps:
       - name: Decide action from New York local time

@@ -10,8 +10,8 @@ name: Live Tenant Integration Test
 #   vars.INTEGRATION_AGENCY_ID         Logical agency identifier
 #   vars.INTEGRATION_DEPARTMENT        Department name
 #   vars.INTEGRATION_DISPLAY_NAME      Human-readable tenant name
-#   vars.FUNCTION_APP_NAME             Existing prod Function App
-#   vars.AZURE_RESOURCE_GROUP          Resource group
+#   secrets.FUNCTION_APP_NAME             Existing prod Function App
+#   secrets.AZURE_RESOURCE_GROUP          Resource group
 #   secrets.INTEGRATION_CLIENT_ID      Multi-tenant app client ID
 #   secrets.INTEGRATION_CLIENT_SECRET  Client secret
 #   secrets.INTEGRATION_INGEST_AUDIENCE  api://compliance-advisor-ingest
@@ -46,7 +46,7 @@ jobs:
       CLIENT_ID: ${{ secrets.INTEGRATION_CLIENT_ID }}
       CLIENT_SECRET: ${{ secrets.INTEGRATION_CLIENT_SECRET }}
       INGEST_AUDIENCE: ${{ secrets.INTEGRATION_INGEST_AUDIENCE }}
-      FUNCTION_APP_URL: https://${{ vars.FUNCTION_APP_NAME }}.azurewebsites.net/api/ingest
+      FUNCTION_APP_URL: https://${{ secrets.FUNCTION_APP_NAME }}.azurewebsites.net/api/ingest
     steps:
       - uses: actions/checkout@v4
 
@@ -105,7 +105,7 @@ jobs:
           # /api/advisor/overview is anonymous when AUTH_REQUIRED=false in dev,
           # otherwise needs a bearer token. We hit /api/health/deep which is
           # always anonymous and validates the DB roundtrip.
-          BASE="https://${{ vars.FUNCTION_APP_NAME }}.azurewebsites.net"
+          BASE="https://${{ secrets.FUNCTION_APP_NAME }}.azurewebsites.net"
           curl -fsS "$BASE/api/health/deep" --max-time 30 \
             | python -c "
           import json, sys

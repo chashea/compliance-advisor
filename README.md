@@ -263,9 +263,13 @@ GitHub Actions workflow `.github/workflows/deploy.yml` now supports infra deploy
 
 ### Required GitHub Actions secrets
 
-Repository (or environment) secrets:
+Repository secrets:
 
-- `POSTGRES_ADMIN_PASSWORD` — break-glass admin password (used only for initial provisioning; Entra ID is the primary auth path)
+- `AZURE_RESOURCE_GROUP` (e.g. `rg-compliance-advisor`)
+- `FUNCTION_APP_NAME` (e.g. `cadvisor-func-prod`)
+- `WEB_APP_NAME` (e.g. `cadvisor-web-prod`)
+- `VITE_API_BASE_URL` (e.g. `https://cadvisor-func-prod.azurewebsites.net`)
+- `POSTGRES_ADMIN_PASSWORD` — break-glass admin password
 - `ENTRA_CLIENT_ID` — **required**; CI fails fast if unset to prevent deploying with EasyAuth disabled
 - `DATABASE_URL` — only used for ad-hoc schema migrations
 - `ALERT_EMAIL` — optional; metric alert email recipient
@@ -279,16 +283,11 @@ Optional (rarely changed) secrets:
 
 ### Required GitHub Actions repository variables
 
-Set these as **variables** (not secrets) so deploys are portable across environments:
+Configured as **variables** (not secrets) because they're public identifiers:
 
 - `AZURE_CLIENT_ID` — federated identity client ID for OIDC login
 - `AZURE_TENANT_ID` — Azure AD tenant ID
 - `AZURE_SUBSCRIPTION_ID` — target subscription
-- `AZURE_RESOURCE_GROUP` (e.g. `rg-compliance-advisor`)
-- `FUNCTION_APP_NAME` (e.g. `cadvisor-func-prod`)
-- `WEB_APP_NAME` (e.g. `cadvisor-web-prod`)
-- `PG_SERVER_NAME` (e.g. `cadvisor-pg-7zez2cj3gamky`)
-- `VITE_API_BASE_URL` (e.g. `https://cadvisor-func-prod.azurewebsites.net`)
 
 ### Scheduled App Hours (GitHub Actions)
 
