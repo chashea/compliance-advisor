@@ -23,6 +23,20 @@ from shared.config import get_settings
 
 log = logging.getLogger(__name__)
 
+def _ts(value):
+    """Normalise a timestamp param for TIMESTAMPTZ columns.
+
+    Maps "" / None / falsy values to NULL so psycopg2 doesn't try to
+    bind an empty string to a TIMESTAMPTZ column (PG rejects it with
+    "invalid input syntax for type timestamp with time zone").
+    Real ISO-8601 strings and datetime/date objects pass through.
+    See migration 0002_text_to_timestamptz.sql for the column list.
+    """
+    if value in (None, "", b""):
+        return None
+    return value
+
+
 _AAD_SCOPE = "https://ossrdbms-aad.database.windows.net/.default"
 _TOKEN_REFRESH_THRESHOLD_S = 300  # rebuild pool when token has <5min left
 
@@ -340,8 +354,8 @@ def upsert_retention_label(
             retention_duration,
             action_after,
             default_record_behavior,
-            created,
-            modified,
+            _ts(created),
+            _ts(modified),
             snapshot_date,
         ),
     )
@@ -383,7 +397,7 @@ def upsert_audit_record(
             operation,
             service,
             user_id,
-            created,
+            _ts(created),
             ip_address,
             client_app,
             result_status,
@@ -445,8 +459,8 @@ def upsert_dlp_alert(
             status,
             category,
             policy_name,
-            created,
-            resolved,
+            _ts(created),
+            _ts(resolved),
             description,
             assigned_to,
             classification,
@@ -535,8 +549,8 @@ def upsert_irm_alert(
             status,
             category,
             policy_name,
-            created,
-            resolved,
+            _ts(created),
+            _ts(resolved),
             description,
             assigned_to,
             classification,
@@ -780,7 +794,7 @@ def upsert_compliance_assessment(
             status,
             framework,
             completion_percentage,
-            created,
+            _ts(created),
             category,
             snapshot_date,
         ),
@@ -858,8 +872,8 @@ def upsert_purview_incident(
             status,
             classification,
             determination,
-            created,
-            last_update,
+            _ts(created),
+            _ts(last_update),
             assigned_to,
             alerts_count,
             purview_alerts_count,
