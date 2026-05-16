@@ -80,7 +80,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
     minimumTlsVersion: 'TLS1_2'
     supportsHttpsTrafficOnly: true
     allowSharedKeyAccess: false
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: 'Disabled'
   }
 }
 
@@ -139,6 +139,8 @@ module network 'modules/network.bicep' = {
     postgresServerName: postgresServerName
     openAiId: openai.outputs.openAiId
     openAiName: openAiName
+    storageAccountId: storageAccount.id
+    storageAccountName: storageAccount.name
   }
 }
 
