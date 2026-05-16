@@ -173,7 +173,40 @@ module serviceBus 'modules/servicebus.bicep' = {
   params: {
     namespaceName: serviceBusName
     location: location
-    functionAppPrincipalId: functionApp.outputs.functionAppPrincipalId
+  }
+}
+
+// Service Bus role assignments live here (not in the SB module) to break
+// the cycle: function-app needs serviceBus.outputs.namespaceFqdn AND
+// serviceBus needs functionApp.outputs.functionAppPrincipalId for RBAC.
+// Putting the role assignments at this scope means each module only
+// produces outputs the other consumes, with no back-edge.
+
+// Azure Service Bus Data Sender — for posting from registration/callback handlers
+resource sbSenderRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, serviceBusName, functionAppName, 'sb-sender')
+  scope: resourceGroup()
+  properties: {
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      '69a216fc-b8fb-44d8-bc22-1f3c2cd27a39'
+    )
+    principalId: functionApp.outputs.functionAppPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Azure Service Bus Data Receiver — for the queue-trigger function
+resource sbReceiverRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, serviceBusName, functionAppName, 'sb-receiver')
+  scope: resourceGroup()
+  properties: {
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      '4f6d3b9b-027b-4f4c-9142-0e5a2a2247e0'
+    )
+    principalId: functionApp.outputs.functionAppPrincipalId
+    principalType: 'ServicePrincipal'
   }
 }
 
