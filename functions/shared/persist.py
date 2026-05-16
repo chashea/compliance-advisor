@@ -45,6 +45,24 @@ log = logging.getLogger(__name__)
 _Records = Iterable[Mapping]
 
 
+def _ts(value):
+    """Normalise a timestamp field for TIMESTAMPTZ columns.
+
+    The collector emits ``""`` for missing timestamps. Before the
+    TIMESTAMPTZ migration in 0002 these columns were TEXT and the empty
+    string was a valid value; afterwards PG rejects it with::
+
+        invalid input syntax for type timestamp with time zone: ""
+
+    This helper converts ``""`` / ``None`` / falsy values to ``None`` so
+    psycopg2 binds NULL. Real ISO-8601 strings (and existing
+    ``datetime``/``date`` objects) pass through unchanged.
+    """
+    if value in (None, "", b""):
+        return None
+    return value
+
+
 def _persist_sensitivity_labels(tenant_id: str, snapshot_date: str, items: _Records) -> int:
     count = 0
     for sl in items:
@@ -76,7 +94,7 @@ def _persist_retention_events(tenant_id: str, snapshot_date: str, items: _Record
             event_id=re_.get("event_id", ""),
             display_name=re_.get("display_name", ""),
             event_type=re_.get("event_type", ""),
-            created=re_.get("created", ""),
+            created=_ts(re_.get("created", "")),
             event_status=re_.get("event_status", ""),
             snapshot_date=snapshot_date,
         )
@@ -92,8 +110,8 @@ def _persist_retention_event_types(tenant_id: str, snapshot_date: str, items: _R
             event_type_id=ret.get("event_type_id", ""),
             display_name=ret.get("display_name", ""),
             description=ret.get("description", ""),
-            created=ret.get("created", ""),
-            modified=ret.get("modified", ""),
+            created=_ts(ret.get("created", "")),
+            modified=_ts(ret.get("modified", "")),
             snapshot_date=snapshot_date,
         )
         count += 1
@@ -112,8 +130,8 @@ def _persist_retention_labels(tenant_id: str, snapshot_date: str, items: _Record
             retention_duration=rl.get("retention_duration", ""),
             action_after=rl.get("action_after", ""),
             default_record_behavior=rl.get("default_record_behavior", ""),
-            created=rl.get("created", ""),
-            modified=rl.get("modified", ""),
+            created=_ts(rl.get("created", "")),
+            modified=_ts(rl.get("modified", "")),
             snapshot_date=snapshot_date,
         )
         count += 1
@@ -130,7 +148,7 @@ def _persist_audit_records(tenant_id: str, snapshot_date: str, items: _Records) 
             operation=ar.get("operation", ""),
             service=ar.get("service", ""),
             user_id=ar.get("user_id", ""),
-            created=ar.get("created", ""),
+            created=_ts(ar.get("created", "")),
             snapshot_date=snapshot_date,
             ip_address=ar.get("ip_address", ""),
             client_app=ar.get("client_app", ""),
@@ -157,8 +175,8 @@ def _persist_alerts(
             status=a.get("status", ""),
             category=a.get("category", ""),
             policy_name=a.get("policy_name", ""),
-            created=a.get("created", ""),
-            resolved=a.get("resolved", ""),
+            created=_ts(a.get("created", "")),
+            resolved=_ts(a.get("resolved", "")),
             snapshot_date=snapshot_date,
             description=a.get("description", ""),
             assigned_to=a.get("assigned_to", ""),
@@ -254,8 +272,8 @@ def _persist_dlp_policies(tenant_id: str, snapshot_date: str, items: _Records) -
             status=dp.get("status", ""),
             policy_type=dp.get("policy_type", ""),
             rules_count=dp.get("rules_count", 0),
-            created=dp.get("created", ""),
-            modified=dp.get("modified", ""),
+            created=_ts(dp.get("created", "")),
+            modified=_ts(dp.get("modified", "")),
             mode=dp.get("mode", ""),
             snapshot_date=snapshot_date,
         )
@@ -272,7 +290,7 @@ def _persist_irm_policies(tenant_id: str, snapshot_date: str, items: _Records) -
             display_name=ip.get("display_name", ""),
             status=ip.get("status", ""),
             policy_type=ip.get("policy_type", ""),
-            created=ip.get("created", ""),
+            created=_ts(ip.get("created", "")),
             triggers=ip.get("triggers", ""),
             snapshot_date=snapshot_date,
         )
@@ -308,7 +326,7 @@ def _persist_compliance_assessments(tenant_id: str, snapshot_date: str, items: _
             status=ca.get("status", ""),
             framework=ca.get("framework", ""),
             completion_percentage=ca.get("completion_percentage", 0),
-            created=ca.get("created", ""),
+            created=_ts(ca.get("created", "")),
             category=ca.get("category", ""),
             snapshot_date=snapshot_date,
         )
@@ -325,7 +343,7 @@ def _persist_threat_assessment_requests(tenant_id: str, snapshot_date: str, item
             category=ta.get("category", ""),
             content_type=ta.get("content_type", ""),
             status=ta.get("status", ""),
-            created=ta.get("created", ""),
+            created=_ts(ta.get("created", "")),
             result_type=ta.get("result_type", ""),
             result_message=ta.get("result_message", ""),
             snapshot_date=snapshot_date,
@@ -345,8 +363,8 @@ def _persist_purview_incidents(tenant_id: str, snapshot_date: str, items: _Recor
             status=pi.get("status", ""),
             classification=pi.get("classification", ""),
             determination=pi.get("determination", ""),
-            created=pi.get("created", ""),
-            last_update=pi.get("last_update", ""),
+            created=_ts(pi.get("created", "")),
+            last_update=_ts(pi.get("last_update", "")),
             assigned_to=pi.get("assigned_to", ""),
             alerts_count=pi.get("alerts_count", 0),
             purview_alerts_count=pi.get("purview_alerts_count", 0),
