@@ -26,7 +26,7 @@ jobs:
   loadtest:
     runs-on: ubuntu-latest
     env:
-      FUNCTION_APP_NAME: ${{ vars.FUNCTION_APP_NAME }}
+      FUNCTION_APP_NAME: ${{ secrets.FUNCTION_APP_NAME }}
       DURATION: ${{ github.event.inputs.duration || '2m' }}
       USERS: ${{ github.event.inputs.users || '10' }}
     steps:
