@@ -7,7 +7,10 @@ from unittest.mock import MagicMock
 import psycopg2
 import pytest
 
-SCHEMA_PATH = Path(__file__).resolve().parent.parent.parent / "sql" / "schema.sql"
+# Apply all yoyo migrations in order to bootstrap the test schema.
+# (Replaced the single sql/schema.sql load when migrations were
+# introduced in PR #14.)
+MIGRATIONS_DIR = Path(__file__).resolve().parent.parent.parent / "sql" / "migrations"
 
 
 @pytest.fixture(scope="session")
@@ -20,13 +23,24 @@ def db_url():
 
 @pytest.fixture(scope="session")
 def db_schema(db_url):
-    """Create all tables once per session."""
+    """Create all tables once per session by applying every migration."""
     conn = psycopg2.connect(db_url)
     conn.autocommit = True
     with conn.cursor() as cur:
         cur.execute("DROP SCHEMA IF EXISTS public CASCADE")
         cur.execute("CREATE SCHEMA public")
-        cur.execute(SCHEMA_PATH.read_text())
+        for migration in sorted(MIGRATIONS_DIR.glob("*.sql")):
+            sql = migration.read_text()
+            try:
+                cur.execute(sql)
+            except psycopg2.Error as exc:
+                # 0002 (TIMESTAMPTZ) wraps everything in a DO block that no-ops
+                # when columns are already the right type, but the
+                # pg_stat_statements migration in 0004 needs the extension to
+                # be preloaded. Skip that one in the test database.
+                if "pg_stat_statements" in sql:
+                    continue
+                raise RuntimeError(f"Failed to apply {migration.name}: {exc}") from exc
     conn.close()
     yield
     # Cleanup: drop and recreate public schema
