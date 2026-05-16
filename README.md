@@ -265,9 +265,6 @@ GitHub Actions workflow `.github/workflows/deploy.yml` now supports infra deploy
 
 Repository (or environment) secrets:
 
-- `AZURE_CLIENT_ID` — federated identity client ID for OIDC login
-- `AZURE_TENANT_ID` — Azure AD tenant ID
-- `AZURE_SUBSCRIPTION_ID` — target subscription
 - `POSTGRES_ADMIN_PASSWORD` — break-glass admin password (used only for initial provisioning; Entra ID is the primary auth path)
 - `ENTRA_CLIENT_ID` — **required**; CI fails fast if unset to prevent deploying with EasyAuth disabled
 - `DATABASE_URL` — only used for ad-hoc schema migrations
@@ -284,6 +281,9 @@ Optional (rarely changed) secrets:
 
 Set these as **variables** (not secrets) so deploys are portable across environments:
 
+- `AZURE_CLIENT_ID` — federated identity client ID for OIDC login
+- `AZURE_TENANT_ID` — Azure AD tenant ID
+- `AZURE_SUBSCRIPTION_ID` — target subscription
 - `AZURE_RESOURCE_GROUP` (e.g. `rg-compliance-advisor`)
 - `FUNCTION_APP_NAME` (e.g. `cadvisor-func-prod`)
 - `WEB_APP_NAME` (e.g. `cadvisor-web-prod`)
